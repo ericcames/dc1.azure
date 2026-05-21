@@ -1,0 +1,57 @@
+---
+# Inventory group vars for the dc1.azure AAP bootstrap.
+#
+# No secrets in this file — every sensitive value is resolved at runtime via
+# environment-variable or file lookups. See docs/dev-environment.md (gitignored)
+# for the canonical local copy of the live RHDP env credentials.
+#
+# Before running playbooks/bootstrap_aap.yml, export the following:
+#
+#   export CONTROLLER_HOST=<aap url>
+#   export CONTROLLER_USERNAME=admin
+#   export CONTROLLER_PASSWORD=<aap admin password>
+#   export AZURE_SUBSCRIPTION_ID=...
+#   export AZURE_TENANT_ID=...
+#   export AZURE_CLIENT_ID=...
+#   export AZURE_CLIENT_SECRET=...
+#   export ADO_PAT=<azure devops PAT>
+#
+# The vault password is read from the same file aap.as.code uses
+# (~/.ansible/secrets2) so the same /aap-first-time setup serves both repos.
+
+# AAP controller connection
+aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+aap_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') }}"
+aap_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') }}"
+aap_validate_certs: false
+
+# Azure Service Principal (used for the Azure RM credential)
+azure_subscription_id: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
+azure_tenant_id: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT_ID') }}"
+azure_client_id: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
+azure_client_secret: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_SECRET') }}"
+
+# ADO Personal Access Token (used for the Source Control credential)
+ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
+
+# Vault password (file-based, same convention as aap.as.code)
+vault_password: "{{ lookup('ansible.builtin.file', '~/.ansible/secrets2') | trim }}"
+
+# ---------------------------------------------------------------------------
+# AAP object names — match the naming convention in ROADMAP.md
+# (every name prefixed `DC1.Azure -` to coexist with AWS DC1 objects in
+# shared AAP instances). Centralized here so the playbook stays readable.
+# ---------------------------------------------------------------------------
+
+my_organization: Default
+
+cred_vault: "DC1.Azure - Vault"
+cred_azure_rm: "DC1.Azure - Azure RM"
+cred_ado_scm: "DC1.Azure - ADO Source Control"
+
+project_name: "DC1.Azure"
+
+# ADO repo URL — must match what was created in Phase 0.
+# HTTPS is used here (with PAT auth via cred_ado_scm) rather than SSH so
+# AAP doesn't need its own SSH key registered against the ADO repo.
+ado_project_scm_url: "https://dev.azure.com/ericcames/dc1.azure/_git/dc1.azure"

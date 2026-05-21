@@ -25,6 +25,9 @@ terraform.rc
 # Ansible — installed collections (declared in collections/requirements.yml)
 collections/ansible_collections/
 
+# Ansible — local cache dirs created by ansible / ansible-lint
+.ansible/
+
 # Ansible — vault password files and local secrets
 .vault_pass
 .vault_password
