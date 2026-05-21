@@ -143,23 +143,43 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 **Exit criteria:** `terraform apply` from Eric's laptop produces a reachable Windows VM in the RHDP open env; `destroy` cleans it up; state lives in Azure Storage.
 
-### Phase 3 — AAP Bootstrap (Azure flavor of `aap.as.code`)  🔄
-- 🔄 `playbooks/bootstrap_aap.yml` — mirrors `aap.as.code/playbooks/bootstrap_dev.yml`: `ansible.platform.token` for token lifecycle, `ansible.controller.*` for credential/project. Future iterations will add a `main.yml` + `playbooks/files/config_as_code/` data files dispatched via `infra.aap_configuration.dispatch` for full CaC.
-- Credentials (all prefixed `DC1.Azure -` to avoid collision with AWS DC1):
-  - ✅ `DC1.Azure - Azure RM` (Microsoft Azure Resource Manager type) — created in live AAP 2026-05-21, all SP fields verified via API
-  - 🔄 `DC1.Azure - ADO Source Control` (Source Control type, PAT) — task written, awaiting AAP-scoped PAT creation + live run
-  - ⬜ `DC1.Azure - Windows Machine` (Machine type, WinRM)
-  - ✅ `DC1.Azure - Vault` — created in live AAP 2026-05-21
-- 🔄 Project `DC1.Azure` syncing from the ADO repo on `main` — task written, awaiting AAP-scoped PAT (depends on `DC1.Azure - ADO Source Control` credential above)
-- ⬜ Inventory `dc1-azure` with empty `windows` group (populated by Provision JT via `add_host` + `set_stats`)
-- ⬜ Job templates with surveys:
-  - ⬜ `DC1.Azure - Provision VM` (survey: `vm_size_tier`)
-  - ⬜ `DC1.Azure - Configure Windows`
-  - ⬜ `DC1.Azure - Teardown`
-- ⬜ Workflow `DC1.Azure - Provision and Configure` chaining Provision → Configure with artifact passing
-- ⬜ Post-bootstrap validation step (per global rule: never exit green without verifying objects exist)
+### Phase 3 — AAP Configuration as Code  🔄
 
-**Exit criteria:** running `bootstrap_aap.yml` against a fresh AAP creates every object listed above; running the validation step returns green; manually launching the workflow with `vm_size_tier=small` reaches the WinRM step.
+Pattern adopted (2026-05-21): `url_checker`-style self-contained `aap_config/`
+directory at the repo root, dispatched via `infra.aap_configuration.dispatch`.
+Chosen over `aap.as.code`'s `playbooks/files/config_as_code/` because it's
+more discoverable for new users (single top-level directory contains
+everything to install AAP objects) and matches the upstream
+`infra.aap_configuration` collection's recommended layout.
+
+**Implementation — new canonical path** (`aap_config/`):
+
+- ⬜ `aap_config/load.yml` — entry-point playbook; `include_role: infra.aap_configuration.dispatch`
+- ⬜ `aap_config/requirements.yml` — pin `infra.aap_configuration` 4.5.0+
+- ⬜ `aap_config/README.md` — one-page explanation of the pattern, env vars required, command to run
+- ⬜ `aap_config/inventory/aap.yml` — localhost only (CaC playbook runs locally and talks to AAP via API)
+- ⬜ `aap_config/group_vars/all.yml` — `AAP_HOSTNAME` + `AAP_TOKEN` env-var lookups (user creates a personal token in AAP UI first); `AZURE_*` + `ADO_PAT` lookups for credential inputs
+- ⬜ `aap_config/files/controller_credentials.yml` — 4 credentials (Vault, Azure RM, ADO SCM, Windows Machine)
+- ⬜ `aap_config/files/controller_projects.yml` — DC1.Azure project syncing from ADO
+- ⬜ `aap_config/files/controller_inventories.yml` — dc1-azure inventory with empty `windows` group (populated at runtime by Provision JT via `add_host` + `set_stats`)
+- ⬜ `aap_config/files/controller_templates.yml` — 3 JTs (Provision, Configure, Teardown) with surveys
+- ⬜ `aap_config/files/controller_templates_workflow.yml` — Provision and Configure workflow chaining Provision → Configure with artifact passing
+- ⬜ Post-load validation step (per global rule: never exit green without verifying every object exists)
+
+**Transition / deprecation:**
+
+- 🔄 `playbooks/bootstrap_aap.yml` — transitional; to be removed once `aap_config/load.yml` is the verified canonical path. Currently still in repo because it covers the "first run with no AAP token, only admin password" case via `ansible.platform.token` lifecycle. Once a user can manually create a token in the AAP UI and run `load.yml`, this file's value drops to zero.
+- ⬜ Add deprecation banner to top of `playbooks/bootstrap_aap.yml`
+- ⬜ Remove `playbooks/bootstrap_aap.yml` after `aap_config/load.yml` is end-to-end verified
+
+**Credentials live in AAP (status independent of which path created them):**
+
+- ✅ `DC1.Azure - Vault` — created 2026-05-21 via bootstrap_aap.yml
+- ✅ `DC1.Azure - Azure RM` — created 2026-05-21 via bootstrap_aap.yml, SP fields verified via API
+- ⬜ `DC1.Azure - ADO Source Control` — blocked on AAP-scoped PAT creation
+- ⬜ `DC1.Azure - Windows Machine`
+
+**Exit criteria:** a user with a fresh AAP, AAP personal token, Azure SP, and ADO PAT can run `ansible-playbook -i aap_config/inventory/ aap_config/load.yml` and end with every dc1.azure AAP object created. Re-running is idempotent.
 
 ### Phase 4 — Post-Provision Playbook  ⬜
 - ⬜ `playbooks/provision_vm.yml` — wraps `terraform apply`, parses output, `add_host` to `windows` group, `set_stats` to pass IP to workflow
@@ -180,13 +200,56 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 **Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it.
 
-### Phase 6 — Demo Runbook  ⬜
-- ⬜ `docs/demo-runbook.md` — SE-facing live-demo script
-- ⬜ Persona framing, click-by-click flow, talking points, expected timings
+### Phase 6 — Demo Runbook (v1 — AAP-driven)  ⬜
+- ⬜ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow
+- ⬜ Persona framing, click-by-click flow through AAP UI, talking points, expected timings
 - ⬜ Failure-mode appendix (what to do if Azure quota hit, if WinRM doesn't come up, if AAP project sync fails)
 - ⬜ `docs/images/` — screenshots of the AAP survey, the IIS landing page, the ADO Boards epic
 
-**Exit criteria:** Eric runs the demo cold off the runbook end-to-end without consulting the source code.
+**Exit criteria:** Eric runs the AAP-driven demo cold off the runbook end-to-end without consulting the source code.
+
+### Phase 7 — Install Documentation (manual + Claude Code skill)  ⬜
+
+Two paths to install dc1.azure into a working RHDP AAP: a manual path for
+human-only operators, and a Claude Code skill that drives the install
+interactively.
+
+- ⬜ `docs/INSTALL.md` — manual install for humans. Pre-reqs (AAP up, Azure SP, ADO PAT, ansible-galaxy collections installed), step-by-step commands, expected output per step, troubleshooting
+- ⬜ `.claude/skills/install-dc1-azure/SKILL.md` — Claude Code skill auto-loaded when running Claude in this repo. Walks the user through prereqs, prompts for missing env-var values, runs `aap_config/load.yml`, verifies via AAP API, reports each created object
+- ⬜ `README.md` — point at both install paths from Getting Started; framing: "use the AI path if you have Claude Code, manual path otherwise"
+- ⬜ Acceptance test: fresh repo clone + fresh AAP + each path independently produces a green install
+
+**Exit criteria:** a first-time user can install dc1.azure into a fresh AAP via either path without consulting source code or this ROADMAP.
+
+### Phase 8 — ServiceNow Integration (Demo v2)  ⬜
+
+End-state demo flow: business user goes to ServiceNow self-service catalog,
+requests a Windows VM (Azure), picks size, submits. SNow triggers the
+dc1.azure workflow in AAP. AAP runs Terraform + post-provision. On success,
+AAP calls back to ServiceNow to update the RITM with status, public IP,
+FQDN, admin username. End user closes the ticket.
+
+**Instance:** Red Hat shared ServiceNow dev (URL TBD — capture in `docs/dev-environment.md` when obtained).
+
+- ⬜ Capture Red Hat shared SNow URL + access credentials in `docs/dev-environment.md`
+- ⬜ ServiceNow catalog item: "Request Windows VM (Azure)"
+  - ⬜ Variables: `vm_size_tier` (dropdown small/medium/large), `justification` (text), `requestor` (auto-populated)
+  - ⬜ Flow Designer flow: REST POST to AAP `/api/v2/job_templates/<id>/launch/` with extra_vars
+- ⬜ AAP credential: `DC1.Azure - ServiceNow Callback` (HTTP token / Source Control type) for AAP→SNow callbacks
+- ⬜ AAP workflow: add a final "Update ServiceNow RITM" JT that PATCHes the RITM Table record with status + IP + FQDN
+- ⬜ `playbooks/servicenow_update_ritm.yml` — reusable callback playbook using `servicenow.itsm` collection
+- ⬜ `aap_config/files/controller_credentials.yml` — add ServiceNow callback credential entry
+- ⬜ `aap_config/files/controller_templates.yml` — add Update RITM JT
+- ⬜ `aap_config/files/controller_templates_workflow.yml` — wire callback into Provision-and-Configure workflow
+- ⬜ End-to-end test: file a request in SNow self-service → watch RITM update → confirm VM exists → close RITM
+- ⬜ `docs/demo-runbook.md` — v2 section covering the SNow-driven flow alongside v1 (AAP-driven)
+
+**Open questions for Phase 8 (decide during phase execution):**
+- Connection direction: SNow polls AAP (simpler) vs AAP calls SNow back (richer UX; requires AAP→SNow cred)
+- Time-out behavior: what does the RITM show if Azure provisioning hangs at 9 minutes (workflow time-out)?
+- Auth from SNow to AAP: mid-server vs direct REST (mid-server is enterprise-standard but more setup)
+
+**Exit criteria:** a user with zero prior context can request a Windows VM through the SNow self-service portal, receive a fulfilled RITM with the IP + admin credentials, and RDP into a working Windows machine.
 
 ---
 
@@ -221,6 +284,11 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-21 | Issue tracking via ADO Boards work items                       | Hands-on ADO Boards experience; tracking lives next to the code |
 | 2026-05-21 | Post-provision roles = powershell_improvement, windows_account_create, website_setup, windows_patching | Covers PS baseline, identity, visible result (IIS), and patching story |
 | 2026-05-21 | Roadmap lives in dc1.azure repo only                           | Departs from "central in aap.as.code" convention — dc1.azure is a sibling effort, not a DC1 sub-layer |
+| 2026-05-21 | CaC pattern = `url_checker`-style `aap_config/` at repo root   | More discoverable for new users (single self-contained dir at top level) than `aap.as.code`'s `playbooks/files/config_as_code/`; matches upstream `infra.aap_configuration` recommended layout |
+| 2026-05-21 | Two install paths: `docs/INSTALL.md` (manual) + `.claude/skills/install-dc1-azure/` (Claude Code skill) | Skill ships co-located with the repo, auto-loaded when Claude runs in dir — no plugin marketplace install. Doc covers the no-AI path |
+| 2026-05-21 | `playbooks/bootstrap_aap.yml` is transitional; will be removed once `aap_config/load.yml` is canonical | Avoids two competing install entry-points; admin-password bootstrap was a stepping stone |
+| 2026-05-21 | ServiceNow instance = Red Hat shared dev (URL TBD)             | Avoids PDI hibernation cycle; production-like shared SNow environment |
+| 2026-05-21 | dc1.azure IS the canonical "Windows on Azure" story            | `aap.dailydemo.windows` stays AWS-only (covered by demo.datacenter). SNow integration sits on top of dc1.azure — no need to fork the daily-demo repo for cloud parity |
 
 ---
 
@@ -228,10 +296,14 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 
 - **RHDP Azure open-env quota** — needs verification that `D8s_v5` (8 vCPU) fits within open-env quota. Mitigation: slide tiers down one notch (B2s / D2s_v5 / D4s_v5) if not.
 - **Windows Server 2025 WinRM bootstrap on Azure** — Azure marketplace image may not have WinRM enabled by default. Mitigation: `custom_data` PowerShell snippet enables WinRM-HTTPS + opens firewall on first boot.
-- **`infra.aap_configuration` Azure RM credential support** — collection should support the built-in Azure RM credential type; verify exact module name and parameter shape before writing `bootstrap_aap.yml`.
+- **`infra.aap_configuration` Azure RM credential support** — ✅ verified 2026-05-21: `Microsoft Azure Resource Manager` credential type works via `ansible.controller.credential` with `inputs.subscription/tenant/client/secret`. Re-verify the same fields are accepted by `infra.aap_configuration.controller_credentials` role.
 - **ADO PAT expiration** — 90-day PATs require rotation. Mitigation: documented in runbook + a calendar reminder; future enhancement could use a workload-identity federation pattern.
 - **Open-env lifespan** — RHDP envs are time-limited. Mitigation: teardown JT keeps Azure spend predictable; demo runbook starts with a "is the env still alive?" check.
 - **AAP object collision in shared instances** — multiple SEs may share an AAP instance. Mitigation: `DC1.Azure -` prefix on every named object.
+- **AAP personal token expiration** (Phase 3 new) — `aap_config/load.yml` requires the user to create a personal token in AAP UI first. Tokens are user-scoped and expire (configurable, default 365 days). Mitigation: install doc + skill prompt user to check token validity; future enhancement could fall back to admin-password auth when token is absent.
+- **Red Hat shared SNow availability** (Phase 8 new) — shared instance means shared state (other SEs' catalog items, flows). Risk of conflicts or accidental changes. Mitigation: namespace SNow objects with `dc1.azure - ` prefix (mirror our AAP naming). Confirm with the SNow admin before standing up the catalog item.
+- **AAP→SNow callback complexity** (Phase 8 new) — RITM update requires a SNow credential in AAP plus the `servicenow.itsm` collection. Risk: time-out behavior when Azure provisioning hangs > workflow time-out leaves RITM in an indeterminate state. Mitigation: explicit failure-path JT that updates RITM with `Failed` + error context.
+- **`aap.dailydemo.windows` role compatibility with Azure VMs** (Phase 4 reaffirmation) — roles assume an AWS-provisioned Windows box (likely AWS-specific tags or metadata service calls). Mitigation: review each of the 4 roles' tasks before importing; vendor + adapt locally if upstream isn't cloud-agnostic.
 
 ---
 
