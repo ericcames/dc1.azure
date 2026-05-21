@@ -1,0 +1,32 @@
+---
+authors:
+  - Eric Ames (ericcames)
+dependencies:
+  "ansible.posix": ">=2.1.0"
+  "ansible.utils": ">=6.0.0"
+  "ansible.platform": ">=2.6.20251106"
+  "ansible.hub": ">=1.0.4"
+  "ansible.controller": ">=4.7.8"
+  "infra.aap_configuration": ">=4.2.0"
+  "azure.azcollection": ">=3.0.0"
+  "ansible.windows": ">=3.0.0"
+  "community.windows": ">=3.0.0"
+license_file: LICENSE
+name: dc1_azure
+description: DC1 Azure — self-service Windows VM provisioning on Microsoft Azure, orchestrated by AAP with source code in Azure DevOps. Azure counterpart to demo.datacenter.
+namespace: ericcames
+readme: README.md
+repository: https://dev.azure.com/ericcames/dc1.azure/_git/dc1.azure
+issues: https://dev.azure.com/ericcames/dc1.azure/_workitems
+tags:
+  - lab
+  - cloud
+  - azure
+  - windows
+  - dailydemo
+  - ansible
+  - automation
+  - sales
+  - azure_devops
+  - terraform
+version: 0.1.0

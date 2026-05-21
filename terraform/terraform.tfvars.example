@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values from your
+# RHDP Azure open environment. Authenticate via env vars before running:
+#
+#   export ARM_SUBSCRIPTION_ID="REPLACE_ME"
+#   export ARM_TENANT_ID="REPLACE_ME"
+#   export ARM_CLIENT_ID="REPLACE_ME"
+#   export ARM_CLIENT_SECRET="REPLACE_ME"
+#
+# (Or run `az login` for local-dev usage; AAP uses the Service Principal cred.)
+
+resource_group_name = "REPLACE_ME_RHDP_RG"      # e.g. "openenv-12345"
+location            = "eastus"                  # match the RHDP env's region
+
+# T-shirt size for this run. Surfaced as the AAP JT survey question.
+vm_size_tier = "small"                          # small | medium | large
+
+# Windows admin. Pick a non-reserved username; password must satisfy Azure
+# complexity (12-72 chars, 3 of {upper, lower, digit, symbol}).
+admin_username = "demoadmin"
+admin_password = "REPLACE_ME_with_a_real_secret"
+
+# Networking — defaults are fine for an isolated demo VNet.
+# vnet_cidr   = "10.50.0.0/16"
+# subnet_cidr = "10.50.1.0/24"
+
+# Tighten to your egress IP for real use (default below is open).
+# allowed_source_cidrs = ["203.0.113.42/32"]

@@ -1,0 +1,27 @@
+---
+collections:
+  # Core Ansible collections (mirrors aap.as.code versions)
+  - name: ansible.posix
+    version: 2.1.0
+  - name: ansible.utils
+    version: 6.0.1
+  - name: ansible.platform
+    version: 2.6.20251106
+  - name: ansible.hub
+    version: 1.0.4
+  - name: ansible.controller
+    version: 4.7.8
+
+  # AAP Configuration as Code (matches demo.datacenter / aap.as.code pin)
+  - name: infra.aap_configuration
+    version: 4.2.0
+
+  # Azure-specific (this repo's primary cloud)
+  - name: azure.azcollection
+    version: 3.0.0
+
+  # Windows post-provision roles run via these collections
+  - name: ansible.windows
+    version: 3.0.0
+  - name: community.windows
+    version: 3.0.0
