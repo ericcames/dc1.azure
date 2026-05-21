@@ -58,12 +58,14 @@
           - "Run: export AZURE_SUBSCRIPTION_ID / AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET"
 
     - name: Assert ADO PAT is set
+      tags: ado
       ansible.builtin.assert:
         that:
           - ado_pat | length > 0
         fail_msg:
           - "ADO Personal Access Token is not set."
           - "Run: export ADO_PAT=<your PAT>"
+          - "Or skip ADO tasks with: --skip-tags ado"
 
     - name: Create bootstrap token
       ansible.platform.token:
@@ -110,6 +112,7 @@
           # ADO PATs are sent as basic-auth password; username is any non-empty
           # string. AAP's project sync will use this credential to fetch the
           # dc1.azure repo over HTTPS.
+          tags: ado
           ansible.controller.credential:
             controller_host: "{{ aap_hostname }}"
             controller_oauthtoken: "{{ bootstrap_token.ansible_facts.aap_token.token }}"
@@ -123,6 +126,7 @@
             state: present
 
         - name: Create DC1.Azure project (synced from ADO repo)
+          tags: ado
           ansible.controller.project:
             controller_host: "{{ aap_hostname }}"
             controller_oauthtoken: "{{ bootstrap_token.ansible_facts.aap_token.token }}"

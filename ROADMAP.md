@@ -146,11 +146,11 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 ### Phase 3 — AAP Bootstrap (Azure flavor of `aap.as.code`)  🔄
 - 🔄 `playbooks/bootstrap_aap.yml` — mirrors `aap.as.code/playbooks/bootstrap_dev.yml`: `ansible.platform.token` for token lifecycle, `ansible.controller.*` for credential/project. Future iterations will add a `main.yml` + `playbooks/files/config_as_code/` data files dispatched via `infra.aap_configuration.dispatch` for full CaC.
 - Credentials (all prefixed `DC1.Azure -` to avoid collision with AWS DC1):
-  - 🔄 `DC1.Azure - Azure RM` (Microsoft Azure Resource Manager type) — task written, awaiting live-run verification
-  - 🔄 `DC1.Azure - ADO Source Control` (Source Control type, PAT) — task written, awaiting live-run verification
+  - ✅ `DC1.Azure - Azure RM` (Microsoft Azure Resource Manager type) — created in live AAP 2026-05-21, all SP fields verified via API
+  - 🔄 `DC1.Azure - ADO Source Control` (Source Control type, PAT) — task written, awaiting AAP-scoped PAT creation + live run
   - ⬜ `DC1.Azure - Windows Machine` (Machine type, WinRM)
-  - 🔄 `DC1.Azure - Vault` — task written, awaiting live-run verification
-- 🔄 Project `DC1.Azure` syncing from the ADO repo on `main` — task written, awaiting live-run verification
+  - ✅ `DC1.Azure - Vault` — created in live AAP 2026-05-21
+- 🔄 Project `DC1.Azure` syncing from the ADO repo on `main` — task written, awaiting AAP-scoped PAT (depends on `DC1.Azure - ADO Source Control` credential above)
 - ⬜ Inventory `dc1-azure` with empty `windows` group (populated by Provision JT via `add_host` + `set_stats`)
 - ⬜ Job templates with surveys:
   - ⬜ `DC1.Azure - Provision VM` (survey: `vm_size_tier`)
