@@ -197,8 +197,9 @@ everything to install AAP objects) and matches the upstream
 - ⬜ `azure-pipelines.yml` at repo root, PR trigger to `main`
 - ⬜ Steps on `ubuntu-latest`: `yamllint`, `ansible-lint`, `terraform fmt -check -recursive`, `terraform validate` (with `-backend=false`)
 - ⬜ Branch policy: require pipeline pass + 1 reviewer before merge to `main`
+- ⬜ **Auto-mirror to GitHub** — pipeline stage (or separate `azure-pipelines-mirror.yml`) triggered on push to `main` that runs `git push github main`. Auth via ADO Service Connection to GitHub (PAT or deploy key — never inline in YAML). Goal: https://github.com/ericcames/dc1.azure stays in sync without manual `git push github main` after every ADO push.
 
-**Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it.
+**Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it; merging to `main` mirrors the commit to the GitHub repo within a minute.
 
 ### Phase 6 — Demo Runbook (v1 — AAP-driven)  ⬜
 - ⬜ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow
