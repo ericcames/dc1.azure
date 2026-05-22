@@ -142,15 +142,15 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 - ⬜ Auto-complete PRs when policies pass + squash-merge as default
 
 **PR template + commit conventions:**
-- ⬜ `.azuredevops/pull_request_template.md` — sections: *Summary*, *Work item*, *Test plan*, *Risk / rollback*
-- ⬜ Document `AB#<id>` autolink syntax in `CONTRIBUTING.md` (already partially documented in `CLAUDE.md` — promote to CONTRIBUTING and enforce via PR template)
-- ⬜ `CODEOWNERS` file mapping `/terraform/` → @ericcames, `/playbooks/` → @ericcames, `/aap_config/` → @ericcames (placeholder until teammates join; demonstrates the pattern)
+- ✅ `.azuredevops/pull_request_template.md` — sections: *Summary*, *Work item*, *Test plan*, *Risk / rollback* (2026-05-21)
+- ✅ Document `AB#<id>` autolink syntax in `CONTRIBUTING.md` — added explicit autolink-mechanics section + pointer to the PR template (2026-05-21)
+- ✅ `CODEOWNERS` file mapping `/terraform/` → @ericcames, `/playbooks/` → @ericcames, `/aap_config/` → @ericcames + catch-all + governance docs (2026-05-21). Note: ADO doesn't natively parse `CODEOWNERS` — file works AS-IS on the GitHub mirror; ADO enforcement happens via the "Automatically include code reviewers" branch policy (see `docs/ado-conventions.md`).
 
 **Service Connections + Library (replace inline creds):**
 - ⬜ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — replaces inline Azure creds in `terraform/terraform.tfvars` for any pipeline-driven Terraform run
 - ⬜ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push (PAT-based; never inline in YAML)
 - ⬜ Create **Variable Group** `dc1-azure-shared` in Library: `location`, `resource_group_name`, `subscription_id` (secret), `storage_account_name`
-- ⬜ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain
+- ✅ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain (2026-05-21 — doc is the canonical reference; actual ADO objects still ⬜ above)
 
 **Wiki vs. in-repo docs:**
 - ⬜ Decision: docs live in-repo (current pattern) but ADO Wiki gets a single landing page pointing at `README.md` + `ROADMAP.md` for ADO-native discoverability

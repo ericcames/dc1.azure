@@ -11,9 +11,13 @@ Open work item → branch from main → implement → open PR (AB#N) → merge �
 1. **Open an ADO Boards work item first** — before writing a single line of code, create a User Story or Task under the appropriate phase Epic in the `dc1.azure` ADO project. Describe what you're changing and why. No implementation without a work item.
 2. **Branch from `main`** — use the naming pattern `<type>/<short-description>` (e.g. `fix/winrm-bootstrap`, `feat/storage-backend`, `docs/roadmap-update`).
 3. **One concern per PR** — group changes by shared root cause, not item count. The test: would you revert these together? If yes, ship them together. Behavior changes stay isolated regardless.
-4. **Reference the work item** — include `AB#<id>` in your PR description so the work item autolinks in ADO. Set the work item state to *Resolved* in the PR side-panel so it closes on merge.
-5. **PRs target `main`** — direct pushes to `main` are not blocked, but all non-trivial changes should go through a PR for traceability and to exercise the ADO Pipeline checks.
+4. **Reference the work item** — include `AB#<id>` in your PR description so the work item autolinks in ADO. The PR template at [`.azuredevops/pull_request_template.md`](.azuredevops/pull_request_template.md) has a dedicated `AB#` field — fill it in. Set the work item state to *Resolved* in the PR side-panel so it closes on merge.
+5. **PRs target `main`** — direct pushes to `main` are not blocked yet (Phase 0.5 will enforce that via branch policy), but all non-trivial changes should go through a PR for traceability and to exercise the ADO Pipeline checks.
 6. **Update CHANGELOG.md** — every PR must include a CHANGELOG entry grouped under Added / Changed / Fixed / Removed.
+
+### `AB#<id>` autolink syntax
+
+`AB#123` (no slash, case-sensitive on the `AB`) is ADO's built-in autolink syntax. Anywhere ADO renders Markdown — PR descriptions, PR comments, commit messages, work-item discussions — `AB#123` becomes a clickable link to work item 123 in this project. Use it consistently so any reviewer can trace a change back to its work item with one click. See [`docs/ado-conventions.md`](docs/ado-conventions.md) for the full ADO operating model.
 
 ## Branch naming
 

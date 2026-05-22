@@ -1,0 +1,32 @@
+# CODEOWNERS — path → owner mapping for dc1.azure
+#
+# Azure DevOps does NOT natively parse this file. The canonical enforcement
+# of reviewers-by-path on ADO lives under:
+#   Project Settings → Repositories → dc1.azure → Policies → main branch
+#   → "Automatically include code reviewers"
+#
+# See docs/ado-conventions.md for the canonical mapping that should be
+# mirrored into that policy. This file is the source-of-truth for the
+# intent and works AS-IS on the GitHub mirror
+# (https://github.com/ericcames/dc1.azure).
+
+# Catch-all — anything not matched below
+*                       @ericcames
+
+# Layer 0 — Azure infrastructure (Terraform)
+/terraform/             @ericcames
+
+# AAP runtime playbooks (Phase 4 — provision / configure / teardown)
+/playbooks/             @ericcames
+
+# AAP Configuration as Code (Phase 3 — canonical install path)
+/aap_config/            @ericcames
+
+# ADO operating conventions (PR template, pipelines)
+/.azuredevops/          @ericcames
+
+# Strategic + governance docs
+/ROADMAP.md             @ericcames
+/CONTRIBUTING.md        @ericcames
+/CLAUDE.md              @ericcames
+/CODEOWNERS             @ericcames
