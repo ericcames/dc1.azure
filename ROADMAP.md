@@ -109,36 +109,76 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 ## Phases
 
-### Phase 0 — Azure DevOps Account Setup  ⬜
-*Manual browser work, ~15 min, blocks all subsequent phases.*
+### Phase 0 — Azure DevOps Account Setup  ✅
+*Manual browser work, ~15 min, blocks all subsequent phases. Completed 2026-05-21.*
 
-- ⬜ Create ADO org `ericcames` at https://dev.azure.com
-- ⬜ Create project `dc1.azure` (Private, Git, Agile process)
-- ⬜ Initialize default `dc1.azure` repo with README + VisualStudio gitignore
-- ⬜ Create Personal Access Token scoped to Code (RW), Build (RX), Work Items (RW); save to password manager
-- ⬜ Create ADO Boards Epic: *Bootstrap dc1.azure demo*
-- ⬜ Clone repo to `/home/eames/git-repos/dc1.azure/` using PAT for auth
+- ✅ Create ADO org `ericcames` at https://dev.azure.com
+- ✅ Create project `dc1.azure` (Private, Git, Agile process)
+- ✅ Initialize default `dc1.azure` repo with README + VisualStudio gitignore
+- ✅ Create Personal Access Token scoped to Code (RW), Build (RX), Work Items (RW); save to password manager
+- ✅ Clone repo to `/home/eames/git-repos/dc1.azure/` using PAT for auth
 
-**Exit criteria:** local clone of an empty (README-only) ADO repo at the expected path; PAT stored; epic exists.
+> ADO Boards Epic creation and the rest of the "operate like a mature dev team" setup now lives in **Phase 0.5 — ADO Operating Conventions** below.
 
-### Phase 1 — Repo Skeleton  ⬜
-- ⬜ Top-level files: `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`
-- ⬜ Directory scaffolding: `terraform/`, `playbooks/`, `inventories/dc1-azure/`, `docs/`, `docs/images/`, `meta/`, `collections/`
-- ⬜ `galaxy.yml`, `meta/runtime.yml`
-- ⬜ `collections/requirements.yml` pinning `infra.aap_configuration` 4.2.0, plus `azure.azcollection`, `ansible.windows`, `community.windows`
-- ⬜ **No** project-local `ansible.cfg`
-- ⬜ `.gitignore` covering `*.tfstate*`, `.terraform/`, `*.tfvars` (except `*.tfvars.example`), `__pycache__`, `.DS_Store`
+**Exit criteria:** local clone of an empty (README-only) ADO repo at the expected path; PAT stored.
+
+### Phase 0.5 — ADO Operating Conventions  ⬜
+*Make `dc1.azure` read as a mature dev-team project to an ADO-fluent customer audience. Runs alongside Phase 1+ work — not strictly blocking, but every item below should land before the demo is presented to the customer.*
+
+**Why this phase exists:** the customer for this demo is fluent in Azure DevOps and will notice if the repo looks like "one person pushing to main." Boards in active use, branch policies enforced, AB# in every commit, and shared Service Connections instead of inline creds collectively read as "this team operates the way ours does."
+
+**Boards hierarchy (backfill from existing phases):**
+- ⬜ Create Epic per ROADMAP phase: *Phase 0 — ADO Setup*, *Phase 1 — Repo Skeleton*, *Phase 2 — Terraform*, *Phase 3 — AAP CaC*, *Phase 4 — Post-Provision*, *Phase 5 — Pipeline*, *Phase 6 — Runbook v1*, *Phase 7 — Install Docs*, *Phase 8 — ServiceNow*
+- ⬜ Under each Epic, group work-streams as **Features** (e.g. *Phase 3 → Credentials*, *Phase 3 → Project + Inventory*, *Phase 3 → JTs + Workflow*)
+- ⬜ Decompose Features into **User Stories** / **Tasks** for individual changes
+- ⬜ Configure **Area Path** `dc1.azure` and **Iteration Paths** (Sprint 1, Sprint 2 ... — even for solo work, gives the customer something recognizable on the dashboard)
+- ⬜ Tag every work item: `phase-N`, `terraform`, `aap`, `ado`, `windows`, `azure`, `servicenow` as applicable
+
+**Branch policies on `main`:**
+- ⬜ Require a minimum of 1 reviewer (self-review acceptable for solo; switch to required external reviewer if a teammate joins)
+- ⬜ Require linked work item on every PR (enforces the AB# discipline)
+- ⬜ Require Build validation = Phase 5 pipeline pass (set up alongside Phase 5 — until then, leave this slot empty but document the intent)
+- ⬜ Block direct push to `main`; all changes go through PRs
+- ⬜ Auto-complete PRs when policies pass + squash-merge as default
+
+**PR template + commit conventions:**
+- ⬜ `.azuredevops/pull_request_template.md` — sections: *Summary*, *Work item*, *Test plan*, *Risk / rollback*
+- ⬜ Document `AB#<id>` autolink syntax in `CONTRIBUTING.md` (already partially documented in `CLAUDE.md` — promote to CONTRIBUTING and enforce via PR template)
+- ⬜ `CODEOWNERS` file mapping `/terraform/` → @ericcames, `/playbooks/` → @ericcames, `/aap_config/` → @ericcames (placeholder until teammates join; demonstrates the pattern)
+
+**Service Connections + Library (replace inline creds):**
+- ⬜ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — replaces inline Azure creds in `terraform/terraform.tfvars` for any pipeline-driven Terraform run
+- ⬜ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push (PAT-based; never inline in YAML)
+- ⬜ Create **Variable Group** `dc1-azure-shared` in Library: `location`, `resource_group_name`, `subscription_id` (secret), `storage_account_name`
+- ⬜ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain
+
+**Wiki vs. in-repo docs:**
+- ⬜ Decision: docs live in-repo (current pattern) but ADO Wiki gets a single landing page pointing at `README.md` + `ROADMAP.md` for ADO-native discoverability
+
+**Exit criteria:** an ADO-fluent customer browsing `dev.azure.com/ericcames/dc1.azure` sees: Boards with an Epic→Feature→Story hierarchy in active use, branch policies enforced on `main`, a PR template applied to recent PRs, AB# linking present on every commit since Phase 0.5 landed, and Service Connections + a Variable Group provisioned in the Library — even if Phase 5 hasn't wired the pipeline to use them yet.
+
+### Phase 1 — Repo Skeleton  ✅
+*Completed 2026-05-21 (commit 2848f54).*
+
+- ✅ Top-level files: `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`
+- ✅ Directory scaffolding: `terraform/`, `playbooks/`, `inventories/dc1-azure/`, `docs/`, `docs/images/`, `meta/`, `collections/`
+- ✅ `galaxy.yml`, `meta/runtime.yml`
+- ✅ `collections/requirements.yml` pinning `infra.aap_configuration` 4.2.0, plus `azure.azcollection`, `ansible.windows`, `community.windows`
+- ✅ **No** project-local `ansible.cfg`
+- ✅ `.gitignore` covering `*.tfstate*`, `.terraform/`, `*.tfvars` (except `*.tfvars.example`), `__pycache__`, `.DS_Store`
 
 **Exit criteria:** repo opens cleanly in VS Code, `ansible-galaxy collection install -r collections/requirements.yml` succeeds against Eric's `~/.ansible.cfg`.
 
-### Phase 2 — Terraform: Azure Windows VM  ⬜
-- ⬜ `providers.tf` — `azurerm` provider + `azurerm` remote state backend
-- ⬜ `backend.tf` — Storage Account / container / key for state
-- ⬜ `variables.tf` — `vm_size_tier`, `location`, `resource_group_name`, `admin_username`, `admin_password` (sensitive), `tags`
-- ⬜ `locals.tf` — t-shirt → SKU map (see table above)
-- ⬜ `main.tf` — VNet, Subnet, NSG (5986 + 3389), Public IP, NIC, `azurerm_windows_virtual_machine` (image `MicrosoftWindowsServer:WindowsServer:2025-datacenter-azure-edition:latest`), `custom_data` cloudbase-init to enable WinRM-HTTPS + open firewall
-- ⬜ `outputs.tf` — `public_ip`, `fqdn`, `admin_username`, `vm_size_chosen`
-- ⬜ `terraform.tfvars.example` documenting required inputs
+### Phase 2 — Terraform: Azure Windows VM  🔄
+*Code complete 2026-05-21 (commit 2848f54); manual smoke test still pending.*
+
+- ✅ `providers.tf` — `azurerm` provider + `azurerm` remote state backend
+- ✅ `backend.tf` — Storage Account / container / key for state
+- ✅ `variables.tf` — `vm_size_tier`, `location`, `resource_group_name`, `admin_username`, `admin_password` (sensitive), `tags`
+- ✅ `locals.tf` — t-shirt → SKU map (see table above)
+- ✅ `main.tf` — VNet, Subnet, NSG (5986 + 3389), Public IP, NIC, `azurerm_windows_virtual_machine` (image `MicrosoftWindowsServer:WindowsServer:2025-datacenter-azure-edition:latest`), `custom_data` (via `terraform/scripts/winrm_bootstrap.ps1`) enables WinRM-HTTPS + opens firewall
+- ✅ `outputs.tf` — `public_ip`, `fqdn`, `admin_username`, `vm_size_chosen`
+- ✅ `terraform.tfvars.example` documenting required inputs
 - ⬜ Manual smoke test from Eric's laptop: `terraform init && plan && apply` with `vm_size_tier=small`, confirm WinRM reachable, `destroy`
 
 **Exit criteria:** `terraform apply` from Eric's laptop produces a reachable Windows VM in the RHDP open env; `destroy` cleans it up; state lives in Azure Storage.
@@ -169,7 +209,7 @@ everything to install AAP objects) and matches the upstream
 **Transition / deprecation:**
 
 - 🔄 `playbooks/bootstrap_aap.yml` — transitional; to be removed once `aap_config/load.yml` is the verified canonical path. Currently still in repo because it covers the "first run with no AAP token, only admin password" case via `ansible.platform.token` lifecycle. Once a user can manually create a token in the AAP UI and run `load.yml`, this file's value drops to zero.
-- ⬜ Add deprecation banner to top of `playbooks/bootstrap_aap.yml`
+- ✅ Add deprecation banner to top of `playbooks/bootstrap_aap.yml` (2026-05-21)
 - ⬜ Remove `playbooks/bootstrap_aap.yml` after `aap_config/load.yml` is end-to-end verified
 
 **Credentials live in AAP (status independent of which path created them):**
@@ -194,12 +234,19 @@ everything to install AAP objects) and matches the upstream
 **Exit criteria:** end-to-end workflow run produces a VM that serves an IIS page on its public IP, has the demo account, has PS7, and has run Windows Update.
 
 ### Phase 5 — Azure DevOps Pipeline  ⬜
+
+**Current state (manual workflow, in place today):**
+
+GitHub remote is already configured locally — the working tree has both `origin` (ADO) and `github` (GitHub) remotes. Today the sync is manual: after every `git push origin main`, Eric also runs `git push github main` from the laptop. This keeps https://github.com/ericcames/dc1.azure visible for outside-the-firewall audiences but adds a step that's easy to forget. Phase 5 automates it away.
+
+**Planned work:**
+
 - ⬜ `azure-pipelines.yml` at repo root, PR trigger to `main`
 - ⬜ Steps on `ubuntu-latest`: `yamllint`, `ansible-lint`, `terraform fmt -check -recursive`, `terraform validate` (with `-backend=false`)
-- ⬜ Branch policy: require pipeline pass + 1 reviewer before merge to `main`
-- ⬜ **Auto-mirror to GitHub** — pipeline stage (or separate `azure-pipelines-mirror.yml`) triggered on push to `main` that runs `git push github main`. Auth via ADO Service Connection to GitHub (PAT or deploy key — never inline in YAML). Goal: https://github.com/ericcames/dc1.azure stays in sync without manual `git push github main` after every ADO push.
+- ⬜ Branch policy: require pipeline pass + 1 reviewer before merge to `main` (Phase 0.5 sets up the policy slot; Phase 5 wires the pipeline into it)
+- ⬜ **Auto-mirror to GitHub** — pipeline stage (or separate `azure-pipelines-mirror.yml`) triggered on push to `main` that runs `git push github main`. Auth via the `github-ericcames` Service Connection created in Phase 0.5 (PAT or deploy key — never inline in YAML). Goal: https://github.com/ericcames/dc1.azure stays in sync without the manual `git push github main` step described above.
 
-**Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it; merging to `main` mirrors the commit to the GitHub repo within a minute.
+**Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it; merging to `main` mirrors the commit to the GitHub repo within a minute, and `git push github main` is no longer in the developer workflow.
 
 ### Phase 6 — Demo Runbook (v1 — AAP-driven)  ⬜
 - ⬜ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow

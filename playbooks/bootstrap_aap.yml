@@ -1,14 +1,37 @@
 ---
-# Phase 3 bootstrap — DC1.Azure objects in AAP.
+# ============================================================================
+# DEPRECATED — TRANSITIONAL STOPGAP. DO NOT EXTEND.
+# ============================================================================
+# This playbook will be removed once `aap_config/load.yml` is verified
+# end-to-end. The canonical install path going forward is the self-contained
+# `aap_config/` directory dispatched via `infra.aap_configuration.dispatch`
+# — see ROADMAP.md Phase 3 (restructure decision dated 2026-05-21).
+#
+# Why this playbook still exists today:
+#   - `aap_config/` has not been built yet
+#   - This file already creates Vault + Azure RM credentials successfully
+#     against live RHDP AAP, so it's the only working partial bootstrap path
+#   - It handles the "no AAP token yet, only admin password" first-run case
+#     via `ansible.platform.token` lifecycle, which `aap_config/load.yml`
+#     does not (load.yml requires a user-created personal token)
+#
+# When to remove this file:
+#   - After `aap_config/load.yml` produces every dc1.azure AAP object
+#     end-to-end against a fresh RHDP AAP
+#   - After `docs/INSTALL.md` (Phase 7) covers the personal-token creation
+#     step the CaC path requires
+#
+# Any new AAP objects (Windows machine credential, dc1-azure inventory,
+# provision/configure/teardown JTs with surveys, Provision-and-Configure
+# workflow) go in `aap_config/files/controller_*.yml` — NOT here.
+# ============================================================================
+#
+# Phase 3 bootstrap — DC1.Azure objects in AAP (transitional).
 #
 # Creates the minimum AAP objects needed to drive the dc1.azure demo from
 # the ADO-hosted repo: Vault credential, Azure RM credential, ADO Source
 # Control credential, and the DC1.Azure project that syncs from the ADO
 # repo.
-#
-# Future iterations will add: Windows machine credential, dc1-azure
-# inventory, provision/configure/teardown job templates with surveys,
-# and the Provision-and-Configure workflow.
 #
 # Pattern mirrors aap.as.code/playbooks/bootstrap_dev.yml — uses
 # ansible.platform.token for token lifecycle (created + deleted in

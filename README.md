@@ -52,8 +52,9 @@ dc1.azure/
 
 ## Getting started
 
-> Bootstrap is not yet wired up. This section is scaffolding — see
-> [`ROADMAP.md`](ROADMAP.md) for current phase status.
+> The end-to-end demo isn't fully wired up yet — see
+> [`ROADMAP.md`](ROADMAP.md) for current phase status. The pieces below work
+> today; the rest is in progress.
 
 ### Prerequisites
 - Red Hat Demo Platform (RHDP) Azure open environment (provides subscription, RG, SP)
@@ -67,7 +68,7 @@ ANSIBLE_CONFIG=~/.ansible/ansible.cfg \
   ansible-galaxy collection install -r collections/requirements.yml -p ./collections
 ```
 
-### Local Terraform smoke test (Phase 2 exit criteria)
+### Local Terraform smoke test (Phase 2 exit criteria — pending)
 ```bash
 cd terraform/
 cp terraform.tfvars.example terraform.tfvars
@@ -77,6 +78,36 @@ terraform plan -var="vm_size_tier=small"
 terraform apply -var="vm_size_tier=small"
 # ... verify VM, then ...
 terraform destroy -var="vm_size_tier=small"
+```
+
+### AAP Configuration as Code (Phase 3 — building)
+
+The canonical install path will be a self-contained `aap_config/` directory
+at the repo root, run via `infra.aap_configuration.dispatch`:
+
+```bash
+# Once Phase 3 lands (aap_config/ not on disk yet — see ROADMAP):
+ansible-playbook -i aap_config/inventory/ aap_config/load.yml
+```
+
+This is the only entry point a first-time installer should ever need. It
+creates every dc1.azure AAP object (credentials, project, inventory, job
+templates, workflow) and is idempotent.
+
+**Transitional stopgap (will be removed):** `playbooks/bootstrap_aap.yml`
+exists from earlier work and can create a partial set of AAP objects (Vault +
+Azure RM credentials are verified in live RHDP AAP; ADO SCM credential
+pending an AAP-scoped PAT). This playbook is **deprecated** — use it only if
+you need partial bootstrap before `aap_config/load.yml` is end-to-end ready.
+It will be deleted once the CaC path is verified. See ROADMAP Phase 3.
+
+### Mirror to GitHub (Phase 5 — manual today)
+
+Today the GitHub remote is pushed by hand after every push to ADO:
+
+```bash
+git push origin main
+git push github main   # until Phase 5 pipeline auto-mirrors
 ```
 
 ## Related repos
