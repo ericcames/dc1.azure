@@ -24,13 +24,17 @@ $cert = New-SelfSignedCertificate `
     -KeyLength 2048
 
 # Remove any pre-existing HTTPS listener, then create one bound to the cert.
+# Use PowerShell-native New-WSManInstance instead of `cmd.exe /c winrm ...`
+# — the latter's nested quoting gets mangled when the script runs under the
+# SYSTEM context via the Azure CustomScriptExtension, resulting in a listener
+# with an empty CertificateThumbprint.
 Get-ChildItem -Path WSMan:\localhost\Listener `
     | Where-Object { $_.Keys -contains 'Transport=HTTPS' } `
     | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-$listenerCmd = "winrm create winrm/config/Listener?Address=*+Transport=HTTPS " +
-    "'@{Hostname=`"$env:COMPUTERNAME`"; CertificateThumbprint=`"$($cert.Thumbprint)`"}'"
-cmd.exe /c $listenerCmd
+New-WSManInstance -ResourceURI 'winrm/config/Listener' `
+    -SelectorSet @{Address='*'; Transport='HTTPS'} `
+    -ValueSet @{Hostname=$env:COMPUTERNAME; CertificateThumbprint=$cert.Thumbprint} | Out-Null
 
 # Allow basic + NTLM auth, raise envelope size for large playbooks.
 winrm set winrm/config/service/auth '@{Basic="true"}'
