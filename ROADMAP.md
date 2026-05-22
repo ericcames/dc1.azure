@@ -122,24 +122,25 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 **Exit criteria:** local clone of an empty (README-only) ADO repo at the expected path; PAT stored.
 
-### Phase 0.5 — ADO Operating Conventions  ⬜
-*Make `dc1.azure` read as a mature dev-team project to an ADO-fluent customer audience. Runs alongside Phase 1+ work — not strictly blocking, but every item below should land before the demo is presented to the customer.*
+### Phase 0.5 — ADO Operating Conventions  🔄
+*Make `dc1.azure` read as a mature dev-team project to an ADO-fluent customer audience. Runs alongside Phase 1+ work — not strictly blocking, but every item below should land before the demo is presented to the customer. Chunk A (in-repo files) landed 2026-05-21 in commit e0c826f; Chunk B (ADO UI / az devops CLI work) landed 2026-05-21.*
 
 **Why this phase exists:** the customer for this demo is fluent in Azure DevOps and will notice if the repo looks like "one person pushing to main." Boards in active use, branch policies enforced, AB# in every commit, and shared Service Connections instead of inline creds collectively read as "this team operates the way ours does."
 
 **Boards hierarchy (backfill from existing phases):**
-- ⬜ Create Epic per ROADMAP phase: *Phase 0 — ADO Setup*, *Phase 1 — Repo Skeleton*, *Phase 2 — Terraform*, *Phase 3 — AAP CaC*, *Phase 4 — Post-Provision*, *Phase 5 — Pipeline*, *Phase 6 — Runbook v1*, *Phase 7 — Install Docs*, *Phase 8 — ServiceNow*
-- ⬜ Under each Epic, group work-streams as **Features** (e.g. *Phase 3 → Credentials*, *Phase 3 → Project + Inventory*, *Phase 3 → JTs + Workflow*)
-- ⬜ Decompose Features into **User Stories** / **Tasks** for individual changes
-- ⬜ Configure **Area Path** `dc1.azure` and **Iteration Paths** (Sprint 1, Sprint 2 ... — even for solo work, gives the customer something recognizable on the dashboard)
-- ⬜ Tag every work item: `phase-N`, `terraform`, `aap`, `ado`, `windows`, `azure`, `servicenow` as applicable
+- ✅ Create Epic per ROADMAP phase: 10 Epics created — Phase 0/1 Closed, Phase 0.5/2/3 Active, Phase 4-8 New (2026-05-21)
+- ✅ Under each Epic, group work-streams as **Features**: 13 Features created under the 3 Active Epics (2026-05-21)
+- ✅ Decompose Features into **User Stories** / **Tasks**: 11 initial Stories created (4 Closed for historical commits, 1 Active for current work, 6 New for upcoming) (2026-05-21)
+- ✅ Configure **Area Path** `dc1.azure` (default) + **Iteration Paths** Sprint 1/2/3 with rolling 2-week date ranges starting 2026-05-21 (2026-05-21)
+- ✅ Tag every work item with `phase-N` + topic tags (`terraform`, `aap`, `ado`, `cac`, `windows`, `azure`, `pipeline`, `policy`, `docs`, `wiki`, `boards`, `credentials`, `secrets`, `testing`, `workflow`, `validation`, `cleanup`, `servicenow`, `demo`) as applicable (2026-05-21)
 
 **Branch policies on `main`:**
-- ⬜ Require a minimum of 1 reviewer (self-review acceptable for solo; switch to required external reviewer if a teammate joins)
-- ⬜ Require linked work item on every PR (enforces the AB# discipline)
-- ⬜ Require Build validation = Phase 5 pipeline pass (set up alongside Phase 5 — until then, leave this slot empty but document the intent)
-- ⬜ Block direct push to `main`; all changes go through PRs
-- ⬜ Auto-complete PRs when policies pass + squash-merge as default
+- ✅ Require a minimum of 1 reviewer (self-review allowed via `creator-vote-counts=true` for solo; switch to required external reviewer when teammate joins) — policy ID 2 (2026-05-21)
+- ✅ Require linked work item on every PR (enforces the AB# discipline) — policy ID 3 (2026-05-21)
+- ⬜ Require Build validation = Phase 5 pipeline pass (deferred until Phase 5 pipeline exists)
+- ✅ Block direct push to `main` — implicit consequence of the four blocking policies being in place (2026-05-21)
+- ✅ Squash-only merge strategy — policy ID 5 (2026-05-21)
+- ✅ **Bonus:** Comments must be resolved before merge — policy ID 4 (2026-05-21; not on the original list but worth keeping)
 
 **PR template + commit conventions:**
 - ✅ `.azuredevops/pull_request_template.md` — sections: *Summary*, *Work item*, *Test plan*, *Risk / rollback* (2026-05-21)
@@ -147,13 +148,21 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 - ✅ `CODEOWNERS` file mapping `/terraform/` → @ericcames, `/playbooks/` → @ericcames, `/aap_config/` → @ericcames + catch-all + governance docs (2026-05-21). Note: ADO doesn't natively parse `CODEOWNERS` — file works AS-IS on the GitHub mirror; ADO enforcement happens via the "Automatically include code reviewers" branch policy (see `docs/ado-conventions.md`).
 
 **Service Connections + Library (replace inline creds):**
-- ⬜ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — replaces inline Azure creds in `terraform/terraform.tfvars` for any pipeline-driven Terraform run
-- ⬜ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push (PAT-based; never inline in YAML)
-- ⬜ Create **Variable Group** `dc1-azure-shared` in Library: `location`, `resource_group_name`, `subscription_id` (secret), `storage_account_name`
-- ✅ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain (2026-05-21 — doc is the canonical reference; actual ADO objects still ⬜ above)
+- ✅ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — id `86d0df16-75b6-4197-9ddb-4cd097d14245`, IsReady true (2026-05-21)
+- ⬜ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push (deferred to Phase 5 — no GitHub PAT exists yet; manual `git push github main` covers the gap)
+- ✅ Create **Variable Group** `dc1-azure-shared` in Library — id 1, 4 variables (`location=eastus`, `resource_group_name=openenv-blsvm-1`, `subscription_id`, `storage_account_name=REPLACE_ME_TF_STATE_SA`), authorized for all pipelines (2026-05-21)
+- ✅ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain (2026-05-21)
 
 **Wiki vs. in-repo docs:**
-- ⬜ Decision: docs live in-repo (current pattern) but ADO Wiki gets a single landing page pointing at `README.md` + `ROADMAP.md` for ADO-native discoverability
+- ✅ Project Wiki `dc1.azure.wiki` with single `/Home` landing page pointing at `README.md`, `ROADMAP.md`, and `docs/ado-conventions.md` for ADO-native discoverability (2026-05-21)
+
+**Project metadata:**
+- ✅ Project description set on the ADO project landing page (2026-05-21): *"Azure-cloud expression of the DC1 demo pattern: AAP-orchestrated self-service Windows Server 2025 VM provisioning with t-shirt sizing. Source in ADO Repos, gated by ADO Pipelines. See ROADMAP.md for architecture and phases."*
+
+**Deferred to later phases:**
+- GitHub Service Connection → Phase 5 (when auto-mirror pipeline is built)
+- Build validation branch policy → Phase 5 (no pipeline to validate against yet)
+- Auto-include reviewers-by-path policy → when a teammate joins (cosmetic for solo project; `CODEOWNERS` documents the intent today)
 
 **Exit criteria:** an ADO-fluent customer browsing `dev.azure.com/ericcames/dc1.azure` sees: Boards with an Epic→Feature→Story hierarchy in active use, branch policies enforced on `main`, a PR template applied to recent PRs, AB# linking present on every commit since Phase 0.5 landed, and Service Connections + a Variable Group provisioned in the Library — even if Phase 5 hasn't wired the pipeline to use them yet.
 
