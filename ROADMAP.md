@@ -296,18 +296,20 @@ token — no galaxy.ansible.com). Role names below to be confirmed against 4.4.0
 
 **Exit criteria:** end-to-end workflow run produces a VM that serves an IIS page on its public IP, has the demo account, has PS7, and has run Windows Update.
 
-### Phase 5 — Azure DevOps Pipeline  ⬜
+### Phase 5 — Azure DevOps Pipeline  🔄
+*Lint/validate pipeline built 2026-05-26 (PR #7). Branch-policy wiring is a post-merge step; auto-mirror deferred until a GitHub PAT exists. ADO hosted parallelism confirmed available (Free tier: 1 job, 1800 min/mo).*
 
 **Current state (manual workflow, in place today):**
 
 GitHub remote is already configured locally — the working tree has both `origin` (ADO) and `github` (GitHub) remotes. Today the sync is manual: after every `git push origin main`, Eric also runs `git push github main` from the laptop. This keeps https://github.com/ericcames/dc1.azure visible for outside-the-firewall audiences but adds a step that's easy to forget. Phase 5 automates it away.
 
-**Planned work:**
+**Work:**
 
-- ⬜ `azure-pipelines.yml` at repo root, PR trigger to `main`
-- ⬜ Steps on `ubuntu-latest`: `yamllint`, `ansible-lint`, `terraform fmt -check -recursive`, `terraform validate` (with `-backend=false`)
-- ⬜ Branch policy: require pipeline pass + 1 reviewer before merge to `main` (Phase 0.5 sets up the policy slot; Phase 5 wires the pipeline into it)
-- ⬜ **Auto-mirror to GitHub** — pipeline stage (or separate `azure-pipelines-mirror.yml`) triggered on push to `main` that runs `git push github main`. Auth via the `github-ericcames` Service Connection created in Phase 0.5 (PAT or deploy key — never inline in YAML). Goal: https://github.com/ericcames/dc1.azure stays in sync without the manual `git push github main` step described above.
+- ✅ `azure-pipelines.yml` at repo root — steps on `ubuntu-latest`: `yamllint`, `ansible-lint`, `terraform fmt -check -recursive`, `terraform validate -backend=false`. All four pass locally against the repo as-is (one `terraform fmt` fix to `main.tf` applied).
+- ✅ `.yamllint` + `.ansible-lint` configs codify the standard (formerly "relaxed line-length warnings"): yamllint line-length is a warning at 200; ansible-lint runs at the **`production`** profile, `offline` with mocked AAP/Azure modules so CI needs no Hub token. The two configs are kept mutually consistent.
+- ✅ `pr: none` / `trigger: none` — Azure Repos PR runs are driven by the Build Validation **branch policy**, not YAML triggers (an ADO-specific gotcha, documented in the file).
+- ⬜ **Build-validation branch policy on `main`** (the Phase 0.5 parked item) — register the pipeline in ADO and add the policy. Post-merge step (needs the pipeline to exist first).
+- ⬜ **Auto-mirror to GitHub** — pipeline stage that pushes `main` to the GitHub mirror via the `github-ericcames` Service Connection (PAT — never inline). **Deferred:** no GitHub PAT yet; manual `git push github main` covers the gap until then.
 
 **Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it; merging to `main` mirrors the commit to the GitHub repo within a minute, and `git push github main` is no longer in the developer workflow.
 

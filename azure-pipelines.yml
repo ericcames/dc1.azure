@@ -1,0 +1,51 @@
+# ============================================================================
+# dc1.azure CI — lint + validate (Phase 5)
+# ============================================================================
+# Gates pull requests to `main`: yamllint, ansible-lint, terraform fmt + validate.
+#
+# IMPORTANT (Azure Repos): YAML `pr:` triggers do NOT work for Azure Repos Git —
+# PR runs are driven by the **Build Validation branch policy** on `main`
+# (configured in ADO, the Phase 0.5 parked item). So both triggers are disabled
+# here and the policy invokes this pipeline on each PR.
+#
+# The GitHub auto-mirror stage is intentionally NOT here yet — it needs the
+# `github-ericcames` service connection (a GitHub PAT), deferred per Phase 5.
+# ============================================================================
+---
+trigger: none
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.12"
+    displayName: Use Python 3.12
+
+  - script: |
+      set -euo pipefail
+      python -m pip install --upgrade pip
+      pip install "ansible-core>=2.16" "ansible-lint>=24" "yamllint>=1.35"
+    displayName: Install lint tooling
+
+  - script: yamllint .
+    displayName: yamllint
+
+  - script: ansible-lint
+    displayName: ansible-lint
+    # Uses .ansible-lint (offline + mocked modules) so it doesn't need the
+    # AAP/Azure collections (and the Hub token) installed in CI.
+
+  - script: terraform fmt -check -recursive
+    displayName: terraform fmt -check
+    workingDirectory: terraform
+    # terraform is preinstalled on Microsoft-hosted ubuntu-latest agents.
+
+  - script: |
+      set -euo pipefail
+      terraform init -backend=false -input=false -no-color
+      terraform validate -no-color
+    displayName: terraform validate
+    workingDirectory: terraform

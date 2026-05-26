@@ -1,0 +1,23 @@
+---
+# ansible-lint config for dc1.azure (Phase 5 CI gate).
+# The repo's playbooks talk to AAP/Azure via collections that aren't installed
+# in CI, so run offline and mock those modules/roles — ansible-lint then checks
+# style/structure deterministically without needing the Hub token in CI.
+profile: production
+offline: true
+
+exclude_paths:
+  - collections/
+  - .terraform/
+  - .git/
+
+# Modules used by the playbooks but not installed in the CI runner.
+mock_modules:
+  - ansible.controller.host
+  - ansible.controller.group
+  - ansible.controller.credential
+  - ansible.controller.project
+  - ansible.platform.token
+
+mock_roles:
+  - infra.aap_configuration.dispatch

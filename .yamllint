@@ -1,0 +1,28 @@
+---
+# yamllint config for dc1.azure (Phase 5 CI gate).
+# Codifies the standard the azure-pipelines.yml `yamllint .` step enforces.
+extends: default
+
+ignore: |
+  collections/ansible_collections/
+  .terraform/
+
+rules:
+  # Long env-var lookups, survey specs, and namespaced names run past 80;
+  # keep readability without hard-wrapping — warn, don't fail.
+  line-length:
+    max: 200
+    level: warning
+  truthy:
+    allowed-values: ["true", "false", "yes", "no"]
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  # Kept aligned with ansible-lint's embedded yamllint expectations so the two
+  # tools don't disagree.
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
