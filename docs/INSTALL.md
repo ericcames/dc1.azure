@@ -24,13 +24,14 @@ You need access to:
 | Thing | Why | Where it comes from |
 |-------|-----|---------------------|
 | An AAP instance | install target | the **Ansible Product Demo** RHDP catalog item (or any AAP 2.5) |
-| AAP personal API token | authenticates the CaC run | create in the AAP UI → *Users → your user → Tokens* (scope: write) |
+| AAP personal API token | authenticates the CaC run | create via gateway API or AAP UI (scope: write) — see §4 |
+| Two Automation Hub Galaxy credentials on the Default org | `infra.aap_configuration` async workers need them to resolve credential types | create via API or AAP UI **before** running `load.yml` — see §2.5 |
 | Azure Service Principal | Azure RM credential + Terraform | RHDP Azure open environment (subscription, tenant, client id/secret) |
 | RHDP resource group | where the VM is created | the Azure open environment (e.g. `openenv-…`) |
 | Azure DevOps PAT | syncs the `DC1.Azure` project | `dev.azure.com/ericcames` → PAT scoped **Code (Read)** |
 | Windows admin password | VM local admin + WinRM | you choose one (Azure complexity: 12–72 chars, 3 of upper/lower/digit/symbol) |
 | AAP admin (or service) login | the Controller credential | your AAP login — lets provision register the VM in the inventory |
-| Automation Hub token | installs the pinned collections | `console.redhat.com/ansible/automation-hub/token` |
+| Automation Hub offline token | installs the pinned collections locally + populates Galaxy credentials | `console.redhat.com/ansible/automation-hub/token` (also in `~/.ansible.cfg`) |
 
 Local tooling: `ansible-core` ≥ 2.16 and `git`. (The `terraform` binary itself
 runs inside the AAP execution environment, not on your laptop.)
@@ -49,8 +50,76 @@ cp ansible.cfg.example ~/.ansible.cfg
 # galaxy_server.automation_hub `token =` line
 ```
 
+> **`~/.ansible.cfg` must be a real file, not a symlink.** If it is a symlink
+> (e.g. `~/.ansible.cfg → ~/.ansible/ansible.cfg`), some Ansible contexts do
+> not follow it. Replace it with a copy:
+> ```bash
+> rm ~/.ansible.cfg && cp ~/.ansible/ansible.cfg ~/.ansible.cfg
+> ```
+
 > Never rename `ansible.cfg.example` to a live `ansible.cfg` *inside the repo* —
 > Ansible loads only one cfg, and a project-local one would shadow your home cfg.
+
+## 2.5. Create Automation Hub Galaxy credentials on the Default org
+
+> ⚠️ **Do this before running `load.yml`.** The `infra.aap_configuration`
+> collection's async workers look up credential types via the AAP API. Without
+> Hub credentials on the Default org they fall back to `127.0.0.1` and fail
+> with `Connection refused`.
+
+The Default org needs two **"Ansible Galaxy/Automation Hub API Token"**
+credentials attached. Both use the same offline token from `~/.ansible.cfg`.
+
+**Option A — via the AAP UI:**
+
+1. Go to **Resources → Credentials → Add**
+2. Create **"Automation Hub - certified"**:
+   - Credential Type: `Ansible Galaxy/Automation Hub API Token`
+   - Galaxy Server URL: `https://console.redhat.com/api/automation-hub/content/published/`
+   - Auth Server URL: `https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token`
+   - API Token: your offline token
+3. Create **"Automation Hub - validated"** — same settings but URL:
+   `https://console.redhat.com/api/automation-hub/content/validated/`
+4. Go to **Access → Organizations → Default → Edit** and add both credentials
+   to **Galaxy Credentials**.
+
+**Option B — via the API (scriptable):**
+
+```bash
+AAP=https://<your-aap>
+# Get the Galaxy credential type ID and Default org ID
+GALAXY_TYPE=$(curl -sk -u admin:<pw> "$AAP/api/controller/v2/credential_types/?kind=galaxy" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['results'][0]['id'])")
+
+# Extract token from ~/.ansible.cfg (adjust line number if your cfg differs)
+# Section order: [galaxy_server.rh_certified] url= auth_url= token= (token is line 3 after header)
+HUB_TOKEN=$(grep -A3 'rh_certified' ~/.ansible.cfg | grep '^token=' | cut -d= -f2-)
+AUTH_URL="https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+
+# Create certified credential
+CERT_ID=$(curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Automation Hub - certified\",\"organization\":1,\"credential_type\":$GALAXY_TYPE,
+       \"inputs\":{\"url\":\"https://console.redhat.com/api/automation-hub/content/published/\",
+       \"auth_url\":\"$AUTH_URL\",\"token\":\"$HUB_TOKEN\"}}" \
+  "$AAP/api/controller/v2/credentials/" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+# Create validated credential
+VAL_ID=$(curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Automation Hub - validated\",\"organization\":1,\"credential_type\":$GALAXY_TYPE,
+       \"inputs\":{\"url\":\"https://console.redhat.com/api/automation-hub/content/validated/\",
+       \"auth_url\":\"$AUTH_URL\",\"token\":\"$HUB_TOKEN\"}}" \
+  "$AAP/api/controller/v2/credentials/" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+# Attach both to Default org (org ID 1)
+curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
+  -d "{\"id\": $CERT_ID}" "$AAP/api/controller/v2/organizations/1/galaxy_credentials/"
+curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
+  -d "{\"id\": $VAL_ID}" "$AAP/api/controller/v2/organizations/1/galaxy_credentials/"
+```
+
+Verify in the UI: **Access → Organizations → Default → Details** → Galaxy
+Credentials should show `Ansible Galaxy`, `Automation Hub - certified`, and
+`Automation Hub - validated`.
 
 ## 3. Install the collections
 
@@ -60,8 +129,24 @@ ansible-galaxy collection install -r aap_config/requirements.yml
 
 ## 4. Create an AAP personal token
 
-In the AAP UI: **your user → Tokens → Add**, scope **Write**. Copy the token —
-you'll export it as `AAP_TOKEN` next.
+**Option A — AAP UI:** your user → **Tokens → Create token**, scope **Write**.
+
+**Option B — gateway API (scriptable, delete after install):**
+
+```bash
+# Create via the new AAP 2.5 gateway endpoint (not /api/v2/tokens/)
+TOKEN_VAL=$(curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
+  -d '{"description":"dc1.azure CaC install","scope":"write"}' \
+  "https://<your-aap>/api/gateway/v1/tokens/" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['id'],d['token'])")
+TOKEN_ID=$(echo $TOKEN_VAL | cut -d' ' -f1)
+TOKEN=$(echo $TOKEN_VAL | cut -d' ' -f2)
+
+# ... run load.yml (see §6) ...
+
+# Delete after install
+curl -sk -u admin:<pw> -X DELETE "https://<your-aap>/api/gateway/v1/tokens/$TOKEN_ID/"
+```
 
 ## 5. Set environment variables
 
@@ -73,7 +158,10 @@ in the repo.
 | `AAP_HOSTNAME` | ✅ | — | AAP API base, e.g. `https://aap.example.com` |
 | `AAP_TOKEN` | ✅ | — | AAP API auth (the personal token from step 4) |
 | `AAP_VALIDATE_CERTS` | — | `false` | set `true` for a trusted cert |
-| `DC1_AZURE_VAULT_PASSWORD` | ✅ | — | the `DC1.Azure - Vault` credential |
+| `CONTROLLER_HOST` | ✅ | — | **Same value as `AAP_HOSTNAME`.** Required separately — `ansible.controller.*` async workers read this env var directly and fall back to `127.0.0.1` if it is absent, regardless of the `aap_hostname` variable. |
+| `CONTROLLER_OAUTH_TOKEN` | ✅ | — | **Same value as `AAP_TOKEN`.** Required for the same async-worker reason. |
+| `CONTROLLER_VERIFY_SSL` | — | `false` | Same as `AAP_VALIDATE_CERTS`; set both. |
+| `DC1_AZURE_VAULT_PASSWORD` | ✅ | — | the `DC1.Azure - Vault` credential — you choose this string; use it again to vault-encrypt `dc1_azure_windows_admin_password` at workflow launch |
 | `AZURE_SUBSCRIPTION_ID` | ✅ | — | `DC1.Azure - Azure RM` credential |
 | `AZURE_TENANT_ID` | ✅ | — | `DC1.Azure - Azure RM` credential |
 | `AZURE_CLIENT_ID` | ✅ | — | Service Principal (Azure RM credential) |
@@ -87,24 +175,12 @@ in the repo.
 | `AAP_CONTROLLER_PASSWORD` | ✅ | — | `DC1.Azure - Controller` credential |
 | `DC1_AZURE_EE` | — | `Default execution environment` | the EE the JTs run in — **see callout below** |
 
-```bash
-export AAP_HOSTNAME=https://<your-aap>
-export AAP_TOKEN=<personal token>
-export DC1_AZURE_VAULT_PASSWORD=<a vault password>
-export AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... \
-       AZURE_CLIENT_ID=... AZURE_CLIENT_SECRET=...
-export AZURE_RESOURCE_GROUP=openenv-xxxxx AZURE_LOCATION=eastus
-export ADO_PAT=<azure devops PAT>
-export WINDOWS_ADMIN_PASSWORD='<Azure-complex password>'
-export AAP_CONTROLLER_PASSWORD=<your AAP password>
-# export DC1_AZURE_EE='<Windows-capable EE with terraform>'   # see callout
-```
-
 > **Execution environment:** the Provision/Configure/Teardown jobs need an EE
 > that has the `terraform` binary, the `ansible.controller`/`ansible.platform`
 > collections, and Windows (`pywinrm`) support. Set `DC1_AZURE_EE` to that EE's
 > name on your AAP. The default `Default execution environment` will create the
-> objects fine but will fail at *run* time if it lacks those tools.
+> objects fine but will fail at *run* time if it lacks those tools. On the
+> **Ansible Product Demo** AAP, try `Product Demos EE` first.
 
 > **Password sync (important):** the Windows admin password is needed in **two**
 > places that must match — the `DC1.Azure - Windows Machine` credential (set
@@ -115,7 +191,31 @@ export AAP_CONTROLLER_PASSWORD=<your AAP password>
 
 ## 6. Apply the configuration
 
+> ⚠️ **All `export` statements and the `ansible-playbook` command must run in
+> the same shell process.** Shell state does not persist across separate terminal
+> commands or tool calls. Use a single compound command, or a wrapper script:
+
 ```bash
+export AAP_HOSTNAME=https://<your-aap>
+export AAP_TOKEN=<personal token from step 4>
+export AAP_VALIDATE_CERTS=false
+export CONTROLLER_HOST=$AAP_HOSTNAME
+export CONTROLLER_OAUTH_TOKEN=$AAP_TOKEN
+export CONTROLLER_VERIFY_SSL=false
+export DC1_AZURE_VAULT_PASSWORD='<vault password>'
+export AZURE_SUBSCRIPTION_ID=<sub>
+export AZURE_TENANT_ID=<tenant>
+export AZURE_CLIENT_ID=<client>
+export AZURE_CLIENT_SECRET='<secret>'
+export AZURE_RESOURCE_GROUP=openenv-xxxxx
+export AZURE_LOCATION=eastus
+export ADO_PAT=<ado pat>
+export WINDOWS_ADMIN_USERNAME=demoadmin
+export WINDOWS_ADMIN_PASSWORD='<Azure-complex password>'
+export AAP_CONTROLLER_USERNAME=admin
+export AAP_CONTROLLER_PASSWORD=<aap admin password>
+export DC1_AZURE_EE='Product Demos EE'   # or your terraform-capable EE
+
 ansible-playbook -i aap_config/inventory/ aap_config/load.yml
 ```
 
@@ -142,11 +242,14 @@ provision the Azure VM and run the configure chain.
 | `401 Unauthorized` during `load.yml` | bad/expired `AAP_TOKEN` | recreate the personal token (step 4) |
 | `validate.yml` reports a MISSING object | dispatch skipped it (often a missing env var) | check the failed object's required env var; re-run |
 | Validate hits `/api/v2/` not found | older AAP API path | `export DC1_AZURE_API_BASE=/api/v2` and re-run |
+| `Connection refused` to `127.0.0.1` during credential creation | `CONTROLLER_HOST` / `CONTROLLER_OAUTH_TOKEN` not set, OR Hub Galaxy credentials missing from Default org | set both `CONTROLLER_*` vars **and** complete §2.5 before re-running |
+| Credential creation fails (censored `no_log`) | same root cause as above | expose with `-e controller_configuration_credentials_secure_logging=false` to confirm, then fix |
 | Provision job fails: `terraform: not found` | EE lacks terraform | set `DC1_AZURE_EE` to a terraform-capable EE |
 | Provision fails on `admin_password` complexity | weak `WINDOWS_ADMIN_PASSWORD` | 12–72 chars, 3 of upper/lower/digit/symbol |
 | Configure steps can't authenticate (WinRM) | Windows Machine cred password ≠ Terraform admin_password, or username mismatch | sync the password (step 5 callout); keep `WINDOWS_ADMIN_USERNAME` = Terraform `admin_username` |
 | Provision can't register host (`CONTROLLER_*` not set) | Controller credential not attached | confirm `DC1.Azure - Controller` is on the Provision/Teardown JTs |
 | `ansible-galaxy` can't find `infra.aap_configuration` 4.4.0 | Hub token not configured | step 2 (`ansible.cfg.example` → `~/.ansible.cfg`) |
+| Galaxy credential token missing / empty after API creation | wrong grep pattern when extracting token from `~/.ansible.cfg` | the section is `[galaxy_server.rh_certified]` not `[galaxy_server.automation_hub]`; token is line 3 after the section header |
 
 ## Uninstall
 
