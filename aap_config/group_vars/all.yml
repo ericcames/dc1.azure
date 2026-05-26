@@ -18,7 +18,7 @@ aap_validate_certs: "{{ lookup('ansible.builtin.env', 'AAP_VALIDATE_CERTS') | de
 # my_execution_environment must name a Windows-capable EE that the Ansible
 # Product Demo AAP already provides (has pywinrm + ansible.windows). Confirm the
 # exact name on the target AAP and override via env if it differs.
-my_organization: Default
+my_organization: "IT Service Automation"
 my_execution_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE') | default('Default execution environment', true) }}"
 
 # Red Hat AAP (Controller) credential inputs — lets provision_vm/teardown

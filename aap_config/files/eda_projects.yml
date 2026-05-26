@@ -1,0 +1,9 @@
+---
+# Consumed by the infra.aap_configuration.eda_projects role.
+# Event-Driven Ansible projects. Sourced from aap.as.code.
+eda_projects:
+  - name: event.driven.ansible
+    description: my awesome project
+    url: https://github.com/ericcames/event.driven.ansible.git
+    organization: "{{ my_organization }}"
+    tls_validation: true

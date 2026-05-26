@@ -1,0 +1,35 @@
+---
+# Consumed by the infra.aap_configuration.gateway_organizations role.
+# AAP gateway organizations. Sourced from aap.as.code; every org gets the
+# three standard Galaxy credentials so async workers can resolve content.
+aap_organizations:
+  - name: "{{ my_organization }}"
+    galaxy_credentials:
+      - Automation Hub - certified
+      - Automation Hub - validated
+      - Ansible Galaxy
+  - name: Network
+    galaxy_credentials:
+      - Automation Hub - certified
+      - Automation Hub - validated
+      - Ansible Galaxy
+  - name: Storage
+    galaxy_credentials:
+      - Automation Hub - certified
+      - Automation Hub - validated
+      - Ansible Galaxy
+  - name: Online Shopping
+    galaxy_credentials:
+      - Automation Hub - certified
+      - Automation Hub - validated
+      - Ansible Galaxy
+  - name: Data Center Operations
+    galaxy_credentials:
+      - Automation Hub - certified
+      - Automation Hub - validated
+      - Ansible Galaxy
+  - name: Security Operations Center
+    galaxy_credentials:
+      - Automation Hub - certified
+      - Automation Hub - validated
+      - Ansible Galaxy

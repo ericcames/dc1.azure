@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- `aap_config/files/gateway_settings.yml` — platform-wide AAP gateway settings (token name, expiration, proxy URL, login banner). Sourced from `aap.as.code`.
+- `aap_config/files/gateway_organizations.yml` — six AAP organizations (`IT Service Automation`, `Network`, `Storage`, `Online Shopping`, `Data Center Operations`, `Security Operations Center`), each pre-populated with the three standard Galaxy credentials. Sourced from `aap.as.code`.
+- `aap_config/files/gateway_teams.yml` — four teams (`Network`, `Server`, `Storage`, `ITO`) scoped under `my_organization`. Sourced from `aap.as.code`.
+- `aap_config/files/eda_projects.yml` — EDA project pointing at `ericcames/event.driven.ansible`. Sourced from `aap.as.code`.
+- `aap_config/files/controller_credential_types.yml` — `ServiceNow ITSM Credential` custom type (injects `SN_HOST`, `SN_USERNAME`, `SN_PASSWORD` env vars). Sourced from `aap.as.code`.
+
+### Changed
+- `aap_config/group_vars/all.yml` — `my_organization` changed from `Default` to `IT Service Automation` to match the aap.as.code standard org name.
+- `aap_config/load.yml` — added the five new vars_files (gateway_settings, gateway_organizations, gateway_teams, eda_projects, controller_credential_types) before the existing controller_* files so dispatch picks them all up in one run.
+
 ### Fixed
 - `docs/INSTALL.md` + `.claude/skills/install-dc1-azure/SKILL.md` — captured all lessons from the first live `load.yml` run (2026-05-26):
   - **§2.5 (new)** — "Automation Hub - certified" and "Automation Hub - validated" Galaxy credentials must be created and attached to the Default org *before* running `load.yml`. Without them, `infra.aap_configuration` async workers fall back to `127.0.0.1` and fail with `Connection refused` on every credential creation task. Includes API-scriptable creation steps and the correct `~/.ansible.cfg` section names (`rh_certified` / `rh_validated`, not `automation_hub`).
