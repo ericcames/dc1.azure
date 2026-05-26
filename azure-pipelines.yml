@@ -1,51 +1,97 @@
 # ============================================================================
-# dc1.azure CI — lint + validate (Phase 5)
+# dc1.azure CI — lint + validate + GitHub mirror (Phase 5)
 # ============================================================================
-# Gates pull requests to `main`: yamllint, ansible-lint, terraform fmt + validate.
+# Two stages:
+#   Lint    — yamllint, ansible-lint, terraform fmt + validate.
+#             Runs on every trigger (CI on main AND Build Validation PR policy).
+#   Mirror  — pushes main to the GitHub mirror after a successful Lint stage.
+#             Skipped on PR builds (Build.Reason == 'PullRequest').
 #
 # IMPORTANT (Azure Repos): YAML `pr:` triggers do NOT work for Azure Repos Git —
-# PR runs are driven by the **Build Validation branch policy** on `main`
-# (configured in ADO, the Phase 0.5 parked item). So both triggers are disabled
-# here and the policy invokes this pipeline on each PR.
+# PR runs are driven by the **Build Validation branch policy** on `main`.
+# That policy sets Build.Reason = 'PullRequest', which the Mirror condition tests.
 #
-# The GitHub auto-mirror stage is intentionally NOT here yet — it needs the
-# `github-ericcames` service connection (a GitHub PAT), deferred per Phase 5.
+# Secret pipeline variable required:
+#   GITHUB_PAT — GitHub Personal Access Token with `repo` scope.
+#                Set on pipeline 1 via: az pipelines variable create ...
+#                Service connection: github-ericcames (credential store in ADO).
 # ============================================================================
 ---
-trigger: none
+trigger:
+  branches:
+    include:
+      - main
 pr: none
 
-pool:
-  vmImage: ubuntu-latest
+stages:
+  - stage: Lint
+    displayName: Lint + Validate
+    jobs:
+      - job: Lint
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.12"
+            displayName: Use Python 3.12
 
-steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: "3.12"
-    displayName: Use Python 3.12
+          - script: |
+              set -euo pipefail
+              python -m pip install --upgrade pip
+              pip install "ansible-core>=2.16" "ansible-lint>=24" "yamllint>=1.35"
+            displayName: Install lint tooling
 
-  - script: |
-      set -euo pipefail
-      python -m pip install --upgrade pip
-      pip install "ansible-core>=2.16" "ansible-lint>=24" "yamllint>=1.35"
-    displayName: Install lint tooling
+          - script: yamllint .
+            displayName: yamllint
 
-  - script: yamllint .
-    displayName: yamllint
+          - script: ansible-lint
+            displayName: ansible-lint
+            # Uses .ansible-lint (offline + mocked modules) so it doesn't need the
+            # AAP/Azure collections (and the Hub token) installed in CI.
 
-  - script: ansible-lint
-    displayName: ansible-lint
-    # Uses .ansible-lint (offline + mocked modules) so it doesn't need the
-    # AAP/Azure collections (and the Hub token) installed in CI.
+          - script: |
+              set -euo pipefail
+              wget -qO- https://apt.releases.hashicorp.com/gpg | \
+                sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+              echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+                https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+                sudo tee /etc/apt/sources.list.d/hashicorp.list
+              sudo apt-get update -qq
+              sudo apt-get install -y terraform
+            displayName: Install Terraform
 
-  - script: terraform fmt -check -recursive
-    displayName: terraform fmt -check
-    workingDirectory: terraform
-    # terraform is preinstalled on Microsoft-hosted ubuntu-latest agents.
+          - script: terraform fmt -check -recursive
+            displayName: terraform fmt -check
+            workingDirectory: terraform
 
-  - script: |
-      set -euo pipefail
-      terraform init -backend=false -input=false -no-color
-      terraform validate -no-color
-    displayName: terraform validate
-    workingDirectory: terraform
+          - script: |
+              set -euo pipefail
+              terraform init -backend=false -input=false -no-color
+              terraform validate -no-color
+            displayName: terraform validate
+            workingDirectory: terraform
+
+  - stage: Mirror
+    displayName: Mirror → GitHub
+    dependsOn: Lint
+    # Run only on CI pushes to main — skip during PR builds triggered by the
+    # Build Validation branch policy (Build.Reason == 'PullRequest').
+    condition: and(succeeded('Lint'), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: Mirror
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            displayName: Full checkout (mirror needs full history)
+
+          - script: |
+              set -euo pipefail
+              git remote add github \
+                "https://x-oauth-basic:$(GITHUB_PAT)@github.com/ericcames/dc1.azure.git"
+              git push github HEAD:refs/heads/main
+            displayName: Push to GitHub mirror
+            env:
+              GITHUB_PAT: $(GITHUB_PAT)
