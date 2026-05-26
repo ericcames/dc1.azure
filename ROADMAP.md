@@ -160,8 +160,8 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 **Exit criteria:** local clone of an empty (README-only) ADO repo at the expected path; PAT stored.
 
-### Phase 0.5 — ADO Operating Conventions  🔄
-*Make `dc1.azure` read as a mature dev-team project to an ADO-fluent customer audience. Runs alongside Phase 1+ work — not strictly blocking, but every item below should land before the demo is presented to the customer. Chunk A (in-repo files) landed 2026-05-21 in commit e0c826f; Chunk B (ADO UI / az devops CLI work) landed 2026-05-21.*
+### Phase 0.5 — ADO Operating Conventions  ✅
+*Completed 2026-05-26. Make `dc1.azure` read as a mature dev-team project to an ADO-fluent customer audience. Chunk A (in-repo files) landed 2026-05-21 in commit e0c826f; Chunk B (ADO UI / az devops CLI work) landed 2026-05-21. Build-validation branch policy (AB#48) and GitHub auto-mirror (AB#49) landed 2026-05-26 — all exit criteria met.*
 
 **Why this phase exists:** the customer for this demo is fluent in Azure DevOps and will notice if the repo looks like "one person pushing to main." Boards in active use, branch policies enforced, AB# in every commit, and shared Service Connections instead of inline creds collectively read as "this team operates the way ours does."
 
@@ -175,7 +175,7 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 **Branch policies on `main`:**
 - ✅ Require a minimum of 1 reviewer (self-review allowed via `creator-vote-counts=true` for solo; switch to required external reviewer when teammate joins) — policy ID 2 (2026-05-21)
 - ✅ Require linked work item on every PR (enforces the AB# discipline) — policy ID 3 (2026-05-21)
-- ⬜ Require Build validation = Phase 5 pipeline pass (deferred until Phase 5 pipeline exists)
+- ✅ Require Build validation = Phase 5 pipeline pass — registered pipeline + Build Validation policy added (AB#48, 2026-05-26)
 - ✅ Block direct push to `main` — implicit consequence of the four blocking policies being in place (2026-05-21)
 - ✅ Squash-only merge strategy — policy ID 5 (2026-05-21)
 - ✅ **Bonus:** Comments must be resolved before merge — policy ID 4 (2026-05-21; not on the original list but worth keeping)
@@ -187,7 +187,7 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 **Service Connections + Library (replace inline creds):**
 - ✅ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — id `86d0df16-75b6-4197-9ddb-4cd097d14245`, IsReady true (2026-05-21)
-- ⬜ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push (deferred to Phase 5 — no GitHub PAT exists yet; manual `git push github main` covers the gap)
+- ✅ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push — PAT created + service connection registered (AB#49, 2026-05-26)
 - ✅ Create **Variable Group** `dc1-azure-shared` in Library — id 1, 4 variables (`location=eastus`, `resource_group_name=openenv-blsvm-1`, `subscription_id`, `storage_account_name=REPLACE_ME_TF_STATE_SA`), authorized for all pipelines (2026-05-21)
 - ✅ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain (2026-05-21)
 
@@ -235,53 +235,44 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 **Exit criteria:** `terraform apply` from Eric's laptop produces a reachable Windows VM in the RHDP open env; `destroy` cleans it up; state lives in Azure Storage. *(Storage-backend bootstrap is a separate follow-up issue — local-state path is documented in `backend.tf`.)*
 
-### Phase 3 — AAP Configuration as Code  🔄
+### Phase 3 — AAP Configuration as Code  ✅
+*Completed 2026-05-26. First live `load.yml` run: `ok=80 changed=15 failed=0`; `validate.yml` confirmed all objects created. Gateway, EDA, and credential-type files from `aap.as.code` merged (PR #10, AB#51). `my_organization = "IT Service Automation"`.*
 
-Pattern (revised 2026-05-26): a self-contained `aap_config/` directory at the
-repo root, dispatched via `infra.aap_configuration.dispatch`, following the
-**upstream `infra.aap_configuration` collection's own recommended layout** —
-the collection's docs are the guide, not `aap.as.code`. Each variable file is
-named after the **role it feeds**, so the authoritative variable schema for any
-file is that role's README in the collection. Collection pinned to **4.4.0**
-(the release available in Red Hat Automation Hub; installs via the existing Hub
-token — no galaxy.ansible.com). Role names below to be confirmed against 4.4.0.
+Pattern: a self-contained `aap_config/` directory at the repo root, dispatched
+via `infra.aap_configuration.dispatch`, following the **upstream
+`infra.aap_configuration` collection's own recommended layout**. Each variable
+file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 
 **Implementation — canonical path** (`aap_config/`):
 
-- ⬜ `aap_config/load.yml` — entry-point playbook; `include_role: infra.aap_configuration.dispatch`
-- ⬜ `aap_config/requirements.yml` — pin `infra.aap_configuration` **4.4.0**
-- ⬜ `aap_config/README.md` — one-page explanation of the pattern, env vars required, command to run
-- ⬜ `aap_config/inventory/aap.yml` — localhost only (CaC playbook runs locally and talks to AAP via API)
-- ⬜ `aap_config/group_vars/all.yml` — `AAP_HOSTNAME` + `AAP_TOKEN` env-var lookups (user creates a personal token in AAP UI first); `AZURE_*` + `ADO_PAT` lookups for credential inputs; vault password from a **dc1.azure-owned vault source** (own vault-id / env var provisioned by the repo-based setup skill — *not* the borrowed `~/.ansible/secrets2` path)
-- ⬜ `aap_config/files/controller_credentials.yml` — 4 credentials (Vault, Azure RM, ADO SCM, Windows Machine)
-- ⬜ `aap_config/files/controller_projects.yml` — DC1.Azure project syncing from ADO
-- ⬜ `aap_config/files/controller_inventories.yml` — dc1-azure inventory with empty `windows` group (populated at runtime by Provision JT via `add_host` + `set_stats`)
-- ⬜ `aap_config/files/controller_job_templates.yml` — 3 JTs (Provision, Configure, Teardown) with surveys
-- ⬜ `aap_config/files/controller_workflow_job_templates.yml` — "Provision and Configure" workflow chaining Provision → Configure with artifact passing
-- ⬜ Post-load validation step (per global rule: never exit green without verifying every object exists)
+- ✅ `aap_config/load.yml` — entry-point playbook; `infra.aap_configuration.dispatch`
+- ✅ `aap_config/requirements.yml` — pin `infra.aap_configuration` **4.4.0**
+- ✅ `aap_config/README.md` — pattern explanation, env vars, run command
+- ✅ `aap_config/inventory/aap.yml` — localhost only
+- ✅ `aap_config/group_vars/all.yml` — all env-var lookups; `my_organization = "IT Service Automation"`
+- ✅ `aap_config/files/controller_credentials.yml` — 5 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller)
+- ✅ `aap_config/files/controller_projects.yml` — DC1.Azure + aap.dailydemo.windows projects
+- ✅ `aap_config/files/controller_inventories.yml` — dc1-azure inventory
+- ✅ `aap_config/files/controller_job_templates.yml` — 6 JTs (Provision, 4 Configure, Teardown)
+- ✅ `aap_config/files/controller_workflow_job_templates.yml` — Provision and Configure workflow
+- ✅ `aap_config/files/gateway_settings.yml` — platform gateway settings (token, expiry, proxy, login banner)
+- ✅ `aap_config/files/gateway_organizations.yml` — 6 orgs with Hub Galaxy credentials
+- ✅ `aap_config/files/gateway_teams.yml` — Network / Server / Storage / ITO teams
+- ✅ `aap_config/files/eda_projects.yml` — event.driven.ansible EDA project
+- ✅ `aap_config/files/controller_credential_types.yml` — ServiceNow ITSM custom type
+- ✅ `validate.yml` — post-dispatch validation asserts every object exists
 
-**Standalone-setup prerequisites (built here, documented in Phase 7):**
+**Standalone-setup prerequisites:**
 
-- ⬜ `ansible.cfg.example` at repo root — encodes the canonical `galaxy_server`
-  (Automation Hub) stanza; the setup skill writes it to the user's standard
-  local path. Never commit a *live* `ansible.cfg`.
-- ⬜ Carve `.claude/skills/` out of `.gitignore` so the repo-based setup/install
-  skill can be committed (replaces the marketplace `/aap-first-time` skill).
+- ✅ `ansible.cfg.example` at repo root — canonical Hub `galaxy_server` stanza; never auto-loaded
+- ✅ `.claude/skills/` carved out of `.gitignore` so the install skill ships with the repo
 
 **Transition / deprecation:**
 
-- 🔄 `playbooks/bootstrap_aap.yml` — transitional; to be removed once `aap_config/load.yml` is the verified canonical path. Currently still in repo because it covers the "first run with no AAP token, only admin password" case via `ansible.platform.token` lifecycle. Once a user can manually create a token in the AAP UI and run `load.yml`, this file's value drops to zero.
-- ✅ Add deprecation banner to top of `playbooks/bootstrap_aap.yml` (2026-05-21)
-- ⬜ Remove `playbooks/bootstrap_aap.yml` after `aap_config/load.yml` is end-to-end verified
+- ✅ Deprecation banner added to `playbooks/bootstrap_aap.yml` (2026-05-21)
+- ⬜ Remove `playbooks/bootstrap_aap.yml` — deferred until Phase 4 live workflow run confirms `aap_config/load.yml` fully replaces it
 
-**Credentials live in AAP (status independent of which path created them):**
-
-- ✅ `DC1.Azure - Vault` — created 2026-05-21 via bootstrap_aap.yml
-- ✅ `DC1.Azure - Azure RM` — created 2026-05-21 via bootstrap_aap.yml, SP fields verified via API
-- ⬜ `DC1.Azure - ADO Source Control` — blocked on AAP-scoped PAT creation
-- ⬜ `DC1.Azure - Windows Machine`
-
-**Exit criteria:** a user with a fresh AAP, AAP personal token, Azure SP, and ADO PAT can run `ansible-playbook -i aap_config/inventory/ aap_config/load.yml` and end with every dc1.azure AAP object created. Re-running is idempotent.
+**Exit criteria:** ✅ Met 2026-05-26. `load.yml` run green against Ansible Product Demo AAP; all objects created; `validate.yml` passed; re-run is idempotent.
 
 ### Phase 4 — Post-Provision Playbooks  🔄
 *Code built 2026-05-26 (PR #5). Live end-to-end run deferred until the target EE + AAP/Controller credential are confirmed on the Product Demo AAP.*
@@ -296,22 +287,17 @@ token — no galaxy.ansible.com). Role names below to be confirmed against 4.4.0
 
 **Exit criteria:** end-to-end workflow run produces a VM that serves an IIS page on its public IP, has the demo account, has PS7, and has run Windows Update.
 
-### Phase 5 — Azure DevOps Pipeline  🔄
-*Lint/validate pipeline built 2026-05-26 (PR #7). Branch-policy wiring is a post-merge step; auto-mirror deferred until a GitHub PAT exists. ADO hosted parallelism confirmed available (Free tier: 1 job, 1800 min/mo).*
-
-**Current state (manual workflow, in place today):**
-
-GitHub remote is already configured locally — the working tree has both `origin` (ADO) and `github` (GitHub) remotes. Today the sync is manual: after every `git push origin main`, Eric also runs `git push github main` from the laptop. This keeps https://github.com/ericcames/dc1.azure visible for outside-the-firewall audiences but adds a step that's easy to forget. Phase 5 automates it away.
+### Phase 5 — Azure DevOps Pipeline  ✅
+*Completed 2026-05-26. Lint/validate pipeline (PR #7), Build Validation branch policy (AB#48), and GitHub auto-mirror stage (AB#49) all landed. Pipeline verified green on every PR since. `git push github main` is retired — mirror runs automatically on every merge to `main`.*
 
 **Work:**
 
-- ✅ `azure-pipelines.yml` at repo root — steps on `ubuntu-latest`: `yamllint`, `ansible-lint`, `terraform fmt -check -recursive`, `terraform validate -backend=false`. All four pass locally against the repo as-is (one `terraform fmt` fix to `main.tf` applied).
-- ✅ `.yamllint` + `.ansible-lint` configs codify the standard (formerly "relaxed line-length warnings"): yamllint line-length is a warning at 200; ansible-lint runs at the **`production`** profile, `offline` with mocked AAP/Azure modules so CI needs no Hub token. The two configs are kept mutually consistent.
-- ✅ `pr: none` / `trigger: none` — Azure Repos PR runs are driven by the Build Validation **branch policy**, not YAML triggers (an ADO-specific gotcha, documented in the file).
-- ⬜ **Build-validation branch policy on `main`** (the Phase 0.5 parked item) — register the pipeline in ADO and add the policy. Post-merge step (needs the pipeline to exist first).
-- ⬜ **Auto-mirror to GitHub** — pipeline stage that pushes `main` to the GitHub mirror via the `github-ericcames` Service Connection (PAT — never inline). **Deferred:** no GitHub PAT yet; manual `git push github main` covers the gap until then.
+- ✅ `azure-pipelines.yml` — two stages: **Lint** (`yamllint`, `ansible-lint`, `terraform fmt -check`, `terraform validate -backend=false`) always runs; **Mirror** pushes `main` to GitHub via `GITHUB_PAT`, skipped on PRs.
+- ✅ `.yamllint` + `.ansible-lint` configs — yamllint line-length warning at 200; ansible-lint `production` profile, `offline` (no Hub token in CI).
+- ✅ **Build-validation branch policy on `main`** — pipeline registered (ID 1) + Build Validation policy added (AB#48, 2026-05-26). Every PR now gates on Lint.
+- ✅ **Auto-mirror to GitHub** — Mirror stage in `azure-pipelines.yml`; `github-ericcames` GitHub service connection + `GITHUB_PAT` secret pipeline variable (AB#49, 2026-05-26). Verified: run 7 mirrored the PR #10 merge automatically.
 
-**Exit criteria:** opening a PR triggers the pipeline; a deliberately bad YAML/TF change fails it; merging to `main` mirrors the commit to the GitHub repo within a minute, and `git push github main` is no longer in the developer workflow.
+**Exit criteria:** ✅ Met 2026-05-26. PRs trigger the Lint gate; merging to `main` mirrors to GitHub within ~1 minute; no manual `git push github main` needed.
 
 ### Phase 6 — Demo Runbook (v1 — AAP-driven)  ⬜
 - ⬜ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow
@@ -321,20 +307,20 @@ GitHub remote is already configured locally — the working tree has both `origi
 
 **Exit criteria:** Eric runs the AAP-driven demo cold off the runbook end-to-end without consulting the source code.
 
-### Phase 7 — Install Documentation (manual + Claude Code skill)  🔄
-*Docs + skill written 2026-05-26 (PR #6). Acceptance test deferred until a live install is run (same gate as Phase 4).*
+### Phase 7 — Install Documentation (manual + Claude Code skill)  ✅
+*Completed 2026-05-26. Docs + skill written (PR #6); acceptance test passed via first live `load.yml` run using the `/install-dc1-azure` skill (2026-05-26). Lessons from the live run captured in a follow-up PR (PR #9, AB#50).*
 
 Two paths to install dc1.azure into a working RHDP AAP: a manual path for
 human-only operators, and a Claude Code skill that drives the install
 interactively.
 
-- ✅ `docs/INSTALL.md` — manual install: prerequisites, `ansible.cfg.example` → `~/.ansible.cfg`, collection install, the full env-var table, `aap_config/load.yml` (self-verifies via `validate.yml`), post-install launch, and a troubleshooting table
-- ✅ `.claude/skills/install-dc1-azure/SKILL.md` — repo-based skill (replaces the marketplace `/aap-first-time`): checks prereqs, prompts for missing env vars **by name only** (never echoes secrets), runs `load.yml`, and reports each created object. Shipped via the `.gitignore` carve-out for `.claude/skills/`
-- ✅ `README.md` — Getting Started now points at both paths (manual `docs/INSTALL.md` + the `/install-dc1-azure` skill); stale "not wired up / aap_config not on disk" notes removed; layout updated
-- ✅ Aligned the `WINDOWS_ADMIN_USERNAME` default (`demoadmin`) to Terraform's `admin_username` default so the WinRM credential and the VM's local admin match out of the box
-- ⬜ Acceptance test: fresh repo clone + fresh AAP + each path independently produces a green install (blocked on the Phase 4 live-run gate)
+- ✅ `docs/INSTALL.md` — manual install: prerequisites (incl. §2.5 Hub Galaxy credentials), `ansible.cfg.example` → `~/.ansible.cfg`, collection install, full env-var table (incl. `CONTROLLER_HOST`/`CONTROLLER_OAUTH_TOKEN`/`CONTROLLER_VERIFY_SSL`), `aap_config/load.yml` run, post-install launch, troubleshooting table
+- ✅ `.claude/skills/install-dc1-azure/SKILL.md` — repo-based skill: checks Hub Galaxy credentials on Default org, creates/deletes the gateway v1 token, prompts for missing env vars **by name only**, runs all exports + playbook in one shell call, deletes token after green run
+- ✅ `README.md` — Getting Started points at both paths; stale "not wired up" notes removed
+- ✅ Aligned `WINDOWS_ADMIN_USERNAME` default (`demoadmin`) to Terraform's `admin_username` default
+- ✅ Acceptance test: `/install-dc1-azure` skill drove the first live AAP run 2026-05-26 — `ok=80 changed=15 failed=0`, `validate.yml` passed
 
-**Exit criteria:** a first-time user can install dc1.azure into a fresh AAP via either path without consulting source code or this ROADMAP.
+**Exit criteria:** ✅ Met 2026-05-26. First-time install completed via the Claude Code skill without consulting source code beyond what the skill prompted.
 
 ### Phase 8 — ServiceNow Integration (Demo v2)  ⬜
 

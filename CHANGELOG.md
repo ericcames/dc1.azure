@@ -13,6 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `aap_config/files/controller_credential_types.yml` — `ServiceNow ITSM Credential` custom type (injects `SN_HOST`, `SN_USERNAME`, `SN_PASSWORD` env vars). Sourced from `aap.as.code`.
 
 ### Changed
+- `ROADMAP.md` — marked Phases 0.5, 3, 5, and 7 ✅ complete. Updated individual checklist items to reflect as-built state, added completion dates and verification notes. Phase 4 remains 🔄 (code merged; live workflow run pending).
 - `aap_config/group_vars/all.yml` — `my_organization` changed from `Default` to `IT Service Automation` to match the aap.as.code standard org name.
 - `aap_config/load.yml` — added the five new vars_files (gateway_settings, gateway_organizations, gateway_teams, eda_projects, controller_credential_types) before the existing controller_* files so dispatch picks them all up in one run.
 
