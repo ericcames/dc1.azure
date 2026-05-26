@@ -250,6 +250,7 @@ provision the Azure VM and run the configure chain.
 | Provision can't register host (`CONTROLLER_*` not set) | Controller credential not attached | confirm `DC1.Azure - Controller` is on the Provision/Teardown JTs |
 | `ansible-galaxy` can't find `infra.aap_configuration` 4.4.0 | Hub token not configured | step 2 (`ansible.cfg.example` → `~/.ansible.cfg`) |
 | Galaxy credential token missing / empty after API creation | wrong grep pattern when extracting token from `~/.ansible.cfg` | the section is `[galaxy_server.rh_certified]` not `[galaxy_server.automation_hub]`; token is line 3 after the section header |
+| `load.yml` fails: "returned N items, expected 1" on any object | `my_organization` was changed and objects from the old org were never cleaned up — `infra.aap_configuration` queries by name only, not name+org, so duplicates across orgs cause a fatal | delete the stale org's objects via the AAP API or UI (query `?name=<obj>&organization=<old-org-id>` for each type: credentials, inventories, projects, job_templates, workflow_job_templates), then re-run |
 
 ## Uninstall
 
