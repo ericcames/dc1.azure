@@ -22,9 +22,16 @@ re-implementing the entire DC1 layered platform.
 
 ## Guiding Principles
 
-- **Mirror DC1 patterns where reasonable** — directory layout, CHANGELOG
-  style, `infra.aap_configuration` version pinning, CaC-for-everything all
-  match `demo.datacenter` / `aap.as.code` conventions.
+- **Stands independently of `aap.as.code`** — dc1.azure must install and run
+  without any sibling repo checked out. It borrows *patterns* from
+  `aap.as.code` / `demo.datacenter`, never a runtime or repo-level dependency.
+  This is what lets it drop into the Ansible Product Demo cleanly.
+- **`infra.aap_configuration` collection is the guide** — follow the
+  collection's own docs and recommended layout over the `aap.as.code` repo
+  wherever the collection prescribes a pattern. Name each CaC variable file
+  after the **role/module it feeds** (`controller_credentials.yml` →
+  `controller_credentials` role) so the authoritative variable schema is one
+  README away.
 - **Deviate only where the platform demands it** — Azure-native services
   (Storage backend for Terraform state, Azure RM credential type, ADO
   Pipelines) replace their AWS/GitHub equivalents; the *shape* of the
@@ -34,13 +41,27 @@ re-implementing the entire DC1 layered platform.
 - **AAP is the orchestrator** — even with ADO Pipelines in the picture, ADO
   handles code quality (lint/validate) only. All provisioning,
   configuration, and teardown runs from AAP. Matches the AWS DC1 split.
+- **One core workflow, four triggers** — the demo exposes a single
+  survey-driven, API-launchable workflow. Each entry point (AAP UI, AAP
+  Self-Service Portal, ServiceNow catalog, Azure DevOps) is a *thin adapter*
+  in front of that one workflow — never a parallel re-implementation.
+- **Retain the proven Windows configure workflow** — the post-provision half
+  reuses the working roles from `aap.dailydemo.windows` (sourced via a pinned
+  git reference, not rewritten). dc1.azure adds the Azure *provision* half in
+  front of them.
 - **CaC for every AAP object** — credentials, projects, inventories, job
-  templates, workflows defined in `playbooks/bootstrap_aap.yml` via the
-  `infra.aap_configuration` collection.
-- **No project-local `ansible.cfg`** — the user's global `~/.ansible.cfg`
-  holds the Automation Hub `galaxy_server` token; shadowing it breaks
-  `ansible-galaxy collection install` for Red Hat certified content. Set
-  inventory/options via CLI flags or env vars.
+  templates, workflows defined under `aap_config/` and applied via
+  `infra.aap_configuration.dispatch`. (`playbooks/bootstrap_aap.yml` is a
+  deprecated stopgap pending the `aap_config/` path being verified.)
+- **Repo-based Claude skills, not marketplace** — setup/install skills live in
+  `.claude/skills/` committed in this repo, so the demo carries its own
+  tooling and doesn't depend on a marketplace plugin being installed.
+- **Ship `ansible.cfg.example`, never a live `ansible.cfg`** — Ansible loads
+  exactly one cfg (no merge), so a *live* project-local `ansible.cfg` shadows
+  the user's home cfg and breaks `ansible-galaxy` install of Hub-certified
+  content. A committed `ansible.cfg.example` (never auto-loaded) encodes the
+  canonical `galaxy_server` stanza; the repo-based setup skill writes it to the
+  user's standard local path.
 - **Namespaced AAP objects** — every credential, project, JT, and workflow
   name is prefixed `DC1.Azure -` so it can co-exist safely with `demo.datacenter`
   AWS objects in shared AAP instances.
@@ -86,6 +107,23 @@ re-implementing the entire DC1 layered platform.
 │     └─ Windows Server 2025 VM     (size from survey tier)          │
 └────────────────────────────────────────────────────────────────────┘
 ```
+
+> **Runtime AAP:** dc1.azure installs additively onto the AAP provisioned by
+> the **Ansible Product Demo** RHDP catalog item — it targets the EE/orgs that
+> AAP already provides and namespaces its own objects `DC1.Azure -`. It does
+> *not* require the `ansible/product-demos` repo layout.
+
+**Demo triggers — four entry points, one workflow:**
+
+```
+   AAP UI               ─┐
+   AAP Self-Service Portal─┤
+   ServiceNow catalog   ─┼──►  launch  "DC1.Azure - Provision and Configure"
+   Azure DevOps pipeline ─┘            (the single AAP workflow above)
+```
+
+Each trigger is a thin adapter that launches the same survey-driven,
+API-launchable workflow — no parallel re-implementations.
 
 ---
 
@@ -172,8 +210,8 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 - ✅ Top-level files: `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`
 - ✅ Directory scaffolding: `terraform/`, `playbooks/`, `inventories/dc1-azure/`, `docs/`, `docs/images/`, `meta/`, `collections/`
 - ✅ `galaxy.yml`, `meta/runtime.yml`
-- ✅ `collections/requirements.yml` pinning `infra.aap_configuration` 4.2.0, plus `azure.azcollection`, `ansible.windows`, `community.windows`
-- ✅ **No** project-local `ansible.cfg`
+- ✅ `collections/requirements.yml` pinning `infra.aap_configuration` 4.2.0, plus `azure.azcollection`, `ansible.windows`, `community.windows` *(bumped to 4.4.0 in Phase 3 — see Decisions Log 2026-05-26)*
+- ✅ **No** *live* project-local `ansible.cfg` *(a committed `ansible.cfg.example` template is added in Phase 3 — never auto-loaded, so it doesn't shadow the home cfg)*
 - ✅ `.gitignore` covering `*.tfstate*`, `.terraform/`, `*.tfvars` (except `*.tfvars.example`), `__pycache__`, `.DS_Store`
 
 **Exit criteria:** repo opens cleanly in VS Code, `ansible-galaxy collection install -r collections/requirements.yml` succeeds against Eric's `~/.ansible.cfg`.
@@ -199,26 +237,36 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 
 ### Phase 3 — AAP Configuration as Code  🔄
 
-Pattern adopted (2026-05-21): `url_checker`-style self-contained `aap_config/`
-directory at the repo root, dispatched via `infra.aap_configuration.dispatch`.
-Chosen over `aap.as.code`'s `playbooks/files/config_as_code/` because it's
-more discoverable for new users (single top-level directory contains
-everything to install AAP objects) and matches the upstream
-`infra.aap_configuration` collection's recommended layout.
+Pattern (revised 2026-05-26): a self-contained `aap_config/` directory at the
+repo root, dispatched via `infra.aap_configuration.dispatch`, following the
+**upstream `infra.aap_configuration` collection's own recommended layout** —
+the collection's docs are the guide, not `aap.as.code`. Each variable file is
+named after the **role it feeds**, so the authoritative variable schema for any
+file is that role's README in the collection. Collection pinned to **4.4.0**
+(the release available in Red Hat Automation Hub; installs via the existing Hub
+token — no galaxy.ansible.com). Role names below to be confirmed against 4.4.0.
 
-**Implementation — new canonical path** (`aap_config/`):
+**Implementation — canonical path** (`aap_config/`):
 
 - ⬜ `aap_config/load.yml` — entry-point playbook; `include_role: infra.aap_configuration.dispatch`
-- ⬜ `aap_config/requirements.yml` — pin `infra.aap_configuration` 4.5.0+
+- ⬜ `aap_config/requirements.yml` — pin `infra.aap_configuration` **4.4.0**
 - ⬜ `aap_config/README.md` — one-page explanation of the pattern, env vars required, command to run
 - ⬜ `aap_config/inventory/aap.yml` — localhost only (CaC playbook runs locally and talks to AAP via API)
-- ⬜ `aap_config/group_vars/all.yml` — `AAP_HOSTNAME` + `AAP_TOKEN` env-var lookups (user creates a personal token in AAP UI first); `AZURE_*` + `ADO_PAT` lookups for credential inputs
+- ⬜ `aap_config/group_vars/all.yml` — `AAP_HOSTNAME` + `AAP_TOKEN` env-var lookups (user creates a personal token in AAP UI first); `AZURE_*` + `ADO_PAT` lookups for credential inputs; vault password from a **dc1.azure-owned vault source** (own vault-id / env var provisioned by the repo-based setup skill — *not* the borrowed `~/.ansible/secrets2` path)
 - ⬜ `aap_config/files/controller_credentials.yml` — 4 credentials (Vault, Azure RM, ADO SCM, Windows Machine)
 - ⬜ `aap_config/files/controller_projects.yml` — DC1.Azure project syncing from ADO
 - ⬜ `aap_config/files/controller_inventories.yml` — dc1-azure inventory with empty `windows` group (populated at runtime by Provision JT via `add_host` + `set_stats`)
-- ⬜ `aap_config/files/controller_templates.yml` — 3 JTs (Provision, Configure, Teardown) with surveys
-- ⬜ `aap_config/files/controller_templates_workflow.yml` — Provision and Configure workflow chaining Provision → Configure with artifact passing
+- ⬜ `aap_config/files/controller_job_templates.yml` — 3 JTs (Provision, Configure, Teardown) with surveys
+- ⬜ `aap_config/files/controller_workflow_job_templates.yml` — "Provision and Configure" workflow chaining Provision → Configure with artifact passing
 - ⬜ Post-load validation step (per global rule: never exit green without verifying every object exists)
+
+**Standalone-setup prerequisites (built here, documented in Phase 7):**
+
+- ⬜ `ansible.cfg.example` at repo root — encodes the canonical `galaxy_server`
+  (Automation Hub) stanza; the setup skill writes it to the user's standard
+  local path. Never commit a *live* `ansible.cfg`.
+- ⬜ Carve `.claude/skills/` out of `.gitignore` so the repo-based setup/install
+  skill can be committed (replaces the marketplace `/aap-first-time` skill).
 
 **Transition / deprecation:**
 
@@ -243,7 +291,8 @@ everything to install AAP objects) and matches the upstream
   - ⬜ `website_setup` role (IIS sample site)
   - ⬜ `windows_patching` role
 - ⬜ `playbooks/teardown.yml` — `terraform destroy`
-- ⬜ Role sourcing decision: import via `collections/requirements.yml` from upstream `aap.dailydemo.windows`, *or* vendor the four roles locally. Default: requirements.yml (DRY).
+- ⬜ Role sourcing (decided 2026-05-26): **reuse the proven roles from `aap.dailydemo.windows`** via a **pinned git reference** in `requirements.yml` (a tag/SHA) — don't rewrite them. AAP installs them on project sync, so dc1.azure stays standalone (it declares its own deps; the other repo need not be checked out). Vendor copies only as a fallback if install-time availability bites or a role proves AWS-specific (see Risks).
+- ⬜ Retain the existing `aap.dailydemo.windows` workflow shape for the configure half; dc1.azure adds the Azure *provision* half in front of it.
 
 **Exit criteria:** end-to-end workflow run produces a VM that serves an IIS page on its public IP, has the demo account, has PS7, and has run Windows Update.
 
@@ -313,6 +362,33 @@ FQDN, admin username. End user closes the ticket.
 
 **Exit criteria:** a user with zero prior context can request a Windows VM through the SNow self-service portal, receive a fulfilled RITM with the IP + admin credentials, and RDP into a working Windows machine.
 
+### Phase 9 — AAP Self-Service Portal Trigger  ⬜
+
+The second of the four triggers (AAP UI = Phase 6, ServiceNow = Phase 8). The
+AAP platform Self-Service Portal surfaces the existing "DC1.Azure - Provision
+and Configure" workflow to non-admin end users — same survey, simplified UX, no
+new workflow.
+
+- ⬜ Expose the DC1.Azure workflow in the Self-Service Portal (publish/surface the existing workflow + survey; no re-implementation)
+- ⬜ Confirm a non-admin user with only Self-Service access can launch it and see status
+- ⬜ Verify the survey (vm_size_tier) renders and passes through to the same workflow the other triggers use
+- ⬜ `docs/demo-runbook.md` — Self-Service Portal section (screenshots of the portal launch + result)
+
+**Exit criteria:** a non-admin user launches the same Windows-VM workflow from the Self-Service Portal and gets an identical result to the AAP-UI path.
+
+### Phase 10 — Azure DevOps Trigger  ⬜
+
+The fourth trigger. Distinct from Phase 5 (which uses ADO Pipelines for
+lint/validate CI + GitHub mirror): here an ADO pipeline *launches* the AAP
+workflow on demand.
+
+- ⬜ `azure-pipelines-launch.yml` — parameterized/manual-trigger pipeline (parameter: `vm_size_tier`) that POSTs to the AAP `/api/v2/workflow_job_templates/<id>/launch/` endpoint with `extra_vars`
+- ⬜ AAP auth from the pipeline via a secured pipeline variable / Service Connection holding an AAP token — never inline in YAML (mirror the no-inline-creds rule from Phase 0.5)
+- ⬜ Confirm the launched run is the *same* workflow the other three triggers use (no parallel definition)
+- ⬜ `docs/demo-runbook.md` — ADO-trigger section
+
+**Exit criteria:** running the launch pipeline in ADO (picking a size) provisions a Windows VM via the same AAP workflow, with run status observable from ADO.
+
 ---
 
 ## Naming Conventions
@@ -351,6 +427,14 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-21 | `playbooks/bootstrap_aap.yml` is transitional; will be removed once `aap_config/load.yml` is canonical | Avoids two competing install entry-points; admin-password bootstrap was a stepping stone |
 | 2026-05-21 | ServiceNow instance = Red Hat shared dev (URL TBD)             | Avoids PDI hibernation cycle; production-like shared SNow environment |
 | 2026-05-21 | dc1.azure IS the canonical "Windows on Azure" story            | `aap.dailydemo.windows` stays AWS-only (covered by demo.datacenter). SNow integration sits on top of dc1.azure — no need to fork the daily-demo repo for cloud parity |
+| 2026-05-26 | Pin `infra.aap_configuration` to **4.4.0**                      | Newest release available in Red Hat Automation Hub — installs via the existing Hub `galaxy_server` token, no galaxy.ansible.com. Supersedes the 4.2.0 pin and the earlier "4.5.0+" note |
+| 2026-05-26 | dc1.azure stands **independent of `aap.as.code`**              | Destined for the Ansible Product Demo; can't assume a sibling repo is checked out. Borrow patterns, not a runtime/repo dependency |
+| 2026-05-26 | `infra.aap_configuration` collection docs are the guide; CaC var files named per role/module | Collection READMEs are the authoritative variable schema and lead aap.as.code; file↔role-doc mapping becomes 1:1 |
+| 2026-05-26 | Runtime AAP = the **Ansible Product Demo** RHDP catalog item's AAP | "Loaded into the Ansible Product Demo" means it *runs on that AAP* (install additively, namespaced). Does NOT impose the `ansible/product-demos` repo layout |
+| 2026-05-26 | **One core workflow, four triggers** (AAP UI · Self-Service Portal · ServiceNow · Azure DevOps) | Trigger-agnostic core + thin adapters avoids four parallel implementations; keeps the demo Product-Demo-portable |
+| 2026-05-26 | Reuse `aap.dailydemo.windows` roles via a **pinned git reference** | Reuses proven code, stays DRY, AAP installs on sync — keeps dc1.azure standalone. Vendor only as fallback |
+| 2026-05-26 | Vault password from a **dc1.azure-owned vault source** (option 2) | Self-contained setup consistent with standalone goal; drops the borrowed `~/.ansible/secrets2` path |
+| 2026-05-26 | Ship `ansible.cfg.example` (never a live cfg); **repo-based** Claude skills | Example encodes the canonical Hub `galaxy_server` stanza without shadowing the home cfg; in-repo skills replace the marketplace `/aap-first-time`, completing independence |
 
 ---
 
@@ -374,8 +458,9 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | Repo | Role in dc1.azure |
 |------|--------------------|
 | [demo.datacenter](https://github.com/ericcames/demo.datacenter) | AWS sibling — source for Terraform patterns and overall DC1 conventions |
-| [aap.as.code](https://github.com/ericcames/aap.as.code) | Source for AAP bootstrap patterns; `bootstrap_aap.yml` is the Azure-flavored adaptation |
-| [aap.dailydemo.windows](https://github.com/ericcames/aap.dailydemo.windows) | Upstream of the four post-provision Windows roles |
+| [aap.as.code](https://github.com/ericcames/aap.as.code) | Pattern reference only — dc1.azure stands independent (Decisions Log 2026-05-26). The `infra.aap_configuration` collection's own docs are the primary CaC guide |
+| [infra.aap_configuration](https://github.com/redhat-cop/infra.aap_configuration) | **Primary CaC guide** — pinned 4.4.0; `aap_config/` follows its recommended layout; var files named per its roles |
+| [aap.dailydemo.windows](https://github.com/ericcames/aap.dailydemo.windows) | Source of the reused post-provision Windows roles (pinned git reference, not vendored) |
 | [aap.aws.infrastructure](https://github.com/ericcames/aap.aws.infrastructure) | Reference for AWS-side IaaS structure being replaced by Azure equivalents |
 
 ---
