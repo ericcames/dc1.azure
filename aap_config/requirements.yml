@@ -1,0 +1,23 @@
+---
+# Collections required to run the dc1.azure AAP Configuration-as-Code.
+#
+# Pinned to releases available in Red Hat Automation Hub so they install via the
+# Hub galaxy_server token (see ../ansible.cfg.example) — no galaxy.ansible.com.
+#
+# infra.aap_configuration 4.4.0 is the canonical CaC engine; its `dispatch`
+# role applies every controller_* data structure under files/. Role names and
+# the variables they consume are documented per-role in the collection README.
+collections:
+  - name: infra.aap_configuration
+    version: 4.4.0
+  - name: ansible.platform
+    version: 2.6.20251106
+  - name: ansible.controller
+    version: 4.7.8
+
+# NOTE on reusing the Windows daily-demo roles (decision 2026-05-26):
+# dc1.azure does NOT vendor or galaxy-install those roles here. Instead it
+# syncs `aap.dailydemo.windows` as a second AAP project pinned to tag v1.0.1
+# (see files/controller_projects.yml) and points the Configure job templates
+# straight at that project's existing, proven playbooks. That retains the
+# upstream workflow without rewriting it and keeps this repo standalone.

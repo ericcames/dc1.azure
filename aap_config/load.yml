@@ -1,0 +1,40 @@
+---
+# ============================================================================
+# dc1.azure — AAP Configuration as Code entry point
+# ============================================================================
+# Canonical install path for every dc1.azure AAP object. Reads the controller_*
+# data structures under files/ and applies them via the upstream
+# `infra.aap_configuration.dispatch` role, then verifies the result.
+#
+# Prerequisites (see README.md + Phase 7 install docs):
+#   - AAP reachable; a personal API token created in the AAP UI
+#   - Azure Service Principal, ADO PAT, Windows admin creds, vault password
+#     exported as env vars (see group_vars/all.yml)
+#   - collections installed:  ansible-galaxy collection install -r requirements.yml
+#
+# Run:
+#   export AAP_HOSTNAME=https://<aap-host>
+#   export AAP_TOKEN=<personal token from the AAP UI>
+#   export AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... \
+#          AZURE_CLIENT_ID=... AZURE_CLIENT_SECRET=...
+#   export ADO_PAT=... WINDOWS_ADMIN_PASSWORD=... DC1_AZURE_VAULT_PASSWORD=...
+#   ansible-playbook -i inventory/ load.yml
+#
+# Re-running is idempotent — every object is keyed by name.
+# ============================================================================
+
+- name: Apply dc1.azure AAP configuration
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - files/controller_credentials.yml
+    - files/controller_projects.yml
+    - files/controller_inventories.yml
+    - files/controller_job_templates.yml
+    - files/controller_workflow_job_templates.yml
+  roles:
+    - infra.aap_configuration.dispatch
+
+- name: Verify dc1.azure AAP objects exist
+  ansible.builtin.import_playbook: validate.yml

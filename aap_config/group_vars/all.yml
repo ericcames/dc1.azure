@@ -1,0 +1,57 @@
+---
+# ============================================================================
+# dc1.azure CaC variables — connection, secrets (by reference), object names
+# ============================================================================
+# NO secrets in version control. Every sensitive value is resolved at runtime
+# from a dc1.azure-owned environment variable (decision 2026-05-26: this repo
+# provisions its own vault/secret inputs rather than borrowing aap.as.code's
+# ~/.ansible/secrets2). The repo-based setup skill (Phase 7) exports these.
+# ============================================================================
+
+# --- AAP API connection (consumed by infra.aap_configuration.dispatch) -------
+# The user creates a personal token in the AAP UI first, then exports AAP_TOKEN.
+aap_hostname: "{{ lookup('ansible.builtin.env', 'AAP_HOSTNAME') }}"
+aap_token: "{{ lookup('ansible.builtin.env', 'AAP_TOKEN') }}"
+aap_validate_certs: "{{ lookup('ansible.builtin.env', 'AAP_VALIDATE_CERTS') | default('false', true) | bool }}"
+
+# --- Org + Execution Environment ---------------------------------------------
+# my_execution_environment must name a Windows-capable EE that the Ansible
+# Product Demo AAP already provides (has pywinrm + ansible.windows). Confirm the
+# exact name on the target AAP and override via env if it differs.
+my_organization: Default
+my_execution_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE') | default('Default execution environment', true) }}"
+
+# --- Secret inputs (resolved at runtime; never committed) --------------------
+vault_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_VAULT_PASSWORD') }}"
+
+azure_subscription_id: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
+azure_tenant_id: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT_ID') }}"
+azure_client_id: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
+azure_client_secret: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_SECRET') }}"
+
+ado_username: ericcames
+ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
+
+windows_admin_username: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_USERNAME') | default('azureuser', true) }}"
+windows_admin_password: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_PASSWORD') }}"
+
+# --- AAP object names (namespaced `DC1.Azure -` per ROADMAP) -----------------
+cred_vault: "DC1.Azure - Vault"
+cred_azure_rm: "DC1.Azure - Azure RM"
+cred_ado_scm: "DC1.Azure - ADO Source Control"
+cred_windows: "DC1.Azure - Windows Machine"
+
+project_name: "DC1.Azure"
+inventory_name: "dc1-azure"
+workflow_name: "DC1.Azure - Provision and Configure"
+
+# --- Reused Windows daily-demo project (pinned git reference, decision 2026-05-26)
+# Synced as its own AAP project so the Configure JTs can reuse its proven,
+# cloud-agnostic playbooks (powershell_improvement / website_setup /
+# windows_account_create / windows_patching) without vendoring.
+windows_project_name: "aap.dailydemo.windows"
+windows_project_scm_url: "https://github.com/ericcames/aap.dailydemo.windows.git"
+windows_project_scm_branch: "v1.0.1"
+
+# --- ADO repo this project syncs from (HTTPS + PAT auth) ---------------------
+ado_project_scm_url: "https://dev.azure.com/ericcames/dc1.azure/_git/dc1.azure"
