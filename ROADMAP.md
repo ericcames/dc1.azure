@@ -283,16 +283,16 @@ token — no galaxy.ansible.com). Role names below to be confirmed against 4.4.0
 
 **Exit criteria:** a user with a fresh AAP, AAP personal token, Azure SP, and ADO PAT can run `ansible-playbook -i aap_config/inventory/ aap_config/load.yml` and end with every dc1.azure AAP object created. Re-running is idempotent.
 
-### Phase 4 — Post-Provision Playbook  ⬜
-- ⬜ `playbooks/provision_vm.yml` — wraps `terraform apply`, parses output, `add_host` to `windows` group, `set_stats` to pass IP to workflow
-- ⬜ `playbooks/configure_windows.yml` runs against the new host:
-  - ⬜ `powershell_improvement` role
-  - ⬜ `windows_account_create` role
-  - ⬜ `website_setup` role (IIS sample site)
-  - ⬜ `windows_patching` role
-- ⬜ `playbooks/teardown.yml` — `terraform destroy`
-- ⬜ Role sourcing (decided 2026-05-26): **reuse the proven roles from `aap.dailydemo.windows`** via a **pinned git reference** in `requirements.yml` (a tag/SHA) — don't rewrite them. AAP installs them on project sync, so dc1.azure stays standalone (it declares its own deps; the other repo need not be checked out). Vendor copies only as a fallback if install-time availability bites or a role proves AWS-specific (see Risks).
-- ⬜ Retain the existing `aap.dailydemo.windows` workflow shape for the configure half; dc1.azure adds the Azure *provision* half in front of it.
+### Phase 4 — Post-Provision Playbooks  🔄
+*Code built 2026-05-26 (PR #5). Live end-to-end run deferred until the target EE + AAP/Controller credential are confirmed on the Product Demo AAP.*
+
+- ✅ `playbooks/provision_vm.yml` — runs `terraform init/apply` (CLI + `output -json`) for the survey's `vm_size_tier`, parses the `ansible_inventory` Terraform output, then **registers the VM into the `dc1-azure` inventory's `windemo` group via the controller API** (short-lived token created + deleted in `always:`, mirroring the `aap.dailydemo.windows` `inventory` role) and `set_stats` for the workflow. Replaces the AWS provisioning nodes.
+- ✅ Configure half is **not** a new `configure_windows.yml` — it reuses the pinned `aap.dailydemo.windows` project's existing playbooks via the Phase 3 Configure JTs (`05_powershell_improve` / `06_website_setup` / `06_windows_account_create` / `07_windows_patching`), which target `hosts: windemo`. This is what "retain the existing workflow" means in practice.
+- ✅ `playbooks/teardown.yml` — `terraform destroy` + deregisters the host from the inventory (token lifecycle in `always:`).
+- ✅ New `DC1.Azure - Controller` (Red Hat AAP) credential added to `aap_config/` and attached to the Provision/Teardown JTs so they can call the controller API. RG/location passed as JT `extra_vars` from env-baked group vars.
+- ⬜ **Live run** against the Product Demo AAP: needs the Windows-capable EE name (`DC1_AZURE_EE`) with the `terraform` binary, the Controller credential populated, and the admin password synced between Terraform and the `DC1.Azure - Windows Machine` credential.
+
+**Open design note:** host hand-off uses explicit controller-API registration (mirrors the daily demo). A future alternative is an `azure_rm` dynamic inventory source on `dc1-azure` that auto-discovers the tagged VM — removes the Controller credential + registration step, but needs `azure.azcollection` in the EE.
 
 **Exit criteria:** end-to-end workflow run produces a VM that serves an IIS page on its public IP, has the demo account, has PS7, and has run Windows Update.
 

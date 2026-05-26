@@ -1,0 +1,104 @@
+---
+# ============================================================================
+# playbooks/teardown.yml — Phase 4
+# ============================================================================
+# Standalone "DC1.Azure - Teardown" job template. Destroys the Azure VM (and all
+# resources Terraform created) and removes the host from the dc1-azure AAP
+# inventory so the next provision starts clean.
+#
+# Required job-template credentials: DC1.Azure - Azure RM, DC1.Azure - Controller.
+# Required inputs: dc1_azure_resource_group, dc1_azure_windows_admin_password
+#   (Terraform's admin_password var is required and validated even for destroy).
+# ============================================================================
+
+- name: Tear down the Azure Windows VM
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    terraform_dir: "{{ playbook_dir }}/../terraform"
+    dc1_azure_inventory: "{{ inventory_name | default('dc1-azure') }}"
+    dc1_azure_location: "{{ location | default('eastus') }}"
+    dc1_azure_admin_username: "{{ admin_username | default('demoadmin') }}"
+
+  tasks:
+    - name: Assert teardown inputs are present
+      ansible.builtin.assert:
+        that:
+          - dc1_azure_resource_group | default('') | length > 0
+          - dc1_azure_windows_admin_password | default('') | length >= 12
+        fail_msg: >-
+          Need dc1_azure_resource_group and dc1_azure_windows_admin_password
+          (Terraform validates the admin_password var even on destroy).
+
+    - name: Initialize Terraform
+      ansible.builtin.command:
+        cmd: terraform init -input=false -no-color
+        chdir: "{{ terraform_dir }}"
+      changed_when: false
+
+    - name: Read current Terraform outputs (for host deregistration)
+      ansible.builtin.command:
+        cmd: terraform output -json
+        chdir: "{{ terraform_dir }}"
+      changed_when: false
+      failed_when: false
+      register: tf_output
+
+    - name: Record the VM FQDN before destroy (if state still exists)
+      ansible.builtin.set_fact:
+        vm_fqdn: "{{ (tf_output.stdout | from_json).ansible_inventory.value.host }}"
+      when:
+        - tf_output.rc == 0
+        - tf_output.stdout | default('') | length > 0
+        - "'ansible_inventory' in (tf_output.stdout | from_json)"
+
+    - name: Destroy Terraform-managed resources
+      ansible.builtin.command:
+        cmd: >-
+          terraform destroy -input=false -auto-approve -no-color
+          -var vm_size_tier={{ vm_size_tier | default('small') }}
+          -var resource_group_name={{ dc1_azure_resource_group }}
+          -var location={{ dc1_azure_location }}
+          -var admin_username={{ dc1_azure_admin_username }}
+        chdir: "{{ terraform_dir }}"
+      environment:
+        TF_VAR_admin_password: "{{ dc1_azure_windows_admin_password }}"
+      no_log: true
+      changed_when: true
+
+    - name: Deregister the host from the AAP inventory
+      when: vm_fqdn is defined
+      block:
+        - name: Mint a short-lived controller token
+          ansible.platform.token:
+            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            aap_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') }}"
+            aap_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') }}"
+            aap_validate_certs: false
+            description: "dc1.azure teardown host deregistration"
+            scope: write
+            state: present
+          register: td_token
+
+        - name: Remove the host from the inventory
+          ansible.controller.host:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            name: "{{ vm_fqdn }}"
+            inventory: "{{ dc1_azure_inventory }}"
+            state: absent
+
+      always:
+        - name: Delete the short-lived controller token
+          ansible.platform.token:
+            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            aap_token: "{{ td_token.ansible_facts.aap_token.token }}"
+            aap_validate_certs: false
+            existing_token: "{{ td_token.ansible_facts.aap_token }}"
+            state: absent
+          when:
+            - td_token is defined
+            - td_token.ansible_facts is defined

@@ -21,6 +21,13 @@ aap_validate_certs: "{{ lookup('ansible.builtin.env', 'AAP_VALIDATE_CERTS') | de
 my_organization: Default
 my_execution_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE') | default('Default execution environment', true) }}"
 
+# Red Hat AAP (Controller) credential inputs — lets provision_vm/teardown
+# register hosts in the dc1-azure inventory via the controller API. Points at
+# THIS same AAP. Username defaults to admin; password from env at load time.
+controller_cred_host: "{{ aap_hostname }}"
+controller_cred_username: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_USERNAME') | default('admin', true) }}"
+controller_cred_password: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_PASSWORD') }}"
+
 # --- Secret inputs (resolved at runtime; never committed) --------------------
 vault_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_VAULT_PASSWORD') }}"
 
@@ -28,6 +35,11 @@ azure_subscription_id: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID'
 azure_tenant_id: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT_ID') }}"
 azure_client_id: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
 azure_client_secret: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_SECRET') }}"
+
+# Azure target environment — baked into the Provision/Teardown JT extra_vars at
+# load time (env-specific; the RHDP resource group changes per open env).
+azure_resource_group: "{{ lookup('ansible.builtin.env', 'AZURE_RESOURCE_GROUP') | default('REPLACE_ME_RHDP_RG', true) }}"
+azure_location: "{{ lookup('ansible.builtin.env', 'AZURE_LOCATION') | default('eastus', true) }}"
 
 ado_username: ericcames
 ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
@@ -40,6 +52,7 @@ cred_vault: "DC1.Azure - Vault"
 cred_azure_rm: "DC1.Azure - Azure RM"
 cred_ado_scm: "DC1.Azure - ADO Source Control"
 cred_windows: "DC1.Azure - Windows Machine"
+cred_controller: "DC1.Azure - Controller"
 
 project_name: "DC1.Azure"
 inventory_name: "dc1-azure"
