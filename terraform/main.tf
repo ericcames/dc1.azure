@@ -141,7 +141,7 @@ resource "azurerm_windows_virtual_machine" "demo" {
 
   # Windows Server 2025 Azure Edition is a hotpatch-enabled image. azurerm
   # v4.x requires patch_mode = AutomaticByPlatform for these images.
-  patch_mode         = "AutomaticByPlatform"
+  patch_mode          = "AutomaticByPlatform"
   hotpatching_enabled = true
 
   source_image_reference {
