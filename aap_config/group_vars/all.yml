@@ -44,7 +44,9 @@ azure_location: "{{ lookup('ansible.builtin.env', 'AZURE_LOCATION') | default('e
 ado_username: ericcames
 ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
 
-windows_admin_username: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_USERNAME') | default('azureuser', true) }}"
+# Default matches Terraform's admin_username default (demoadmin) so the WinRM
+# credential and the VM's local admin line up out of the box.
+windows_admin_username: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_USERNAME') | default('demoadmin', true) }}"
 windows_admin_password: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_PASSWORD') }}"
 
 # --- AAP object names (namespaced `DC1.Azure -` per ROADMAP) -----------------

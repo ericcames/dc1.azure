@@ -319,16 +319,18 @@ GitHub remote is already configured locally — the working tree has both `origi
 
 **Exit criteria:** Eric runs the AAP-driven demo cold off the runbook end-to-end without consulting the source code.
 
-### Phase 7 — Install Documentation (manual + Claude Code skill)  ⬜
+### Phase 7 — Install Documentation (manual + Claude Code skill)  🔄
+*Docs + skill written 2026-05-26 (PR #6). Acceptance test deferred until a live install is run (same gate as Phase 4).*
 
 Two paths to install dc1.azure into a working RHDP AAP: a manual path for
 human-only operators, and a Claude Code skill that drives the install
 interactively.
 
-- ⬜ `docs/INSTALL.md` — manual install for humans. Pre-reqs (AAP up, Azure SP, ADO PAT, ansible-galaxy collections installed), step-by-step commands, expected output per step, troubleshooting
-- ⬜ `.claude/skills/install-dc1-azure/SKILL.md` — Claude Code skill auto-loaded when running Claude in this repo. Walks the user through prereqs, prompts for missing env-var values, runs `aap_config/load.yml`, verifies via AAP API, reports each created object
-- ⬜ `README.md` — point at both install paths from Getting Started; framing: "use the AI path if you have Claude Code, manual path otherwise"
-- ⬜ Acceptance test: fresh repo clone + fresh AAP + each path independently produces a green install
+- ✅ `docs/INSTALL.md` — manual install: prerequisites, `ansible.cfg.example` → `~/.ansible.cfg`, collection install, the full env-var table, `aap_config/load.yml` (self-verifies via `validate.yml`), post-install launch, and a troubleshooting table
+- ✅ `.claude/skills/install-dc1-azure/SKILL.md` — repo-based skill (replaces the marketplace `/aap-first-time`): checks prereqs, prompts for missing env vars **by name only** (never echoes secrets), runs `load.yml`, and reports each created object. Shipped via the `.gitignore` carve-out for `.claude/skills/`
+- ✅ `README.md` — Getting Started now points at both paths (manual `docs/INSTALL.md` + the `/install-dc1-azure` skill); stale "not wired up / aap_config not on disk" notes removed; layout updated
+- ✅ Aligned the `WINDOWS_ADMIN_USERNAME` default (`demoadmin`) to Terraform's `admin_username` default so the WinRM credential and the VM's local admin match out of the box
+- ⬜ Acceptance test: fresh repo clone + fresh AAP + each path independently produces a green install (blocked on the Phase 4 live-run gate)
 
 **Exit criteria:** a first-time user can install dc1.azure into a fresh AAP via either path without consulting source code or this ROADMAP.
 
