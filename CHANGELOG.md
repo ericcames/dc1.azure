@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- Azure Storage Account `dc1aztfstate0526` bootstrapped in `openenv-blsvm-1`; SP granted `Storage Blob Data Contributor` for Azure AD auth (`use_azuread_auth = true`). Documented in `docs/dev-environment.md`.
+
+### Changed
+- `playbooks/provision_vm.yml` — `terraform init` now passes `-backend-config` flags for `resource_group_name`, `storage_account_name`, `container_name`, and `key`. Backend values flow in via JT extra_vars; `dc1_azure_tf_container` and `dc1_azure_tf_key` default to `tfstate` / `dc1.azure.tfstate`.
+- `aap_config/files/controller_job_templates.yml` — Provision VM JT extra_vars now includes `dc1_azure_tf_storage_account` (sourced from `azure_tf_storage_account` in `group_vars/all.yml`).
+- `aap_config/files/controller_workflow_job_templates.yml` — workflow survey now includes a `password` type question for `dc1_azure_windows_admin_password` (required, 12–72 chars); this is the delivery path for the Windows VM admin password into `provision_vm.yml`.
+- `aap_config/group_vars/all.yml` — added `azure_tf_storage_account` sourced from `AZURE_TF_STORAGE_ACCOUNT` env var (default `REPLACE_ME_TF_STATE_SA`).
+- `.claude/skills/install-dc1-azure/SKILL.md` — added `AZURE_TF_STORAGE_ACCOUNT` to required env var list.
+
+---
+
 - `aap_config/files/gateway_settings.yml` — platform-wide AAP gateway settings (token name, expiration, proxy URL, login banner). Sourced from `aap.as.code`.
 - `aap_config/files/gateway_organizations.yml` — six AAP organizations (`IT Service Automation`, `Network`, `Storage`, `Online Shopping`, `Data Center Operations`, `Security Operations Center`), each pre-populated with the three standard Galaxy credentials. Sourced from `aap.as.code`.
 - `aap_config/files/gateway_teams.yml` — four teams (`Network`, `Server`, `Storage`, `ITO`) scoped under `my_organization`. Sourced from `aap.as.code`.

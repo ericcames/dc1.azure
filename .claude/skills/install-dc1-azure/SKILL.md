@@ -70,11 +70,12 @@ adds the interactive checking and reporting around them.
    table, test presence by name (don't read the value). Required: `AAP_HOSTNAME`,
    `AAP_TOKEN`, `CONTROLLER_HOST`, `CONTROLLER_OAUTH_TOKEN`,
    `DC1_AZURE_VAULT_PASSWORD`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`,
-   `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_RESOURCE_GROUP`, `ADO_PAT`,
-   `WINDOWS_ADMIN_PASSWORD`, `AAP_CONTROLLER_PASSWORD`. Optional with good
-   defaults: `AAP_VALIDATE_CERTS` (false), `CONTROLLER_VERIFY_SSL` (false),
-   `DC1_AZURE_EE` (Product Demos EE on APD), `WINDOWS_ADMIN_USERNAME`
-   (demoadmin), `AZURE_LOCATION` (eastus), `AAP_CONTROLLER_USERNAME` (admin).
+   `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_RESOURCE_GROUP`,
+   `AZURE_TF_STORAGE_ACCOUNT`, `ADO_PAT`, `WINDOWS_ADMIN_PASSWORD`,
+   `AAP_CONTROLLER_PASSWORD`. Optional with good defaults: `AAP_VALIDATE_CERTS`
+   (false), `CONTROLLER_VERIFY_SSL` (false), `DC1_AZURE_EE` (Product Demos EE
+   on APD), `WINDOWS_ADMIN_USERNAME` (demoadmin), `AZURE_LOCATION` (eastus),
+   `AAP_CONTROLLER_USERNAME` (admin).
 
    Note: `CONTROLLER_HOST` = same value as `AAP_HOSTNAME`, and
    `CONTROLLER_OAUTH_TOKEN` = same value as `AAP_TOKEN`. These are required

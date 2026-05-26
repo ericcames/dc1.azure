@@ -37,6 +37,10 @@
     dc1_azure_group: windemo
     dc1_azure_location: "{{ location | default('eastus') }}"
     dc1_azure_admin_username: "{{ admin_username | default('demoadmin') }}"
+    # Terraform state backend — values supplied via JT extra_vars so they stay
+    # out of version control.  dc1_azure_tf_storage_account is set on the JT.
+    dc1_azure_tf_container: "{{ tf_container | default('tfstate') }}"
+    dc1_azure_tf_key: "{{ tf_key | default('dc1.azure.tfstate') }}"
 
   tasks:
     - name: Assert provisioning inputs are present
@@ -63,7 +67,12 @@
 
     - name: Initialize Terraform
       ansible.builtin.command:
-        cmd: terraform init -input=false -no-color
+        cmd: >-
+          terraform init -input=false -no-color
+          -backend-config="resource_group_name={{ dc1_azure_resource_group }}"
+          -backend-config="storage_account_name={{ dc1_azure_tf_storage_account }}"
+          -backend-config="container_name={{ dc1_azure_tf_container }}"
+          -backend-config="key={{ dc1_azure_tf_key }}"
         chdir: "{{ terraform_dir }}"
       changed_when: false
 

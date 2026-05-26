@@ -31,6 +31,15 @@ controller_workflows:
             - small
             - medium
             - large
+        - question_name: Windows admin password
+          question_description: >-
+            Must match the 'DC1.Azure - Windows Machine' credential password
+            (12–72 chars, Azure complexity: upper + lower + digit + symbol).
+          variable: dc1_azure_windows_admin_password
+          type: password
+          required: true
+          min: 12
+          max: 72
     related:
       workflow_nodes:
         - identifier: provision-vm

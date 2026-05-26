@@ -40,6 +40,9 @@ azure_client_secret: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_SECRET') }}
 # load time (env-specific; the RHDP resource group changes per open env).
 azure_resource_group: "{{ lookup('ansible.builtin.env', 'AZURE_RESOURCE_GROUP') | default('REPLACE_ME_RHDP_RG', true) }}"
 azure_location: "{{ lookup('ansible.builtin.env', 'AZURE_LOCATION') | default('eastus', true) }}"
+# Storage account name for Terraform remote state backend (azurerm).
+# Create once per RHDP env; the SA must exist before running load.yml.
+azure_tf_storage_account: "{{ lookup('ansible.builtin.env', 'AZURE_TF_STORAGE_ACCOUNT') | default('REPLACE_ME_TF_STATE_SA', true) }}"
 
 ado_username: ericcames
 ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
