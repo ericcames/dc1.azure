@@ -1,0 +1,161 @@
+---
+# ============================================================================
+# playbooks/provision_vm.yml — Phase 4
+# ============================================================================
+# First node of the "DC1.Azure - Provision and Configure" workflow. Runs the
+# Azure Terraform, then registers the new VM into the dc1-azure AAP inventory's
+# `windemo` group so the separate Configure workflow nodes (reused from
+# aap.dailydemo.windows, which target `hosts: windemo`) find it.
+#
+# Mirrors the aap.dailydemo.windows `inventory` role: an attached Red Hat AAP
+# credential injects CONTROLLER_* env vars; we mint a short-lived token, use it
+# for the controller API calls, and delete it in `always:`.
+#
+# Required job-template credentials:
+#   - DC1.Azure - Azure RM        → injects ARM_* env vars Terraform uses
+#   - DC1.Azure - Controller      → injects CONTROLLER_* for inventory registration
+#   - DC1.Azure - Vault           → decrypts the vaulted admin-password var
+#
+# Required inputs (survey / extra_vars / vaulted vars):
+#   - vm_size_tier                       small | medium | large (workflow survey)
+#   - dc1_azure_resource_group           RHDP resource group (JT extra_var)
+#   - dc1_azure_windows_admin_password   sensitive; MUST equal the password in
+#                                        the DC1.Azure - Windows Machine credential
+#
+# EE requirement: the execution environment must have the `terraform` binary on
+# PATH plus the ansible.controller / ansible.platform collections.
+# ============================================================================
+
+- name: Provision the Azure Windows VM and register it for configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    terraform_dir: "{{ playbook_dir }}/../terraform"
+    dc1_azure_inventory: "{{ inventory_name | default('dc1-azure') }}"
+    dc1_azure_group: windemo
+    dc1_azure_location: "{{ location | default('eastus') }}"
+    dc1_azure_admin_username: "{{ admin_username | default('demoadmin') }}"
+
+  tasks:
+    - name: Assert provisioning inputs are present
+      ansible.builtin.assert:
+        that:
+          - vm_size_tier | default('') in ['small', 'medium', 'large']
+          - dc1_azure_resource_group | default('') | length > 0
+          - dc1_azure_windows_admin_password | default('') | length >= 12
+        fail_msg: >-
+          Need vm_size_tier (small|medium|large), dc1_azure_resource_group, and
+          dc1_azure_windows_admin_password (>=12 chars; must match the
+          'DC1.Azure - Windows Machine' credential). Provide via the workflow
+          survey, JT extra_vars, or a vaulted var.
+
+    - name: Assert the Red Hat AAP (Controller) credential is attached
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'CONTROLLER_HOST') | length > 0
+          - lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') | length > 0
+          - lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') | length > 0
+        fail_msg: >-
+          Attach the 'DC1.Azure - Controller' (Red Hat Ansible Automation
+          Platform) credential to this job template.
+
+    - name: Initialize Terraform
+      ansible.builtin.command:
+        cmd: terraform init -input=false -no-color
+        chdir: "{{ terraform_dir }}"
+      changed_when: false
+
+    - name: Apply Terraform (create the VM)
+      ansible.builtin.command:
+        cmd: >-
+          terraform apply -input=false -auto-approve -no-color
+          -var vm_size_tier={{ vm_size_tier }}
+          -var resource_group_name={{ dc1_azure_resource_group }}
+          -var location={{ dc1_azure_location }}
+          -var admin_username={{ dc1_azure_admin_username }}
+        chdir: "{{ terraform_dir }}"
+      environment:
+        # Passed via env (not -var) so it never lands on the command line.
+        TF_VAR_admin_password: "{{ dc1_azure_windows_admin_password }}"
+      no_log: true  # protects the admin password in any verbose run output
+      changed_when: true
+
+    - name: Read Terraform outputs
+      ansible.builtin.command:
+        cmd: terraform output -json
+        chdir: "{{ terraform_dir }}"
+      changed_when: false
+      register: tf_output
+
+    - name: Parse the ansible_inventory output
+      ansible.builtin.set_fact:
+        vm_inventory: "{{ (tf_output.stdout | from_json).ansible_inventory.value }}"
+
+    - name: Register the VM in AAP, then hand it to the workflow
+      block:
+        - name: Mint a short-lived controller token
+          ansible.platform.token:
+            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            aap_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') }}"
+            aap_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') }}"
+            aap_validate_certs: false
+            description: "dc1.azure provision_vm inventory registration"
+            scope: write
+            state: present
+          register: prov_token
+
+        - name: Ensure the windemo group exists
+          ansible.controller.group:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            name: "{{ dc1_azure_group }}"
+            inventory: "{{ dc1_azure_inventory }}"
+            state: present
+
+        - name: Add the VM as a host (ansible_host = public IP)
+          ansible.controller.host:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            name: "{{ vm_inventory.host }}"
+            inventory: "{{ dc1_azure_inventory }}"
+            enabled: true
+            state: present
+            variables:
+              ansible_host: "{{ vm_inventory.ansible_host }}"
+              vm_name: "{{ vm_inventory.vm_name }}"
+              vm_size_chosen: "{{ vm_inventory.vm_size_chosen }}"
+
+        - name: Associate the host with the windemo group
+          ansible.controller.group:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            name: "{{ dc1_azure_group }}"
+            inventory: "{{ dc1_azure_inventory }}"
+            hosts:
+              - "{{ vm_inventory.host }}"
+            state: present
+
+        - name: Pass provisioning details to the rest of the workflow
+          ansible.builtin.set_stats:
+            data:
+              vm_public_ip: "{{ vm_inventory.ansible_host }}"
+              vm_fqdn: "{{ vm_inventory.host }}"
+              vm_name: "{{ vm_inventory.vm_name }}"
+              vm_size_chosen: "{{ vm_inventory.vm_size_chosen }}"
+
+      always:
+        - name: Delete the short-lived controller token
+          ansible.platform.token:
+            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            aap_token: "{{ prov_token.ansible_facts.aap_token.token }}"
+            aap_validate_certs: false
+            existing_token: "{{ prov_token.ansible_facts.aap_token }}"
+            state: absent
+          when:
+            - prov_token is defined
+            - prov_token.ansible_facts is defined

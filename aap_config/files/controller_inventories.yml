@@ -1,9 +1,10 @@
 ---
 # Consumed by the infra.aap_configuration.controller_inventories role.
 #
-# The `windows` group starts empty — the Provision VM job adds the new VM at
-# runtime via add_host + set_stats, so the workflow's Configure steps target it
-# in the same run. Group vars carry the WinRM connection settings.
+# The `windemo` group (the group the reused aap.dailydemo.windows playbooks
+# target) is created and populated at runtime by provision_vm.yml, which
+# registers the new VM via the controller API. Group/inventory vars carry the
+# WinRM connection settings.
 controller_inventories:
   - name: "{{ inventory_name }}"
     organization: "{{ my_organization }}"
