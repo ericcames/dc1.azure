@@ -40,9 +40,13 @@ dc1.azure/
 ├── CONTRIBUTING.md       ← workflow, branch naming, ADO Boards conventions
 ├── azure-pipelines.yml   ← ADO Pipeline: lint + validate on PR (Phase 5)
 ├── terraform/            ← Azure infra (Phase 2)
-├── playbooks/            ← AAP bootstrap + provision + configure + teardown (Phase 3-4)
+├── aap_config/           ← AAP Config-as-Code — the canonical install path (Phase 3)
+├── playbooks/            ← provision + teardown playbooks (Phase 4); deprecated bootstrap
 ├── inventories/dc1-azure/
+├── ansible.cfg.example   ← Hub galaxy_server template → ~/.ansible.cfg (Phase 7)
+├── .claude/skills/       ← repo-based Claude skills (install-dc1-azure)
 ├── docs/
+│   ├── INSTALL.md        ← manual install guide (Phase 7)
 │   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6)
 │   └── images/
 ├── collections/requirements.yml
@@ -52,54 +56,29 @@ dc1.azure/
 
 ## Getting started
 
-> The end-to-end demo isn't fully wired up yet — see
-> [`ROADMAP.md`](ROADMAP.md) for current phase status. The pieces below work
-> today; the rest is in progress.
+Installing dc1.azure means applying the [`aap_config/`](aap_config/README.md)
+Configuration-as-Code onto a working AAP — it creates every credential,
+project, inventory, job template, and the provision-and-configure workflow.
+Two ways to do it:
 
-### Prerequisites
-- Red Hat Demo Platform (RHDP) Azure open environment (provides subscription, RG, SP)
-- AAP instance from RHDP (bootstrapped per [`aap.as.code`](https://github.com/ericcames/aap.as.code) conventions)
-- Azure DevOps account at `dev.azure.com/ericcames` with PAT scoped to Code (RW), Build (RX), Work Items (RW)
-- Local: `terraform` ≥ 1.6, `ansible-core` ≥ 2.16, `ansible-galaxy` configured per [`aap.as.code/CLAUDE.md`](https://github.com/ericcames/aap.as.code/blob/main/CLAUDE.md)
+- **Manual** — follow **[`docs/INSTALL.md`](docs/INSTALL.md)**: prerequisites,
+  the env-var table, `ansible-galaxy collection install -r aap_config/requirements.yml`,
+  then `ansible-playbook -i aap_config/inventory/ aap_config/load.yml` (which
+  self-verifies via `validate.yml`).
+- **AI-driven** — if you use Claude Code, run **`/install-dc1-azure`** (shipped
+  in [`.claude/skills/`](.claude/skills/install-dc1-azure/SKILL.md)). It checks
+  prerequisites, prompts for any missing values, runs the install, and reports
+  each created object.
 
-### Install collections
-```bash
-ANSIBLE_CONFIG=~/.ansible/ansible.cfg \
-  ansible-galaxy collection install -r collections/requirements.yml -p ./collections
-```
+Prerequisites in brief (full list in `docs/INSTALL.md`): an AAP instance + a
+personal API token, an RHDP Azure Service Principal + resource group, an Azure
+DevOps PAT, a Windows admin password, and an Automation Hub token for collection
+install (seed `~/.ansible.cfg` from [`ansible.cfg.example`](ansible.cfg.example)).
 
-### Local Terraform smoke test (Phase 2 exit criteria — pending)
-```bash
-cd terraform/
-cp terraform.tfvars.example terraform.tfvars
-# fill in subscription_id, resource_group_name, location, etc.
-terraform init
-terraform plan -var="vm_size_tier=small"
-terraform apply -var="vm_size_tier=small"
-# ... verify VM, then ...
-terraform destroy -var="vm_size_tier=small"
-```
-
-### AAP Configuration as Code (Phase 3 — building)
-
-The canonical install path will be a self-contained `aap_config/` directory
-at the repo root, run via `infra.aap_configuration.dispatch`:
-
-```bash
-# Once Phase 3 lands (aap_config/ not on disk yet — see ROADMAP):
-ansible-playbook -i aap_config/inventory/ aap_config/load.yml
-```
-
-This is the only entry point a first-time installer should ever need. It
-creates every dc1.azure AAP object (credentials, project, inventory, job
-templates, workflow) and is idempotent.
-
-**Transitional stopgap (will be removed):** `playbooks/bootstrap_aap.yml`
-exists from earlier work and can create a partial set of AAP objects (Vault +
-Azure RM credentials are verified in live RHDP AAP; ADO SCM credential
-pending an AAP-scoped PAT). This playbook is **deprecated** — use it only if
-you need partial bootstrap before `aap_config/load.yml` is end-to-end ready.
-It will be deleted once the CaC path is verified. See ROADMAP Phase 3.
+> **End-to-end status:** all objects and the provision→configure→teardown
+> automation are defined; a green *live* run still needs the target execution
+> environment + credentials wired on your AAP — see `docs/INSTALL.md` and
+> [`ROADMAP.md`](ROADMAP.md) Phase 4.
 
 ### Mirror to GitHub (Phase 5 — manual today)
 
