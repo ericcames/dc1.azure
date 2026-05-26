@@ -12,9 +12,10 @@ collections:
   - name: ansible.controller
     version: 4.7.8
 
-  # AAP Configuration as Code (matches demo.datacenter / aap.as.code pin)
+  # AAP Configuration as Code — pinned to the Automation Hub release
+  # (decision 2026-05-26; dc1.azure stands independent of aap.as.code's 4.2.0 pin)
   - name: infra.aap_configuration
-    version: 4.2.0
+    version: 4.4.0
 
   # Azure-specific (this repo's primary cloud)
   - name: azure.azcollection

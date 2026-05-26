@@ -1,0 +1,31 @@
+# ============================================================================
+# dc1.azure — ansible.cfg TEMPLATE (example only — DO NOT rename to ansible.cfg)
+# ============================================================================
+# Ansible loads exactly ONE ansible.cfg (it does not merge them). A *live*
+# project-local `ansible.cfg` would shadow your home cfg and break
+# `ansible-galaxy collection install` for Red Hat certified content. So this
+# template is committed as `ansible.cfg.example` (never auto-loaded) and the
+# repo-based setup skill (Phase 7) copies it to your standard local path:
+#
+#     cp ansible.cfg.example ~/.ansible.cfg     # then fill in the token
+#
+# It encodes the canonical Automation Hub `galaxy_server` config so any
+# teammate can reproduce the Hub-token setup that installs the pinned
+# infra.aap_configuration / azure.azcollection / ansible.windows content.
+# ============================================================================
+
+[defaults]
+host_key_checking = False
+
+[galaxy]
+server_list = automation_hub, release_galaxy
+
+[galaxy_server.automation_hub]
+url = https://console.redhat.com/api/automation-hub/content/published/
+auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+# Get an offline token from https://console.redhat.com/ansible/automation-hub/token
+# and paste it here (or export ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN).
+token = REPLACE_ME_AUTOMATION_HUB_OFFLINE_TOKEN
+
+[galaxy_server.release_galaxy]
+url = https://galaxy.ansible.com/

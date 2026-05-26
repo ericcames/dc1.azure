@@ -1,0 +1,96 @@
+---
+# Consumed by the infra.aap_configuration.controller_job_templates role.
+# NOTE: the role's list variable is `controller_templates` (not
+# `controller_job_templates`) — a known collection quirk.
+#
+# Six JTs: one Azure provision + four reused Windows configure steps + teardown.
+# The Configure steps run the pinned `aap.dailydemo.windows` project's existing
+# playbooks (retains the upstream workflow). The Provision/Teardown playbooks
+# live in this repo and are built in Phase 4.
+controller_templates:
+  - name: "DC1.Azure - Provision VM"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/provision_vm.yml      # Phase 4
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_azure_rm }}"
+      - "{{ cred_vault }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Pick a VM size tier"
+      spec:
+        - question_name: VM size tier
+          question_description: T-shirt size — maps to an Azure SKU in Terraform locals.tf
+          variable: vm_size_tier
+          type: multiplechoice
+          required: true
+          default: medium
+          choices:
+            - small
+            - medium
+            - large
+
+  - name: "DC1.Azure - Powershell Improvement"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ windows_project_name }}"
+    playbook: playbooks/05_powershell_improve.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+
+  - name: "DC1.Azure - Website Setup"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ windows_project_name }}"
+    playbook: playbooks/06_website_setup.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+
+  - name: "DC1.Azure - Provision Access"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ windows_project_name }}"
+    playbook: playbooks/06_windows_account_create.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+      - "{{ cred_vault }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: ""
+      spec:
+        - question_name: What is your default password?
+          question_description: Password for the demo account created on the VM
+          variable: default_passwd
+          type: password
+          required: true
+
+  - name: "DC1.Azure - Patching"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ windows_project_name }}"
+    playbook: playbooks/07_windows_patching.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+
+  - name: "DC1.Azure - Teardown"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/teardown.yml          # Phase 4
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_azure_rm }}"

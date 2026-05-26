@@ -1,0 +1,15 @@
+---
+# Consumed by the infra.aap_configuration.controller_inventories role.
+#
+# The `windows` group starts empty — the Provision VM job adds the new VM at
+# runtime via add_host + set_stats, so the workflow's Configure steps target it
+# in the same run. Group vars carry the WinRM connection settings.
+controller_inventories:
+  - name: "{{ inventory_name }}"
+    organization: "{{ my_organization }}"
+    variables:
+      # Applied to all hosts; the `windows` group is populated at runtime.
+      ansible_connection: winrm
+      ansible_port: 5986
+      ansible_winrm_transport: ntlm
+      ansible_winrm_server_cert_validation: ignore

@@ -1,0 +1,64 @@
+# `aap_config/` — DC1.Azure AAP Configuration as Code
+
+Self-contained Configuration-as-Code for every dc1.azure AAP object, applied
+via the upstream [`infra.aap_configuration`](https://github.com/redhat-cop/infra.aap_configuration)
+collection (pinned **4.4.0**). This is the canonical install path — it replaces
+the deprecated `playbooks/bootstrap_aap.yml`.
+
+## Layout
+
+| Path | Purpose |
+|------|---------|
+| `load.yml` | Entry point — applies `files/` via `infra.aap_configuration.dispatch`, then runs `validate.yml` |
+| `validate.yml` | Post-load check — asserts every object exists in AAP (never exit green on a partial apply) |
+| `requirements.yml` | Collection pins (4.4.0) + note on the reused Windows project |
+| `inventory/aap.yml` | localhost only — CaC runs locally and talks to AAP over the API |
+| `group_vars/all.yml` | Connection + secret references (env-var lookups) + object names |
+| `files/controller_credentials.yml` | 4 credentials (Vault, Azure RM, ADO SCM, Windows Machine) |
+| `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) |
+| `files/controller_inventories.yml` | `dc1-azure` inventory (WinRM group vars; hosts added at runtime) |
+| `files/controller_job_templates.yml` | 6 JTs — var is `controller_templates` |
+| `files/controller_workflow_job_templates.yml` | The core workflow — var is `controller_workflows` |
+
+> **File-naming convention:** each `files/controller_*.yml` is named after the
+> `infra.aap_configuration` role that consumes it, so the authoritative variable
+> schema for any file is that role's README in the collection. (Two roles use a
+> legacy list-variable name — noted at the top of those files.)
+
+## The one workflow, four triggers
+
+`files/controller_workflow_job_templates.yml` defines **one** survey-driven
+workflow, `DC1.Azure - Provision and Configure`:
+
+```
+Provision VM ─► Powershell Improvement ─┬─► Website Setup ───┐
+                                        └─► Provision Access ┴─► Patching
+```
+
+The four demo triggers (AAP UI, Self-Service Portal, ServiceNow, Azure DevOps)
+all launch this same workflow — see ROADMAP Phases 6/8/9/10. The Configure
+steps reuse the proven, cloud-agnostic playbooks from the pinned
+`aap.dailydemo.windows` project; only the Provision/Teardown playbooks are
+dc1.azure-native (built in Phase 4).
+
+## Run it
+
+```bash
+# 1. Install collections (uses the Hub token — see ../ansible.cfg.example)
+ansible-galaxy collection install -r requirements.yml
+
+# 2. Create a personal API token in the AAP UI, then export inputs:
+export AAP_HOSTNAME=https://<aap-host>
+export AAP_TOKEN=<personal token>
+export AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... \
+       AZURE_CLIENT_ID=... AZURE_CLIENT_SECRET=...
+export ADO_PAT=... WINDOWS_ADMIN_PASSWORD=... DC1_AZURE_VAULT_PASSWORD=...
+# Optional: DC1_AZURE_EE=<Windows-capable EE name on the target AAP>
+
+# 3. Apply + verify (idempotent)
+ansible-playbook -i inventory/ load.yml
+```
+
+No secrets live in this directory — every sensitive value is an environment
+lookup resolved at runtime (the Phase 7 setup skill exports them). See
+[`../ROADMAP.md`](../ROADMAP.md) Phase 3 for the full design.

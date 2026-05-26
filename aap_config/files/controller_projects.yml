@@ -1,0 +1,24 @@
+---
+# Consumed by the infra.aap_configuration.controller_projects role.
+controller_projects:
+  # The dc1.azure repo itself — source of the provision/teardown playbooks.
+  - name: "{{ project_name }}"
+    organization: "{{ my_organization }}"
+    scm_type: git
+    scm_url: "{{ ado_project_scm_url }}"
+    scm_branch: main
+    credential: "{{ cred_ado_scm }}"
+    scm_update_on_launch: true
+    scm_clean: true
+    default_environment: "{{ my_execution_environment }}"
+
+  # Reused Windows daily-demo project, pinned to v1.0.1 (decision 2026-05-26).
+  # The Configure job templates run THIS project's existing, proven, cloud-
+  # agnostic playbooks — retaining the upstream workflow without vendoring.
+  - name: "{{ windows_project_name }}"
+    organization: "{{ my_organization }}"
+    scm_type: git
+    scm_url: "{{ windows_project_scm_url }}"
+    scm_branch: "{{ windows_project_scm_branch }}"
+    scm_update_on_launch: false
+    default_environment: "{{ my_execution_environment }}"

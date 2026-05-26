@@ -1,0 +1,82 @@
+---
+# Consumed by the infra.aap_configuration.controller_workflow_job_templates
+# role. NOTE: the role's list variable is `controller_workflows`.
+#
+# This is the single core workflow all four triggers (AAP UI, Self-Service
+# Portal, ServiceNow, Azure DevOps) launch. Node shape retains the Windows
+# daily-demo configure chain; the Azure "Provision VM" node replaces the AWS
+# provisioning nodes.
+#
+#   Provision VM ──► Powershell Improvement ──┬─► Website Setup ───┐
+#                                             └─► Provision Access ┴─► Patching
+#
+# vm_size_tier is surveyed on the workflow so every trigger passes it in the
+# same way; it flows to the Provision VM node.
+controller_workflows:
+  - name: "{{ workflow_name }}"
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Provision and configure a Windows Server 2025 VM on Azure"
+      spec:
+        - question_name: VM size tier
+          question_description: T-shirt size — maps to an Azure SKU in Terraform locals.tf
+          variable: vm_size_tier
+          type: multiplechoice
+          required: true
+          default: medium
+          choices:
+            - small
+            - medium
+            - large
+    related:
+      workflow_nodes:
+        - identifier: provision-vm
+          unified_job_template:
+            name: "DC1.Azure - Provision VM"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: powershell-improvement
+
+        - identifier: powershell-improvement
+          unified_job_template:
+            name: "DC1.Azure - Powershell Improvement"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: website-setup
+              - identifier: provision-access
+
+        - identifier: website-setup
+          unified_job_template:
+            name: "DC1.Azure - Website Setup"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: patching
+
+        - identifier: provision-access
+          unified_job_template:
+            name: "DC1.Azure - Provision Access"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: patching
+
+        - identifier: patching
+          unified_job_template:
+            name: "DC1.Azure - Patching"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
