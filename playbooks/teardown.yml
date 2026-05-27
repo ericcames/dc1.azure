@@ -21,6 +21,17 @@
     dc1_azure_inventory: "{{ inventory_name | default('dc1-azure') }}"
     dc1_azure_location: "{{ location | default('eastus') }}"
     dc1_azure_admin_username: "{{ admin_username | default('demoadmin') }}"
+    # Map AAP's injected AZURE_* creds to the ARM_* names Terraform's azurerm
+    # provider + state backend read, so init/destroy authenticate as the Service
+    # Principal rather than falling back to Azure CLI auth (no `az` in EE) — AB#57.
+    arm_env:
+      ARM_CLIENT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
+      ARM_CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'AZURE_SECRET') }}"
+      ARM_SUBSCRIPTION_ID: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
+      ARM_TENANT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT') }}"
+
+  # Play-level: every terraform task (init/output) inherits the ARM_* SP creds.
+  environment: "{{ arm_env }}"
 
   tasks:
     - name: Assert teardown inputs are present
@@ -63,8 +74,10 @@
           -var location={{ dc1_azure_location }}
           -var admin_username={{ dc1_azure_admin_username }}
         chdir: "{{ terraform_dir }}"
-      environment:
-        TF_VAR_admin_password: "{{ dc1_azure_windows_admin_password }}"
+      environment: >-
+        {{ arm_env | combine({'TF_VAR_admin_password': dc1_azure_windows_admin_password}) }}
+      # Combined with arm_env: a task-level environment replaces (not merges
+      # with) the play-level one, so the ARM_* SP creds must be restated here.
       no_log: true
       changed_when: true
 

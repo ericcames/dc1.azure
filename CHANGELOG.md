@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Fixed
+- **Terraform now authenticates to Azure as the Service Principal** (AB#57).
+  The Provision VM workflow node failed at `terraform init` with
+  `could not configure AzureCli Authorizer ... "az": executable file not found`.
+  AAP's `DC1.Azure - Azure RM` credential injects `AZURE_*` env vars, but
+  Terraform's azurerm provider and the azurerm state backend read `ARM_*` —
+  nothing mapped them, so the backend (`use_azuread_auth = true`) fell back to
+  Azure CLI auth, which the EE has no `az` binary for. `provision_vm.yml` and
+  `teardown.yml` now define an `arm_env` mapping (`ARM_CLIENT_ID`←`AZURE_CLIENT_ID`,
+  `ARM_CLIENT_SECRET`←`AZURE_SECRET`, `ARM_TENANT_ID`←`AZURE_TENANT`,
+  `ARM_SUBSCRIPTION_ID`←`AZURE_SUBSCRIPTION_ID`) applied as a play-level
+  `environment`, combined into the `apply`/`destroy` tasks' own environment so
+  the SP creds reach every `terraform` invocation (init/apply/output/destroy).
 - **EE now syncs into Private Automation Hub and Controller pulls it from
   there, not quay.io** (AB#56). Getting the EE image into Hub requires
   satisfying two independent gates that the original CaC got wrong, so the

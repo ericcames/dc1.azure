@@ -12,7 +12,7 @@
 # for the controller API calls, and delete it in `always:`.
 #
 # Required job-template credentials:
-#   - DC1.Azure - Azure RM        → injects ARM_* env vars Terraform uses
+#   - DC1.Azure - Azure RM        → injects AZURE_* env vars (mapped to ARM_* below)
 #   - DC1.Azure - Controller      → injects CONTROLLER_* for inventory registration
 #   - DC1.Azure - Vault           → decrypts the vaulted admin-password var
 #
@@ -41,6 +41,19 @@
     # out of version control.  dc1_azure_tf_storage_account is set on the JT.
     dc1_azure_tf_container: "{{ tf_container | default('tfstate') }}"
     dc1_azure_tf_key: "{{ tf_key | default('dc1.azure.tfstate') }}"
+    # The AAP "Microsoft Azure Resource Manager" credential injects AZURE_*
+    # env vars, but Terraform's azurerm provider AND the azurerm state backend
+    # read ARM_*. Map them here so `terraform init` (backend, use_azuread_auth)
+    # and `apply`/`output` authenticate as the Service Principal instead of
+    # falling back to Azure CLI auth — which the EE has no `az` binary for (AB#57).
+    arm_env:
+      ARM_CLIENT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
+      ARM_CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'AZURE_SECRET') }}"
+      ARM_SUBSCRIPTION_ID: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
+      ARM_TENANT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT') }}"
+
+  # Play-level: every terraform task (init/output) inherits the ARM_* SP creds.
+  environment: "{{ arm_env }}"
 
   tasks:
     - name: Assert provisioning inputs are present
@@ -85,9 +98,11 @@
           -var location={{ dc1_azure_location }}
           -var admin_username={{ dc1_azure_admin_username }}
         chdir: "{{ terraform_dir }}"
-      environment:
-        # Passed via env (not -var) so it never lands on the command line.
-        TF_VAR_admin_password: "{{ dc1_azure_windows_admin_password }}"
+      environment: >-
+        {{ arm_env | combine({'TF_VAR_admin_password': dc1_azure_windows_admin_password}) }}
+      # Password passed via env (not -var) so it never lands on the command line;
+      # combined with arm_env because a task-level environment replaces (not
+      # merges with) the play-level one for this task.
       no_log: true  # protects the admin password in any verbose run output
       changed_when: true
 
