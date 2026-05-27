@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Fixed
+- **`terraform/variables.tf` vm_size_tier validation** (AB#66) — validation rule
+  and default still used `small|medium|large` after AB#62 renamed them to
+  `small-2cpu-8gb|medium-4cpu-16gb|large-8cpu-32gb`, causing `terraform apply`
+  to fail with a variable validation error.
 - **`playbooks/provision_vm.yml` assert** (AB#65) — vm_size_tier values in the
   assert still said `small|medium|large` after AB#62 renamed them to
   `small-2cpu-8gb|medium-4cpu-16gb|large-8cpu-32gb`, failing every workflow run.
