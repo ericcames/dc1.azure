@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **Nightly teardown schedule** (AB#58) — `aap_config/files/controller_schedules.yml`
+  creates a `DC1.Azure - Nightly Teardown` schedule on the `DC1.Azure - Teardown`
+  job template that runs every day at 18:00 `America/Phoenix` (no DST → fixed
+  01:00 UTC), so the demo VM never runs overnight. Wired into `load.yml` and
+  asserted by `validate.yml`. The teardown JT now bakes a non-secret placeholder
+  `dc1_azure_windows_admin_password` (`teardown_admin_password_placeholder`):
+  terraform requires the var (12-72 chars) and `teardown.yml` asserts its length,
+  but the value is unused on destroy — so scheduled/manual teardown runs need no
+  password input and no secret is committed. Added `teardown_template` /
+  `teardown_schedule_name` name vars (single source of truth for the JT + schedule).
+
 ### Fixed
 - **Terraform now authenticates to Azure as the Service Principal** (AB#57).
   The Provision VM workflow node failed at `terraform init` with

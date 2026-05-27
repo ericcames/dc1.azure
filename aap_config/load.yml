@@ -41,6 +41,7 @@
     - files/controller_execution_environments.yml  # Controller EE registration
     - files/controller_job_templates.yml
     - files/controller_workflow_job_templates.yml
+    - files/controller_schedules.yml            # Nightly teardown schedule
   roles:
     - infra.aap_configuration.dispatch
 

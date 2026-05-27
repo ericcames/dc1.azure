@@ -31,6 +31,8 @@
           - "DC1.Azure - Teardown"
       - endpoint: workflow_job_templates
         names: ["{{ workflow_name }}"]
+      - endpoint: schedules
+        names: ["{{ teardown_schedule_name }}"]
   tasks:
     - name: Flatten the expected objects into (endpoint, name) pairs
       ansible.builtin.set_fact:

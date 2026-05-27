@@ -89,6 +89,16 @@ hub_registry_password: "{{ controller_cred_password }}"
 project_name: "DC1.Azure"
 inventory_name: "dc1-azure"
 workflow_name: "DC1.Azure - Provision and Configure"
+# Teardown JT name (single source of truth — referenced by the JT definition
+# and the nightly teardown schedule) and the schedule object name.
+teardown_template: "DC1.Azure - Teardown"
+teardown_schedule_name: "DC1.Azure - Nightly Teardown"
+# Terraform requires admin_password (12-72 chars) even on `destroy`, but the
+# value is never used to destroy an existing VM. The teardown JT bakes this
+# NON-SECRET placeholder so scheduled (and manual) teardown runs need no
+# password input — and no real secret is committed or stored in AAP. It only
+# has to satisfy the length check (terraform validation + teardown.yml assert).
+teardown_admin_password_placeholder: "AutoTeardown-Unused-1!"
 
 # --- Reused Windows daily-demo project (pinned git reference, decision 2026-05-26)
 # Synced as its own AAP project so the Configure JTs can reuse its proven,

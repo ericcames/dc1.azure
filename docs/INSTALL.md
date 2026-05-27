@@ -268,8 +268,9 @@ idempotent.
 In the AAP UI you should now see (all prefixed `DC1.Azure -`): 6 credentials
 (including `DC1.Azure - Hub Registry`), 2 projects (`DC1.Azure`,
 `aap.dailydemo.windows`), the `dc1-azure` inventory, 6 job templates, the
-`DC1.Azure - EE` execution environment, and the **`DC1.Azure - Provision and
-Configure`** workflow.
+`DC1.Azure - EE` execution environment, the **`DC1.Azure - Provision and
+Configure`** workflow, and the `DC1.Azure - Nightly Teardown` schedule on the
+Teardown job template (runs daily at 18:00 `America/Phoenix`).
 
 Launch that workflow, pick a `vm_size_tier` in the survey, and watch it
 provision the Azure VM and run the configure chain.
