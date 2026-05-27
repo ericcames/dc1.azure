@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **EE now syncs into Private Automation Hub and Controller pulls it from
+  there, not quay.io** (AB#56). Getting the EE image into Hub requires
+  satisfying two independent gates that the original CaC got wrong, so the
+  `dc1_azure_ee` Hub repository stayed empty (0 tags): (a) the *dispatch* gate —
+  dispatch includes the `hub_ee_repository_sync` role only when a variable named
+  `hub_ee_repository_sync` is *defined* (`vars[__role.var] is defined`); and
+  (b) the *role* gate — once included, the role loops `hub_ee_repositories` and
+  syncs only items whose `sync` sub-option is true. The original CaC put
+  `sync`/`wait` in a separate `hub_ee_repository_sync:` *list* (satisfied (a) but
+  not (b) — sync silently skipped). Fix: keep `hub_ee_repository_sync` defined as
+  a trigger flag **and** move `sync: true`/`wait: true` onto the
+  `hub_ee_repositories` item. Then added a `DC1.Azure - Hub Registry` Container
+  Registry credential, attached it to the `DC1.Azure - EE` execution
+  environment, and changed the `ee_image` default from
+  `quay.io/zigfreed/dc1-azure-ee:latest` to `{{ ah_hostname }}/dc1_azure_ee:latest`
+  so Controller authenticates to the internal Hub registry and pulls the EE from
+  PAH. `validate.yml` now also asserts the `DC1.Azure - EE` execution
+  environment and the new credential exist.
+
 ### Added
 - `execution-environment.yml` — custom EE definition (ansible-builder v3) that
   extends `ee-minimal-rhel9:2.17.14` with Terraform 1.15.4. Installs all

@@ -203,16 +203,18 @@ in the repo.
 | `AAP_CONTROLLER_PASSWORD` | ✅ | — | `DC1.Azure - Controller` credential |
 | `AZURE_TF_STORAGE_ACCOUNT` | ✅ | `REPLACE_ME_TF_STATE_SA` | Azure Storage Account name for Terraform remote state backend — must exist before `load.yml` runs (see §2.6) |
 | `DC1_AZURE_EE` | — | `DC1.Azure - EE` | EE name the JTs reference — `load.yml` creates this EE automatically via CaC; only override if you want JTs to use a different EE |
-| `DC1_AZURE_EE_IMAGE` | — | `quay.io/zigfreed/dc1-azure-ee:latest` | Container image for the EE — defaults to the public quay.io image (no extra setup); override with your Hub URL once the image has synced (e.g. `<ah_hostname>/dc1_azure_ee:latest`) |
+| `DC1_AZURE_EE_IMAGE` | — | `<AH_HOSTNAME>/dc1_azure_ee:latest` | Container image for the EE — defaults to the **Private Automation Hub** copy (`load.yml` syncs it there from quay.io and Controller pulls it via the `DC1.Azure - Hub Registry` credential). Override with the public quay.io image (`quay.io/zigfreed/dc1-azure-ee:latest`) only for a Hub-less smoke test |
 | `AH_HOSTNAME` | — | gateway hostname | Private Automation Hub hostname for EE image URLs. On AAP 2.5 unified platform, Hub is at the same host as the gateway — leave unset unless Hub is on a separate host |
 
-> **Execution environment:** `load.yml` now creates the `DC1.Azure - EE`
-> execution environment in AAP Controller automatically (via
-> `aap_config/files/controller_execution_environments.yml`). It also configures
-> Private Automation Hub to register quay.io as a remote registry and sync the
-> image locally (`aap_config/files/hub_ee_registries.yml` +
-> `hub_ee_repositories.yml`). No manual EE setup is required for a standard
-> install. The EE includes: Terraform 1.15.4, `azure.azcollection`,
+> **Execution environment:** `load.yml` configures Private Automation Hub to
+> register quay.io as a remote registry and **sync the image into Hub**
+> (`aap_config/files/hub_ee_registries.yml` + `hub_ee_repositories.yml`), creates
+> a `DC1.Azure - Hub Registry` Container Registry credential, then registers the
+> `DC1.Azure - EE` execution environment in Controller pointing at the **Hub**
+> image URL (`<AH_HOSTNAME>/dc1_azure_ee:latest`) with that credential attached
+> (`aap_config/files/controller_execution_environments.yml`). So at job-run time
+> Controller pulls the EE from the internal Hub, not quay.io — no manual EE setup
+> required. The EE includes: Terraform 1.15.4, `azure.azcollection`,
 > `ansible.windows`, `community.windows`, `infra.aap_configuration`, and
 > `pywinrm` (via collection Python requirements).
 
@@ -263,9 +265,11 @@ idempotent.
 
 ## 7. Confirm and launch
 
-In the AAP UI you should now see (all prefixed `DC1.Azure -`): 5 credentials,
-2 projects (`DC1.Azure`, `aap.dailydemo.windows`), the `dc1-azure` inventory,
-6 job templates, and the **`DC1.Azure - Provision and Configure`** workflow.
+In the AAP UI you should now see (all prefixed `DC1.Azure -`): 6 credentials
+(including `DC1.Azure - Hub Registry`), 2 projects (`DC1.Azure`,
+`aap.dailydemo.windows`), the `dc1-azure` inventory, 6 job templates, the
+`DC1.Azure - EE` execution environment, and the **`DC1.Azure - Provision and
+Configure`** workflow.
 
 Launch that workflow, pick a `vm_size_tier` in the survey, and watch it
 provision the Azure VM and run the configure chain.

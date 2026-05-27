@@ -1,20 +1,34 @@
 ---
-# Consumed by:
-#   - infra.aap_configuration.hub_ee_repository      (var: hub_ee_repositories)
-#   - infra.aap_configuration.hub_ee_repository_sync (var: hub_ee_repository_sync)
+# Creates a Hub EE repository (dc1_azure_ee) that mirrors the DC1.Azure EE image
+# from quay.io, then syncs it so the image lives in Private Automation Hub by the
+# time controller_execution_environments.yml registers it in Controller.
 #
-# Creates a Hub EE repository that mirrors the DC1.Azure EE image from quay.io,
-# then immediately syncs it so the image is available in Hub by the time
-# controller_execution_environments.yml registers it in Controller.
+# Two dispatch roles are involved, and getting the sync to actually run requires
+# satisfying BOTH of their gates (AB#56 — the original CaC satisfied neither
+# correctly, so the repo stayed empty at 0 tags):
+#
+#   1. infra.aap_configuration.hub_ee_repository      — creates/updates the repo.
+#        Loops over `hub_ee_repositories` (below).
+#   2. infra.aap_configuration.hub_ee_repository_sync — syncs the repo.
+#        a) DISPATCH GATE: dispatch only *includes* this role when a variable
+#           named `hub_ee_repository_sync` is defined
+#           (dispatch/tasks/main.yml: `when: vars[__role.var] is defined`).
+#           That is the ONLY purpose of the `hub_ee_repository_sync` flag at the
+#           bottom of this file — the role never reads its value.
+#        b) ROLE GATE: once included, the role loops over `hub_ee_repositories`
+#           (NOT `hub_ee_repository_sync`) and only syncs items whose `sync`
+#           sub-option is true (role README: "this role will only do anything if
+#           the `sync` sub-option of this variable is set to true").
+#      => `sync: true` / `wait: true` MUST live on the hub_ee_repositories item,
+#         and `hub_ee_repository_sync` MUST be defined. Both, or no sync happens.
 #
 # The `quay_io` remote registry must exist first — it is created by
 # hub_ee_registries.yml. The dispatch role runs hub_ee_registry before
 # hub_ee_repository automatically, so ordering in load.yml doesn't matter.
 #
-# After bootstrap, find the Hub image URL in:
-#   AAP UI → Execution Environments (Hub tab) → dc1_azure_ee
-# That URL is what you set for DC1_AZURE_EE_IMAGE if you want Controller to
-# pull from Hub instead of quay.io. Typically: <ah_hostname>/dc1_azure_ee:latest
+# After sync the image is served by Private Automation Hub at
+# <ah_hostname>/dc1_azure_ee:latest — which is the default ee_image
+# (group_vars/all.yml) that Controller pulls via the cred_hub_registry credential.
 
 hub_ee_repositories:
   - name: dc1_azure_ee    # alphanumeric + underscores only; becomes the Hub image name
@@ -23,11 +37,14 @@ hub_ee_repositories:
     upstream_name: zigfreed/dc1-azure-ee
     include_tags:
       - latest
-
-# Trigger an immediate sync so the image is pulled into Hub during bootstrap.
-# `wait: true` makes the playbook block until the sync completes before moving on
-# to controller_execution_environments (which needs the image to exist in Hub).
-hub_ee_repository_sync:
-  - name: dc1_azure_ee
+    # ROLE GATE (2b): pull the image into Hub during bootstrap. `wait: true`
+    # blocks until the sync completes before dispatch moves on to
+    # controller_execution_environments (which needs the image to exist in Hub).
     sync: true
     wait: true
+
+# DISPATCH GATE (2a): this flag's only job is to be *defined* so dispatch
+# includes the hub_ee_repository_sync role. The role ignores its value and reads
+# the sync/wait sub-options off hub_ee_repositories above. Do not remove it —
+# without it the sync role is skipped entirely and the Hub repo stays empty.
+hub_ee_repository_sync: true

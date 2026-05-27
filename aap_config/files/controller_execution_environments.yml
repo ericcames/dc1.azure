@@ -3,19 +3,21 @@
 # Registers the DC1.Azure EE in AAP Controller so all six job templates can
 # reference it by name.
 #
-# Image source priority (set DC1_AZURE_EE_IMAGE to override):
-#   1. Default: quay.io/zigfreed/dc1-azure-ee:latest  ← always works (public image)
-#   2. Override with Hub URL once Hub has synced the image:
-#        export DC1_AZURE_EE_IMAGE=<ah_hostname>/dc1_azure_ee:latest
-#      The Hub image URL is shown in AAP UI → Execution Environments (Hub) after
-#      hub_ee_repositories.yml syncs it. "Pull: missing" means Controller caches
-#      the image on first use and won't re-pull unless it's absent.
+# Image source (set DC1_AZURE_EE_IMAGE to override):
+#   Default: {{ ah_hostname }}/dc1_azure_ee:latest  ← the Private Automation Hub
+#   copy. PAH syncs it from quay.io (hub_ee_registries.yml + hub_ee_repositories.yml),
+#   and the cred_hub_registry credential lets Controller authenticate to the
+#   internal Hub registry to pull it. "Pull: missing" means Controller caches the
+#   image on first use and won't re-pull unless it's absent.
+#   For a Hub-less smoke test, override DC1_AZURE_EE_IMAGE with the public quay.io
+#   URL (quay.io/zigfreed/dc1-azure-ee:latest) — no registry credential needed.
 #
-# dispatch ordering: hub_ee_registry → hub_ee_repository_sync → this role.
-# By the time this runs, Hub already has the image available.
+# dispatch ordering: hub_ee_registry → hub_ee_repository (sync) → controller_credentials
+# → this role. By the time this runs, the image is in Hub and the pull credential exists.
 
 controller_execution_environments:
   - name: "{{ ee_name }}"
     image: "{{ ee_image }}"
     pull: missing
+    credential: "{{ cred_hub_registry }}"
     description: "DC1.Azure EE — Terraform 1.15.4, azure.azcollection, ansible.windows + community.windows"

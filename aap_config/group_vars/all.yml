@@ -26,10 +26,14 @@ ah_hostname: "{{ lookup('ansible.builtin.env', 'AH_HOSTNAME') | default(aap_host
 # and in controller_job_templates.yml (reference). Keep them in sync.
 ee_name: "DC1.Azure - EE"
 
-# EE image URL: defaults to public quay.io image (always works, no Hub required).
-# After bootstrap, if Hub has synced the image, set:
-#   export DC1_AZURE_EE_IMAGE=<ah_hostname>/dc1_azure_ee:latest
-ee_image: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE_IMAGE') | default('quay.io/zigfreed/dc1-azure-ee:latest', true) }}"
+# EE image URL: defaults to the Private Automation Hub copy of the image. PAH
+# syncs it from quay.io (see hub_ee_registries.yml / hub_ee_repositories.yml),
+# and Controller pulls it from PAH using the cred_hub_registry credential — the
+# image never leaves the platform at job-run time. The Hub image name is the
+# hub_ee_repositories[].name (dc1_azure_ee), served at the gateway host.
+# Override with the public quay.io image only for a Hub-less smoke test:
+#   export DC1_AZURE_EE_IMAGE=quay.io/zigfreed/dc1-azure-ee:latest
+ee_image: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE_IMAGE') | default(ah_hostname ~ '/dc1_azure_ee:latest', true) }}"
 
 # JT-level EE reference — defaults to ee_name so load.yml and the JTs stay in
 # sync without extra env vars. Override DC1_AZURE_EE only to point a specific
@@ -73,6 +77,14 @@ cred_azure_rm: "DC1.Azure - Azure RM"
 cred_ado_scm: "DC1.Azure - ADO Source Control"
 cred_windows: "DC1.Azure - Windows Machine"
 cred_controller: "DC1.Azure - Controller"
+# Container Registry credential — lets Controller pull DC1.Azure - EE from the
+# internal Private Automation Hub registry (ah_hostname). On the AAP 2.5 unified
+# platform the Hub registry authenticates with the platform admin credentials,
+# so we reuse the same admin user/password the Controller credential uses.
+cred_hub_registry: "DC1.Azure - Hub Registry"
+hub_registry_host: "{{ ah_hostname }}"
+hub_registry_username: "{{ controller_cred_username }}"
+hub_registry_password: "{{ controller_cred_password }}"
 
 project_name: "DC1.Azure"
 inventory_name: "dc1-azure"

@@ -18,7 +18,9 @@
       - endpoint: inventories
         names: ["{{ inventory_name }}"]
       - endpoint: credentials
-        names: ["{{ cred_vault }}", "{{ cred_azure_rm }}", "{{ cred_ado_scm }}", "{{ cred_windows }}", "{{ cred_controller }}"]
+        names: ["{{ cred_vault }}", "{{ cred_azure_rm }}", "{{ cred_ado_scm }}", "{{ cred_windows }}", "{{ cred_controller }}", "{{ cred_hub_registry }}"]
+      - endpoint: execution_environments
+        names: ["{{ ee_name }}"]
       - endpoint: job_templates
         names:
           - "DC1.Azure - Provision VM"
