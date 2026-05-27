@@ -15,11 +15,26 @@ aap_token: "{{ lookup('ansible.builtin.env', 'AAP_TOKEN') }}"
 aap_validate_certs: "{{ lookup('ansible.builtin.env', 'AAP_VALIDATE_CERTS') | default('false', true) | bool }}"
 
 # --- Org + Execution Environment ---------------------------------------------
-# my_execution_environment must name a Windows-capable EE that the Ansible
-# Product Demo AAP already provides (has pywinrm + ansible.windows). Confirm the
-# exact name on the target AAP and override via env if it differs.
 my_organization: "IT Service Automation"
-my_execution_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE') | default('Default execution environment', true) }}"
+
+# Private Automation Hub — container registry hostname.
+# For AAP 2.5 unified platform the Hub registry is at the same host as the
+# gateway (no scheme). Override AH_HOSTNAME if Hub is on a separate host.
+ah_hostname: "{{ lookup('ansible.builtin.env', 'AH_HOSTNAME') | default(aap_hostname | urlsplit('hostname'), true) }}"
+
+# EE name — used both in controller_execution_environments.yml (registration)
+# and in controller_job_templates.yml (reference). Keep them in sync.
+ee_name: "DC1.Azure - EE"
+
+# EE image URL: defaults to public quay.io image (always works, no Hub required).
+# After bootstrap, if Hub has synced the image, set:
+#   export DC1_AZURE_EE_IMAGE=<ah_hostname>/dc1_azure_ee:latest
+ee_image: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE_IMAGE') | default('quay.io/zigfreed/dc1-azure-ee:latest', true) }}"
+
+# JT-level EE reference — defaults to ee_name so load.yml and the JTs stay in
+# sync without extra env vars. Override DC1_AZURE_EE only to point a specific
+# JT at a different EE during testing.
+my_execution_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE') | default(ee_name, true) }}"
 
 # Red Hat AAP (Controller) credential inputs — lets provision_vm/teardown
 # register hosts in the dc1-azure inventory via the controller API. Points at

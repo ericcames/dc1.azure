@@ -1,0 +1,33 @@
+---
+# Consumed by:
+#   - infra.aap_configuration.hub_ee_repository      (var: hub_ee_repositories)
+#   - infra.aap_configuration.hub_ee_repository_sync (var: hub_ee_repository_sync)
+#
+# Creates a Hub EE repository that mirrors the DC1.Azure EE image from quay.io,
+# then immediately syncs it so the image is available in Hub by the time
+# controller_execution_environments.yml registers it in Controller.
+#
+# The `quay_io` remote registry must exist first — it is created by
+# hub_ee_registries.yml. The dispatch role runs hub_ee_registry before
+# hub_ee_repository automatically, so ordering in load.yml doesn't matter.
+#
+# After bootstrap, find the Hub image URL in:
+#   AAP UI → Execution Environments (Hub tab) → dc1_azure_ee
+# That URL is what you set for DC1_AZURE_EE_IMAGE if you want Controller to
+# pull from Hub instead of quay.io. Typically: <ah_hostname>/dc1_azure_ee:latest
+
+hub_ee_repositories:
+  - name: dc1_azure_ee    # alphanumeric + underscores only; becomes the Hub image name
+    description: "DC1.Azure EE — Terraform 1.15.4 + azure.azcollection + ansible.windows"
+    registry: quay_io     # must match hub_ee_registries[].name
+    upstream_name: zigfreed/dc1-azure-ee
+    include_tags:
+      - latest
+
+# Trigger an immediate sync so the image is pulled into Hub during bootstrap.
+# `wait: true` makes the playbook block until the sync completes before moving on
+# to controller_execution_environments (which needs the image to exist in Hub).
+hub_ee_repository_sync:
+  - name: dc1_azure_ee
+    sync: true
+    wait: true

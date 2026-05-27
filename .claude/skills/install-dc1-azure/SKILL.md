@@ -73,9 +73,12 @@ adds the interactive checking and reporting around them.
    `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_RESOURCE_GROUP`,
    `AZURE_TF_STORAGE_ACCOUNT`, `ADO_PAT`, `WINDOWS_ADMIN_PASSWORD`,
    `AAP_CONTROLLER_PASSWORD`. Optional with good defaults: `AAP_VALIDATE_CERTS`
-   (false), `CONTROLLER_VERIFY_SSL` (false), `DC1_AZURE_EE` (Product Demos EE
-   on APD), `WINDOWS_ADMIN_USERNAME` (demoadmin), `AZURE_LOCATION` (eastus),
-   `AAP_CONTROLLER_USERNAME` (admin).
+   (false), `CONTROLLER_VERIFY_SSL` (false), `DC1_AZURE_EE` (defaults to
+   `DC1.Azure - EE` — the EE registered by load.yml), `DC1_AZURE_EE_IMAGE`
+   (defaults to `quay.io/zigfreed/dc1-azure-ee:latest`; after Hub syncs set
+   to `<ah_hostname>/dc1_azure_ee:latest`), `AH_HOSTNAME` (defaults to gateway
+   hostname — correct for AAP 2.5 unified platform), `WINDOWS_ADMIN_USERNAME`
+   (demoadmin), `AZURE_LOCATION` (eastus), `AAP_CONTROLLER_USERNAME` (admin).
 
    Note: `CONTROLLER_HOST` = same value as `AAP_HOSTNAME`, and
    `CONTROLLER_OAUTH_TOKEN` = same value as `AAP_TOKEN`. These are required
@@ -84,8 +87,10 @@ adds the interactive checking and reporting around them.
 
 6. **Collect what's missing.** List the missing variables and ask the user to
    export them (`! export NAME=value`). Remind them about:
-   - **`DC1_AZURE_EE`** — must be Windows + terraform capable; on Ansible
-     Product Demo AAP use `Product Demos EE`
+   - **`DC1_AZURE_EE`** — the EE name that job templates reference. `load.yml`
+     now creates `DC1.Azure - EE` in Controller automatically (via
+     `controller_execution_environments.yml`), so you normally leave this unset.
+     Only override if you want JTs to use a different EE.
    - **admin-password sync** — `WINDOWS_ADMIN_PASSWORD` must equal
      `dc1_azure_windows_admin_password` at workflow launch time
    - **`DC1_AZURE_VAULT_PASSWORD`** — a string you choose now; use the same

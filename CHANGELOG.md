@@ -6,6 +6,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- `execution-environment.yml` — custom EE definition (ansible-builder v3) that
+  extends `ee-minimal-rhel9:2.17.14` with Terraform 1.15.4. Installs all
+  collections from `collections/requirements.yml` (azure.azcollection,
+  ansible.windows, infra.aap_configuration, etc.) so one EE covers both the
+  Provision/Teardown JTs (need `terraform`) and the Windows Configure JTs (need
+  pywinrm). Three fixes from the user's source EE: (1) Terraform bumped from
+  1.14.0 → 1.15.4 (latest with available binary), (2) `galaxy:` path corrected
+  to `collections/requirements.yml`, (3) `prepend_galaxy` ADD path fixed from
+  `_build/configs/ansible.cfg` → `_build/configs/.ansible.cfg` (ansible-builder
+  preserves the leading dot). Build:
+  `ansible-builder build -f execution-environment.yml -t dc1-azure-ee:latest`.
+- `aap_config/files/hub_ee_registries.yml` — registers `quay.io` as a remote
+  container registry on Private Automation Hub. Triggers registry creation,
+  catalog index, and initial sync via the dispatch role (all three
+  `hub_ee_registry*` roles fire from the single `hub_ee_registries` variable).
+- `aap_config/files/hub_ee_repositories.yml` — creates a Hub EE repository
+  (`dc1_azure_ee`) that mirrors `quay.io/zigfreed/dc1-azure-ee:latest` from
+  the `quay_io` remote registry, then immediately syncs it (`hub_ee_repository_sync`
+  with `wait: true`) so the image is in Hub before Controller registers it.
+- `aap_config/files/controller_execution_environments.yml` — registers the
+  `DC1.Azure - EE` execution environment in AAP Controller (image URL from
+  `ee_image`, defaults to public quay.io; override `DC1_AZURE_EE_IMAGE` to use
+  Hub URL after sync). Closes the Phase 4 live-run blocker: no more manual EE
+  setup required.
+- `aap_config/group_vars/all.yml` — added `ee_name` (`DC1.Azure - EE`),
+  `ee_image` (env-driven, defaults to quay.io), `ah_hostname` (env-driven,
+  defaults to gateway hostname — correct for AAP 2.5 unified platform); updated
+  `my_execution_environment` to default to `ee_name` instead of the generic
+  "Default execution environment".
+- `.gitignore` — added `context/` (ansible-builder build-context directory).
+- `.claude/skills/install-dc1-azure/SKILL.md` — updated env-var table: `DC1_AZURE_EE`
+  is now optional (defaults to the EE load.yml creates); added `DC1_AZURE_EE_IMAGE`
+  and `AH_HOSTNAME` as optional overrides.
+- `docs/INSTALL.md` — (1) Added `AZURE_TF_STORAGE_ACCOUNT` (required) and
+  `DC1_AZURE_EE_IMAGE` / `AH_HOSTNAME` (optional) to the env var table; updated
+  `DC1_AZURE_EE` default from `Default execution environment` → `DC1.Azure - EE`;
+  replaced outdated EE callout with note that `load.yml` creates the EE via CaC
+  automatically. (2) Added §2.6 documenting the Terraform state Storage Account
+  bootstrap (az CLI commands + role assignment). (3) Updated §6 example command:
+  added `AZURE_TF_STORAGE_ACCOUNT`, removed `DC1_AZURE_EE='Product Demos EE'`.
+  (4) Replaced single `terraform: not found` troubleshooting row with two rows
+  covering the new EE CaC path.
+- `ROADMAP.md` — Phase 4 live-run item updated to reflect EE blocker resolved;
+  three 2026-05-27 entries added to Decisions Log (custom EE, quay.io hosting
+  strategy, CaC EE registration).
 - Azure Storage Account `dc1aztfstate0526` bootstrapped in `openenv-blsvm-1`; SP granted `Storage Blob Data Contributor` for Azure AD auth (`use_azuread_auth = true`). Documented in `docs/dev-environment.md`.
 
 ### Changed

@@ -281,7 +281,7 @@ file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 - ✅ Configure half is **not** a new `configure_windows.yml` — it reuses the pinned `aap.dailydemo.windows` project's existing playbooks via the Phase 3 Configure JTs (`05_powershell_improve` / `06_website_setup` / `06_windows_account_create` / `07_windows_patching`), which target `hosts: windemo`. This is what "retain the existing workflow" means in practice.
 - ✅ `playbooks/teardown.yml` — `terraform destroy` + deregisters the host from the inventory (token lifecycle in `always:`).
 - ✅ New `DC1.Azure - Controller` (Red Hat AAP) credential added to `aap_config/` and attached to the Provision/Teardown JTs so they can call the controller API. RG/location passed as JT `extra_vars` from env-baked group vars.
-- ⬜ **Live run** against the Product Demo AAP: needs the Windows-capable EE name (`DC1_AZURE_EE`) with the `terraform` binary, the Controller credential populated, and the admin password synced between Terraform and the `DC1.Azure - Windows Machine` credential.
+- ⬜ **Live run** against the Product Demo AAP: EE blocker resolved (see 2026-05-27 decisions); need to push `dc1-azure-ee:latest` to quay.io, run `load.yml` to register it in Controller via CaC, then re-launch the workflow. Admin password delivered via the workflow survey.
 
 **Open design note:** host hand-off uses explicit controller-API registration (mirrors the daily demo). A future alternative is an `azure_rm` dynamic inventory source on `dc1-azure` that auto-discovers the tagged VM — removes the Controller credential + registration step, but needs `azure.azcollection` in the EE.
 
@@ -425,6 +425,9 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-26 | Reuse `aap.dailydemo.windows` roles via a **pinned git reference** | Reuses proven code, stays DRY, AAP installs on sync — keeps dc1.azure standalone. Vendor only as fallback |
 | 2026-05-26 | Vault password from a **dc1.azure-owned vault source** (option 2) | Self-contained setup consistent with standalone goal; drops the borrowed `~/.ansible/secrets2` path |
 | 2026-05-26 | Ship `ansible.cfg.example` (never a live cfg); **repo-based** Claude skills | Example encodes the canonical Hub `galaxy_server` stanza without shadowing the home cfg; in-repo skills replace the marketplace `/aap-first-time`, completing independence |
+| 2026-05-27 | Custom EE (`execution-environment.yml`) built with ansible-builder v3 on `ee-minimal-rhel9:2.17.14` + **Terraform 1.15.4** | Phase 4 blocker — default EE lacks `terraform`; one EE covers all six JTs (Terraform for Provision/Teardown, pywinrm from azure.azcollection for Windows Configure) |
+| 2026-05-27 | EE image hosted on **quay.io** (public) as `quay.io/zigfreed/dc1-azure-ee:latest`; Hub syncs from quay.io; Controller points to Hub (or quay.io directly via `DC1_AZURE_EE_IMAGE` override) | quay.io = always-accessible source; Hub copy = enterprise demo story; `DC1_AZURE_EE_IMAGE` env var lets either work without code changes |
+| 2026-05-27 | EE registration in Controller handled by **CaC** (`aap_config/files/controller_execution_environments.yml` + `hub_ee_registries.yml` + `hub_ee_repositories.yml`) | Eliminates the only remaining manual bootstrap step for Phase 4; `load.yml` is now fully self-contained for a fresh env |
 
 ---
 

@@ -45,6 +45,10 @@ docs/dev-environment.md
 .claude/*
 !.claude/skills/
 
+# ansible-builder — build context dir created during `ansible-builder build`
+# (.tgz artifacts and the unpacked context are build-time only; not needed in VCS)
+context/
+
 # OS / editor cruft
 .DS_Store
 *.swp

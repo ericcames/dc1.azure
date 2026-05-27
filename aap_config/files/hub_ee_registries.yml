@@ -1,0 +1,18 @@
+---
+# Consumed by three dispatch roles (in order):
+#   1. infra.aap_configuration.hub_ee_registry       — creates the remote registry record
+#   2. infra.aap_configuration.hub_ee_registry_index — indexes the registry's catalog
+#   3. infra.aap_configuration.hub_ee_registry_sync  — triggers an initial sync
+# All three fire automatically from `hub_ee_registries` being defined — dispatch
+# handles the ordering.
+#
+# Purpose: tell Private Automation Hub where to find the DC1.Azure EE image so
+# Hub can sync it locally. The image itself (quay.io/zigfreed/dc1-azure-ee) is
+# defined in hub_ee_repositories.yml.
+
+hub_ee_registries:
+  - name: quay_io          # alphanumeric + underscores only (Hub name requirement)
+    url: https://quay.io
+    tls_validation: true
+    # No credentials needed — the dc1-azure-ee image is public on quay.io.
+    # Add username/password here if the image is moved to a private org.

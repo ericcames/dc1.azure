@@ -1,0 +1,21 @@
+---
+# Consumed by infra.aap_configuration.controller_execution_environments
+# Registers the DC1.Azure EE in AAP Controller so all six job templates can
+# reference it by name.
+#
+# Image source priority (set DC1_AZURE_EE_IMAGE to override):
+#   1. Default: quay.io/zigfreed/dc1-azure-ee:latest  ← always works (public image)
+#   2. Override with Hub URL once Hub has synced the image:
+#        export DC1_AZURE_EE_IMAGE=<ah_hostname>/dc1_azure_ee:latest
+#      The Hub image URL is shown in AAP UI → Execution Environments (Hub) after
+#      hub_ee_repositories.yml syncs it. "Pull: missing" means Controller caches
+#      the image on first use and won't re-pull unless it's absent.
+#
+# dispatch ordering: hub_ee_registry → hub_ee_repository_sync → this role.
+# By the time this runs, Hub already has the image available.
+
+controller_execution_environments:
+  - name: "{{ ee_name }}"
+    image: "{{ ee_image }}"
+    pull: missing
+    description: "DC1.Azure EE — Terraform 1.15.4, azure.azcollection, ansible.windows + community.windows"

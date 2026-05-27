@@ -36,6 +36,9 @@
     - files/controller_credentials.yml
     - files/controller_projects.yml
     - files/controller_inventories.yml
+    - files/hub_ee_registries.yml               # Hub remote registry (quay.io)
+    - files/hub_ee_repositories.yml             # Hub EE repo + sync trigger
+    - files/controller_execution_environments.yml  # Controller EE registration
     - files/controller_job_templates.yml
     - files/controller_workflow_job_templates.yml
   roles:

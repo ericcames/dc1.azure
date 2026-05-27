@@ -1,0 +1,90 @@
+---
+# DC1.Azure Execution Environment
+# ============================================================
+# Adds Terraform to the Red Hat minimal RHEL9 EE base so that the
+# Provision VM / Teardown job templates can call `terraform` directly.
+#
+# BUILD (local):
+#   ansible-builder build -f execution-environment.yml \
+#                         -t dc1-azure-ee:latest --prune-images
+#
+# PREREQUISITES:
+#   - ansible-builder installed:  pip install ansible-builder
+#   - Logged in to Red Hat registry: podman login registry.redhat.io
+#   - ~/.ansible.cfg with Automation Hub offline token (see ansible.cfg.example)
+#     NOTE: the file must be a real file, not a symlink — ansible-builder's
+#     COPY/ADD does not follow symlinks. Fix: cp ~/.ansible/ansible.cfg ~/.ansible.cfg
+#
+# PUSH + REGISTER IN AAP:
+#   podman push dc1-azure-ee:latest <registry-host>/dc1-azure-ee:latest
+#   # In AAP: Settings → Execution Environments → Add → paste image URL
+#   # Name it "DC1.Azure - EE" (follows DC1.Azure - namespace convention)
+#   # Then set DC1_AZURE_EE="DC1.Azure - EE" in the load.yml env vars
+#
+# TERRAFORM VERSION:
+#   Pinned to 1.15.4 (latest available as of 2026-05).
+#   Verify newer releases at: https://releases.hashicorp.com/terraform/
+#   Bump the version string in the two RUN lines below when upgrading.
+# ============================================================
+
+version: 3
+
+images:
+  base_image:
+    name: registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:2.17.14
+
+dependencies:
+  # Path relative to this file — matches the dc1.azure repo layout.
+  # Installs all collections in collections/requirements.yml (azure.azcollection,
+  # ansible.windows, community.windows, infra.aap_configuration, etc.) along
+  # with their Python requirements (pywinrm, azure-mgmt-*, etc.).
+  galaxy: collections/requirements.yml
+
+options:
+  package_manager_path: /usr/bin/microdnf
+
+# Injects your local ~/.ansible.cfg so ansible-galaxy can authenticate to
+# Automation Hub and pull Red Hat certified/validated content during the build.
+# This src path is LOCAL to the build machine — it is evaluated at build time
+# only and is never committed to the repo.
+# See ansible.cfg.example for the required format (two galaxy_server sections:
+# rh_certified and rh_validated, each with the same offline token).
+additional_build_files:
+  - src: /home/eames/.ansible.cfg
+    dest: configs
+
+additional_build_steps:
+  prepend_base:
+    # Create /etc/ansible/ so the ADD step below lands correctly
+    - RUN mkdir -p /etc/ansible/
+    # Install unzip (needed to extract the Terraform archive)
+    - RUN microdnf install -y unzip --nodocs --setopt=install_weak_deps=0
+    # Download and install Terraform — single-line RUN avoids YAML-folding backslash
+    # ambiguity (ansible-builder flattens multiline YAML to one line, turning \ into
+    # backslash-space which bash treats as a word, not a line continuation).
+    # To upgrade: bump the version string in the URL below.
+    - RUN curl -fsSL https://releases.hashicorp.com/terraform/1.15.4/terraform_1.15.4_linux_amd64.zip -o terraform.zip && unzip terraform.zip && mv terraform /usr/local/bin/ && rm terraform.zip
+    # Smoke-test: confirm Terraform is on PATH and prints its version
+    - RUN terraform --version
+
+  prepend_builder:
+    # python3.11-devel provides Python.h for the 3.11 interpreter the EE uses.
+    # Required to compile systemd-python (transitive dep: ansible.platform → ansible.eda).
+    # Must be python3.11-devel (not python3-devel — that installs Python 3.9 RPM which
+    # overwrites /usr/bin/python3 and breaks the build). python3.11-devel does not
+    # replace /usr/bin/python3; it only adds /usr/include/python3.11/Python.h.
+    # Builder-stage only: final stage starts FROM base (no headers needed there;
+    # packages arrive as pre-built wheels from the builder stage).
+    - RUN microdnf install -y python3.11-devel --nodocs --setopt=install_weak_deps=0
+    # Install the 'wheel' package so pip builds a proper .whl for systemd-python
+    # (transitive dep of ansible.eda). Without 'wheel', pip falls back to legacy
+    # 'setup.py install' which writes directly into site-packages — no .whl is placed
+    # in /output/wheels/, and the final stage then tries to compile from source tarball
+    # (failing because pkg-config is absent from the final/base layer).
+    - RUN /usr/bin/python3 -m pip install wheel
+
+  prepend_galaxy:
+    # Make the Automation Hub cfg available to ansible-galaxy during collection
+    # install. The leading dot in .ansible.cfg is preserved by ansible-builder —
+    # the file lands at _build/configs/.ansible.cfg (NOT ansible.cfg without dot).
+    - ADD _build/configs/.ansible.cfg /etc/ansible/ansible.cfg

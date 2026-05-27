@@ -121,6 +121,34 @@ Verify in the UI: **Access → Organizations → Default → Details** → Galax
 Credentials should show `Ansible Galaxy`, `Automation Hub - certified`, and
 `Automation Hub - validated`.
 
+## 2.6. Bootstrap the Terraform state Storage Account (one-time per RHDP env)
+
+Terraform uses Azure Blob Storage as its remote state backend. The Storage Account must exist *before* running `load.yml` (the Provision VM JT extra_vars reference it at bake-time).
+
+```bash
+# Use the az CLI logged in as the RHDP Service Principal
+az storage account create \
+  --name <storage-account-name> \       # e.g. dc1aztfstate<date> — globally unique, 3-24 lowercase alphanum
+  --resource-group <rhdp-resource-group> \
+  --location eastus \
+  --sku Standard_LRS \
+  --allow-blob-public-access false
+
+az storage container create \
+  --name tfstate \
+  --account-name <storage-account-name>
+
+# Grant the SP Storage Blob Data Contributor so Terraform can use Azure AD auth
+az role assignment create \
+  --assignee <service-principal-client-id> \
+  --role "Storage Blob Data Contributor" \
+  --scope "/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<storage-account-name>"
+```
+
+Then export `AZURE_TF_STORAGE_ACCOUNT=<storage-account-name>` before running `load.yml`.
+
+> **One SA per RHDP environment.** Storage Account names must be globally unique. When you activate a new RHDP open environment, create a new SA in the new resource group and update `docs/dev-environment.md` + the `AZURE_TF_STORAGE_ACCOUNT` export.
+
 ## 3. Install the collections
 
 ```bash
@@ -173,14 +201,20 @@ in the repo.
 | `WINDOWS_ADMIN_PASSWORD` | ✅ | — | `DC1.Azure - Windows Machine` credential |
 | `AAP_CONTROLLER_USERNAME` | — | `admin` | `DC1.Azure - Controller` (Red Hat AAP) credential |
 | `AAP_CONTROLLER_PASSWORD` | ✅ | — | `DC1.Azure - Controller` credential |
-| `DC1_AZURE_EE` | — | `Default execution environment` | the EE the JTs run in — **see callout below** |
+| `AZURE_TF_STORAGE_ACCOUNT` | ✅ | `REPLACE_ME_TF_STATE_SA` | Azure Storage Account name for Terraform remote state backend — must exist before `load.yml` runs (see §2.6) |
+| `DC1_AZURE_EE` | — | `DC1.Azure - EE` | EE name the JTs reference — `load.yml` creates this EE automatically via CaC; only override if you want JTs to use a different EE |
+| `DC1_AZURE_EE_IMAGE` | — | `quay.io/zigfreed/dc1-azure-ee:latest` | Container image for the EE — defaults to the public quay.io image (no extra setup); override with your Hub URL once the image has synced (e.g. `<ah_hostname>/dc1_azure_ee:latest`) |
+| `AH_HOSTNAME` | — | gateway hostname | Private Automation Hub hostname for EE image URLs. On AAP 2.5 unified platform, Hub is at the same host as the gateway — leave unset unless Hub is on a separate host |
 
-> **Execution environment:** the Provision/Configure/Teardown jobs need an EE
-> that has the `terraform` binary, the `ansible.controller`/`ansible.platform`
-> collections, and Windows (`pywinrm`) support. Set `DC1_AZURE_EE` to that EE's
-> name on your AAP. The default `Default execution environment` will create the
-> objects fine but will fail at *run* time if it lacks those tools. On the
-> **Ansible Product Demo** AAP, try `Product Demos EE` first.
+> **Execution environment:** `load.yml` now creates the `DC1.Azure - EE`
+> execution environment in AAP Controller automatically (via
+> `aap_config/files/controller_execution_environments.yml`). It also configures
+> Private Automation Hub to register quay.io as a remote registry and sync the
+> image locally (`aap_config/files/hub_ee_registries.yml` +
+> `hub_ee_repositories.yml`). No manual EE setup is required for a standard
+> install. The EE includes: Terraform 1.15.4, `azure.azcollection`,
+> `ansible.windows`, `community.windows`, `infra.aap_configuration`, and
+> `pywinrm` (via collection Python requirements).
 
 > **Password sync (important):** the Windows admin password is needed in **two**
 > places that must match — the `DC1.Azure - Windows Machine` credential (set
@@ -214,7 +248,10 @@ export WINDOWS_ADMIN_USERNAME=demoadmin
 export WINDOWS_ADMIN_PASSWORD='<Azure-complex password>'
 export AAP_CONTROLLER_USERNAME=admin
 export AAP_CONTROLLER_PASSWORD=<aap admin password>
-export DC1_AZURE_EE='Product Demos EE'   # or your terraform-capable EE
+export AZURE_TF_STORAGE_ACCOUNT=<storage-account-name>  # see §2.6
+# Optional overrides (defaults shown):
+# export DC1_AZURE_EE='DC1.Azure - EE'            # created by load.yml — only set to override
+# export DC1_AZURE_EE_IMAGE='quay.io/zigfreed/dc1-azure-ee:latest'  # or Hub URL after sync
 
 ansible-playbook -i aap_config/inventory/ aap_config/load.yml
 ```
@@ -244,7 +281,8 @@ provision the Azure VM and run the configure chain.
 | Validate hits `/api/v2/` not found | older AAP API path | `export DC1_AZURE_API_BASE=/api/v2` and re-run |
 | `Connection refused` to `127.0.0.1` during credential creation | `CONTROLLER_HOST` / `CONTROLLER_OAUTH_TOKEN` not set, OR Hub Galaxy credentials missing from Default org | set both `CONTROLLER_*` vars **and** complete §2.5 before re-running |
 | Credential creation fails (censored `no_log`) | same root cause as above | expose with `-e controller_configuration_credentials_secure_logging=false` to confirm, then fix |
-| Provision job fails: `terraform: not found` | EE lacks terraform | set `DC1_AZURE_EE` to a terraform-capable EE |
+| Provision job fails: `terraform: not found` | EE image doesn't have Terraform — `DC1.Azure - EE` not yet registered or wrong image pulled | verify `controller_execution_environments.yml` ran (check AAP UI → Execution Environments for `DC1.Azure - EE`); if missing, re-run `load.yml` |
+| `DC1.Azure - EE` shows in Controller but Terraform is missing | EE image URL points to a base image without Terraform | check `DC1_AZURE_EE_IMAGE` — the `quay.io/zigfreed/dc1-azure-ee:latest` image has Terraform; if overridden to a Hub URL, confirm Hub synced from quay.io |
 | Provision fails on `admin_password` complexity | weak `WINDOWS_ADMIN_PASSWORD` | 12–72 chars, 3 of upper/lower/digit/symbol |
 | Configure steps can't authenticate (WinRM) | Windows Machine cred password ≠ Terraform admin_password, or username mismatch | sync the password (step 5 callout); keep `WINDOWS_ADMIN_USERNAME` = Terraform `admin_username` |
 | Provision can't register host (`CONTROLLER_*` not set) | Controller credential not attached | confirm `DC1.Azure - Controller` is on the Provision/Teardown JTs |
