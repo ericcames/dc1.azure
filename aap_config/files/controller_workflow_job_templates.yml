@@ -22,7 +22,10 @@ controller_workflows:
       description: "Provision and configure a Windows Server 2025 VM on Azure"
       spec:
         - question_name: VM size tier
-          question_description: T-shirt size — maps to an Azure SKU in Terraform locals.tf
+          question_description: >-
+            small → Standard_D2s_v5 (2 vCPU / 8 GB) |
+            medium → Standard_D4s_v5 (4 vCPU / 16 GB) |
+            large → Standard_D8s_v5 (8 vCPU / 32 GB) — verify RHDP quota before using
           variable: vm_size_tier
           type: multiplechoice
           required: true
@@ -31,15 +34,6 @@ controller_workflows:
             - small
             - medium
             - large
-        - question_name: Windows admin password
-          question_description: >-
-            Must match the 'DC1.Azure - Windows Machine' credential password
-            (12–72 chars, Azure complexity: upper + lower + digit + symbol).
-          variable: dc1_azure_windows_admin_password
-          type: password
-          required: true
-          min: 12
-          max: 72
     related:
       workflow_nodes:
         - identifier: provision-vm

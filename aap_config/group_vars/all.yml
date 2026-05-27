@@ -82,6 +82,10 @@ cred_controller: "DC1.Azure - Controller"
 # platform the Hub registry authenticates with the platform admin credentials,
 # so we reuse the same admin user/password the Controller credential uses.
 cred_hub_registry: "DC1.Azure - Hub Registry"
+# Custom credential — injects dc1_azure_windows_admin_password extra var for
+# Terraform in the Provision VM JT. Value sourced from WINDOWS_ADMIN_PASSWORD
+# (same env var as cred_windows), so one export covers both credentials.
+cred_win_admin_password: "DC1.Azure - Windows Admin Password"
 hub_registry_host: "{{ ah_hostname }}"
 hub_registry_username: "{{ controller_cred_username }}"
 hub_registry_password: "{{ controller_cred_password }}"

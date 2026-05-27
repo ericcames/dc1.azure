@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **`DC1.Azure - Windows Admin Password` custom credential type** — replaces the
+  workflow survey prompt for `dc1_azure_windows_admin_password`. The new credential
+  type injects the password as an extra var directly into the `DC1.Azure - Provision VM`
+  JT so Terraform receives it without requiring any user input at launch time.
+  Value sourced from `WINDOWS_ADMIN_PASSWORD` (same env var as the Machine
+  credential), so a single `load.yml` run wires both credentials from one export.
+  The password survey question has been removed from the `DC1.Azure - Provision
+  and Configure` workflow.
+
 - **Nightly teardown schedule** (AB#58) — `aap_config/files/controller_schedules.yml`
   creates a `DC1.Azure - Nightly Teardown` schedule on the `DC1.Azure - Teardown`
   job template that runs every day at 18:00 `America/Phoenix` (no DST → fixed

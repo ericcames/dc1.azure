@@ -16,9 +16,10 @@ controller_templates:
     playbook: playbooks/provision_vm.yml
     execution_environment: "{{ my_execution_environment }}"
     credentials:
-      - "{{ cred_azure_rm }}"     # ARM_* for Terraform
-      - "{{ cred_controller }}"   # CONTROLLER_* for inventory registration
-      - "{{ cred_vault }}"        # decrypts the vaulted admin-password var
+      - "{{ cred_azure_rm }}"           # ARM_* for Terraform
+      - "{{ cred_controller }}"         # CONTROLLER_* for inventory registration
+      - "{{ cred_vault }}"              # decrypts the vaulted admin-password var
+      - "{{ cred_win_admin_password }}" # injects dc1_azure_windows_admin_password extra var
     extra_vars:
       dc1_azure_resource_group: "{{ azure_resource_group }}"
       dc1_azure_location: "{{ azure_location }}"
@@ -29,7 +30,10 @@ controller_templates:
       description: "Pick a VM size tier"
       spec:
         - question_name: VM size tier
-          question_description: T-shirt size — maps to an Azure SKU in Terraform locals.tf
+          question_description: >-
+            small → Standard_D2s_v5 (2 vCPU / 8 GB) |
+            medium → Standard_D4s_v5 (4 vCPU / 16 GB) |
+            large → Standard_D8s_v5 (8 vCPU / 32 GB) — verify RHDP quota before using
           variable: vm_size_tier
           type: multiplechoice
           required: true
