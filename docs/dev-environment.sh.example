@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# docs/dev-environment.sh — GITIGNORED, never commit
+#
+# Copy this file to docs/dev-environment.sh, fill in your values, then:
+#
+#   source docs/dev-environment.sh && \
+#   ansible-playbook -i aap_config/inventory/ aap_config/load.yml
+#
+# All exports and the ansible-playbook command must be in one shell invocation —
+# env vars do not persist across separate terminal commands or tool calls.
+
+# --- AAP -------------------------------------------------------------------
+export AAP_HOSTNAME=https://REPLACE_ME_AAP_HOSTNAME
+export AAP_TOKEN=REPLACE_ME_AAP_TOKEN          # create per docs/INSTALL.md §4; delete after load.yml
+export AAP_VALIDATE_CERTS=false                # set true for a trusted cert
+export AAP_CONTROLLER_USERNAME=admin
+export AAP_CONTROLLER_PASSWORD=REPLACE_ME_AAP_ADMIN_PASSWORD
+
+# Required separately — ansible.controller.* async workers read these directly
+# and fall back to 127.0.0.1 if absent (see docs/INSTALL.md §5).
+export CONTROLLER_HOST=$AAP_HOSTNAME
+export CONTROLLER_OAUTH_TOKEN=$AAP_TOKEN
+export CONTROLLER_VERIFY_SSL=false
+
+# --- Secrets you choose (keep these in sync with each other) ---------------
+export DC1_AZURE_VAULT_PASSWORD=REPLACE_ME_VAULT_PASSWORD    # DC1.Azure - Vault credential
+export WINDOWS_ADMIN_USERNAME=demoadmin                       # matches Terraform admin_username default
+export WINDOWS_ADMIN_PASSWORD=REPLACE_ME_WINDOWS_PASSWORD    # Azure-complex: 12-72 chars,
+                                                              # 3 of: upper / lower / digit / symbol
+
+# --- Azure Service Principal (from RHDP Azure open environment) ------------
+export AZURE_SUBSCRIPTION_ID=REPLACE_ME_SUBSCRIPTION_ID
+export AZURE_TENANT_ID=REPLACE_ME_TENANT_ID
+export AZURE_CLIENT_ID=REPLACE_ME_CLIENT_ID
+export AZURE_CLIENT_SECRET=REPLACE_ME_CLIENT_SECRET
+export AZURE_RESOURCE_GROUP=REPLACE_ME_RHDP_RG                # e.g. openenv-xxxxx
+export AZURE_LOCATION=eastus
+export AZURE_TF_STORAGE_ACCOUNT=REPLACE_ME_TF_STATE_SA        # must exist before load.yml
+                                                               # see docs/INSTALL.md §2.6
+
+# --- Azure DevOps PAT -------------------------------------------------------
+export ADO_PAT=REPLACE_ME_ADO_PAT
+
+# --- Optional overrides (safe to leave commented out) ----------------------
+# export AH_HOSTNAME=$AAP_HOSTNAME           # Hub hostname; defaults to AAP gateway host (correct for AAP 2.5)
+# export DC1_AZURE_EE='DC1.Azure - EE'       # EE name; load.yml creates this automatically
+# export DC1_AZURE_EE_IMAGE='quay.io/zigfreed/dc1-azure-ee:latest'  # Hub-less smoke test only

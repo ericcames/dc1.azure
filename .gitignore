@@ -37,7 +37,8 @@ collections/ansible_collections/
 # Copy .envrc.example to .envrc and fill in your values.
 .envrc
 
-# Local dev environment notes (AAP URL, password — never commit)
+# Local dev environment — fill in from docs/dev-environment.sh.example (never commit)
+docs/dev-environment.sh
 docs/dev-environment.md
 
 # Claude Code per-project state (memory, transcripts, settings) — ignored,

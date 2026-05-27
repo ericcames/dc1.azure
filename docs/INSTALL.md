@@ -147,7 +147,7 @@ az role assignment create \
 
 Then export `AZURE_TF_STORAGE_ACCOUNT=<storage-account-name>` before running `load.yml`.
 
-> **One SA per RHDP environment.** Storage Account names must be globally unique. When you activate a new RHDP open environment, create a new SA in the new resource group and update `docs/dev-environment.md` + the `AZURE_TF_STORAGE_ACCOUNT` export.
+> **One SA per RHDP environment.** Storage Account names must be globally unique. When you activate a new RHDP open environment, create a new SA in the new resource group and update `docs/dev-environment.sh` + the `AZURE_TF_STORAGE_ACCOUNT` export.
 
 ## 3. Install the collections
 
@@ -228,8 +228,23 @@ in the repo.
 ## 6. Apply the configuration
 
 > ⚠️ **All `export` statements and the `ansible-playbook` command must run in
-> the same shell process.** Shell state does not persist across separate terminal
-> commands or tool calls. Use a single compound command, or a wrapper script:
+> the same shell process.** Env vars do not persist across separate terminal
+> commands or tool calls (including AI tool calls). Use `source` or a single
+> compound command.
+
+**Recommended — source the env file:**
+
+```bash
+# First time: copy the template and fill in your values
+cp docs/dev-environment.sh.example docs/dev-environment.sh
+# edit docs/dev-environment.sh (it is gitignored — never commit it)
+
+# Then run:
+source docs/dev-environment.sh && \
+ansible-playbook -i aap_config/inventory/ aap_config/load.yml
+```
+
+**Alternative — inline exports (useful for one-off runs or CI):**
 
 ```bash
 export AAP_HOSTNAME=https://<your-aap>

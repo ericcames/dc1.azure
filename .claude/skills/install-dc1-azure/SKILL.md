@@ -66,7 +66,9 @@ adds the interactive checking and reporting around them.
    Write the token value to `/tmp/.aap_token_dc1` (mode 600). Delete token ID
    after the install: `curl -sk -u admin:<pw> -X DELETE .../gateway/v1/tokens/<id>/`.
 
-5. **Check the environment.** For each variable in the `docs/INSTALL.md` §5
+5. **Check the environment.** If `docs/dev-environment.sh` exists, suggest the
+   user run `source docs/dev-environment.sh` (they type `! source docs/dev-environment.sh`
+   in the prompt). Otherwise, for each variable in the `docs/INSTALL.md` §5
    table, test presence by name (don't read the value). Required: `AAP_HOSTNAME`,
    `AAP_TOKEN`, `CONTROLLER_HOST`, `CONTROLLER_OAUTH_TOKEN`,
    `DC1_AZURE_VAULT_PASSWORD`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`,
@@ -98,8 +100,13 @@ adds the interactive checking and reporting around them.
 
 7. **Apply.** Confirm `AAP_HOSTNAME` with the user, then run **all exports and
    the playbook in a single shell command** — env vars do not persist across
-   separate calls:
+   separate calls. Preferred form (uses the env file):
+   ```bash
+   source docs/dev-environment.sh && \
+   ansible-playbook -i aap_config/inventory/ aap_config/load.yml
    ```
+   If the env file isn't present, build a single compound export + playbook command:
+   ```bash
    export AAP_HOSTNAME=... AAP_TOKEN=... CONTROLLER_HOST=$AAP_HOSTNAME
    export CONTROLLER_OAUTH_TOKEN=$AAP_TOKEN CONTROLLER_VERIFY_SSL=false
    export <all other vars> ...

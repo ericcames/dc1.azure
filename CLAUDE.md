@@ -9,15 +9,20 @@ log.
 ## Working with a New AAP Environment
 
 When the user provides a new AAP URL and password, store them in
-`docs/dev-environment.md`. That file is gitignored — never commit credentials
+`docs/dev-environment.sh`. That file is gitignored — never commit credentials
 and never paste them into chat.
 
+The committed template is `docs/dev-environment.sh.example` — copy it and fill
+in real values. To load all vars and run the install in one shot:
+
+```bash
+source docs/dev-environment.sh && \
+ansible-playbook -i aap_config/inventory/ aap_config/load.yml
 ```
-docs/dev-environment.md
-├── URL      → new AAP instance URL
-├── Username → admin (default)
-└── Password → provided password
-```
+
+**All exports and `ansible-playbook` must be in one shell invocation.** Env
+vars do not persist across separate Bash tool calls — bundle them or use
+`source`.
 
 ## Working with a New Azure Open Environment
 
@@ -57,7 +62,9 @@ manually for testing.
   shared AAP instances. See the naming-conventions table in `ROADMAP.md`.
 - **Terraform state lives in Azure Storage** — never commit `*.tfstate*`.
 - **Images go in `docs/images/`** (committed, not gitignored).
-  `docs/dev-environment.md` is the only gitignored file under `docs/`.
+  `docs/dev-environment.sh` (and the legacy `docs/dev-environment.md`) are the
+  only gitignored files under `docs/`. `docs/dev-environment.sh.example` IS
+  committed — it's the placeholder template.
 - **CHANGELOG.md** — every PR adds an entry under Added / Changed / Fixed /
   Removed.
 - **Additive only** — don't remove old capabilities until replacements are

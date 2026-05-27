@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **`docs/dev-environment.sh.example`** (AB#61) — committed placeholder template
+  for the gitignored `docs/dev-environment.sh` env file. Copy it, fill in real
+  values, then `source docs/dev-environment.sh && ansible-playbook -i aap_config/inventory/ aap_config/load.yml`.
+  Replaces the previous `docs/dev-environment.md` approach with a directly
+  sourceable shell script.
+
+### Changed
+- **`docs/INSTALL.md` §6** (AB#61) — `source docs/dev-environment.sh &&
+  ansible-playbook …` is now the recommended run pattern; inline-export block
+  kept as an alternative. One-shell-call requirement is explicitly called out.
+- **`CLAUDE.md`** (AB#61) — updated dev-environment file references and added
+  the one-shell-call rule so future Claude instances know to bundle exports with
+  the playbook run or use `source`.
+- **`.gitignore`** (AB#61) — added `docs/dev-environment.sh`; kept
+  `docs/dev-environment.md` entry for backwards compatibility.
+- **Install skill** (AB#61) — steps 5 and 7 now check for `docs/dev-environment.sh`
+  and prefer `source` over a manually built compound export command.
+
 - **`DC1.Azure - Windows Admin Password` custom credential type** — replaces the
   workflow survey prompt for `dc1_azure_windows_admin_password`. The new credential
   type injects the password as an extra var directly into the `DC1.Azure - Provision VM`
