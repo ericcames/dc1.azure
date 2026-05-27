@@ -1,0 +1,3 @@
+---
+website_setup_azure_message: "This website is running on Microsoft Windows Server 2025 Datacenter on Azure"
+ansible_python_interpreter: /usr/bin/python3

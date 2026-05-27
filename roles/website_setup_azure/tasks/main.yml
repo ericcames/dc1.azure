@@ -1,0 +1,43 @@
+---
+- name: Ensure WinRM starts when the system has settled and is ready to work reliably
+  ansible.windows.win_service:
+    name: WinRM
+    start_mode: delayed
+
+- name: Install IIS Webserver
+  register: website_setup_azure_win_feature
+  ansible.windows.win_feature:
+    name: Web-Server
+    state: present
+
+- name: Reboot if installing Web-Server feature requires it
+  when: website_setup_azure_win_feature.reboot_required
+  ansible.windows.win_reboot:
+    post_reboot_delay: 60
+
+- name: Wait 300 seconds for port 5986 to become open
+  ansible.windows.win_wait_for:
+    host: "{{ inventory_hostname }}"
+    port: 5986
+    state: started
+    delay: 10
+    timeout: 300
+
+- name: Template Azure demo website to IIS root as index.html
+  ansible.windows.win_template:
+    src: 'index.html.j2'
+    dest: C:\inetpub\wwwroot\index.html
+
+- name: Copy AAP logo
+  ansible.windows.win_copy:
+    src: images/aap.png
+    dest: C:\inetpub\wwwroot\aap.png
+
+- name: Copy QR code
+  ansible.windows.win_copy:
+    src: images/AmesQNRCode.png
+    dest: C:\inetpub\wwwroot\AmesQNRCode.png
+
+- name: Show website address
+  ansible.builtin.debug:
+    msg: "http://{{ inventory_hostname }}"

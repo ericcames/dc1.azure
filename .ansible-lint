@@ -18,6 +18,13 @@ mock_modules:
   - ansible.controller.credential
   - ansible.controller.project
   - ansible.platform.token
+  # ansible.windows — used by website_setup_azure role; not installed in CI
+  - ansible.windows.win_service
+  - ansible.windows.win_feature
+  - ansible.windows.win_reboot
+  - ansible.windows.win_wait_for
+  - ansible.windows.win_template
+  - ansible.windows.win_copy
 
 mock_roles:
   - infra.aap_configuration.dispatch

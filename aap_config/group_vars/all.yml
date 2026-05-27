@@ -70,6 +70,7 @@ ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
 # credential and the VM's local admin line up out of the box.
 windows_admin_username: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_USERNAME') | default('demoadmin', true) }}"
 windows_admin_password: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_PASSWORD') }}"
+dc1_azure_default_passwd: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_DEFAULT_PASSWD') }}"
 
 # --- AAP object names (namespaced `DC1.Azure -` per ROADMAP) -----------------
 cred_vault: "DC1.Azure - Vault"
@@ -86,6 +87,7 @@ cred_hub_registry: "DC1.Azure - Hub Registry"
 # Terraform in the Provision VM JT. Value sourced from WINDOWS_ADMIN_PASSWORD
 # (same env var as cred_windows), so one export covers both credentials.
 cred_win_admin_password: "DC1.Azure - Windows Admin Password"
+cred_demo_account_password: "DC1.Azure - Demo Account Password"
 hub_registry_host: "{{ ah_hostname }}"
 hub_registry_username: "{{ controller_cred_username }}"
 hub_registry_password: "{{ controller_cred_password }}"

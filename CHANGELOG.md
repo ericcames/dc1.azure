@@ -5,8 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **`roles/website_setup_azure/`** (AB#59) — Azure-specific IIS website role replacing
+  the AWS-only `website_setup` role from `aap.dailydemo.windows`. Template uses
+  `inventory_hostname`, `vm_size_tier`, `dc1_azure_location`, and
+  `ticket_number | default('N/A')` (placeholder until ServiceNow integration).
+- **`playbooks/website_setup.yml`** (AB#59) — thin playbook calling `website_setup_azure`
+  on the `windemo` group; "DC1.Azure - Website Setup" JT now points here.
+- **`DC1.Azure - Demo Account Password` credential type** (AB#59) — injects
+  `default_passwd` extra var for the Provision Access JT so demo user accounts
+  are created without a survey prompt. Sourced from `DC1_AZURE_DEFAULT_PASSWD`
+  in `docs/dev-environment.sh`.
+
 ### Changed
 - **`docs/dev-environment.sh.example` comment** (AB#64) — adds explicit `cp` command to the header comment so users can copy-paste to create their local file without constructing the command themselves.
+- **"DC1.Azure - Website Setup" JT** (AB#59) — now uses `dc1.azure` project and
+  `playbooks/website_setup.yml` instead of `aap.dailydemo.windows`; adds
+  `dc1_azure_location` extra var for the template.
+- **"DC1.Azure - Provision Access" JT** (AB#59) — replaces `default_passwd` survey
+  with `DC1.Azure - Demo Account Password` credential so the password is supplied
+  automatically in workflow context.
 - **ROADMAP.md Phase 4** (AB#63) — updated to reflect live run results (provision
   green, configure chain blocked on AB#59), all PRs from sessions 2026-05-27,
   and three new decisions log entries (AB#60 credential type, AB#62 tier labels,

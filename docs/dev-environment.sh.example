@@ -30,6 +30,8 @@ export DC1_AZURE_VAULT_PASSWORD=REPLACE_ME_VAULT_PASSWORD    # DC1.Azure - Vault
 export WINDOWS_ADMIN_USERNAME=demoadmin                       # matches Terraform admin_username default
 export WINDOWS_ADMIN_PASSWORD=REPLACE_ME_WINDOWS_PASSWORD    # Azure-complex: 12-72 chars,
                                                               # 3 of: upper / lower / digit / symbol
+export DC1_AZURE_DEFAULT_PASSWD=REPLACE_ME_DEMO_PASSWD       # password for devops + ansible-svc
+                                                              # accounts created on the VM
 
 # --- Azure Service Principal (from RHDP Azure open environment) ------------
 export AZURE_SUBSCRIPTION_ID=REPLACE_ME_SUBSCRIPTION_ID

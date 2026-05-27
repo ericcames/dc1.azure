@@ -54,11 +54,13 @@ controller_templates:
     job_type: run
     organization: "{{ my_organization }}"
     inventory: "{{ inventory_name }}"
-    project: "{{ windows_project_name }}"
-    playbook: playbooks/06_website_setup.yml
+    project: "{{ project_name }}"
+    playbook: playbooks/website_setup.yml
     execution_environment: "{{ my_execution_environment }}"
     credentials:
       - "{{ cred_windows }}"
+    extra_vars:
+      dc1_azure_location: "{{ azure_location }}"
 
   - name: "DC1.Azure - Provision Access"
     job_type: run
@@ -70,16 +72,7 @@ controller_templates:
     credentials:
       - "{{ cred_windows }}"
       - "{{ cred_vault }}"
-    survey_enabled: true
-    survey_spec:
-      name: ""
-      description: ""
-      spec:
-        - question_name: What is your default password?
-          question_description: Password for the demo account created on the VM
-          variable: default_passwd
-          type: password
-          required: true
+      - "{{ cred_demo_account_password }}"
 
   - name: "DC1.Azure - Patching"
     job_type: run

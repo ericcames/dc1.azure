@@ -1,0 +1,6 @@
+---
+- name: Build Azure demo website
+  hosts: windemo
+
+  roles:
+    - role: website_setup_azure

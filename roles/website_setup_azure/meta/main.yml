@@ -1,0 +1,6 @@
+---
+galaxy_info:
+  author: Eric Ames
+  description: Azure-specific IIS website setup for DC1.Azure Windows demo
+  license: MIT
+  min_ansible_version: "2.9"
