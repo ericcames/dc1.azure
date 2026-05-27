@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **`playbooks/provision_vm.yml` assert** (AB#65) — vm_size_tier values in the
+  assert still said `small|medium|large` after AB#62 renamed them to
+  `small-2cpu-8gb|medium-4cpu-16gb|large-8cpu-32gb`, failing every workflow run.
+
 ### Added
 - **`roles/website_setup_azure/`** (AB#59) — Azure-specific IIS website role replacing
   the AWS-only `website_setup` role from `aap.dailydemo.windows`. Template uses

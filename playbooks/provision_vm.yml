@@ -17,7 +17,7 @@
 #   - DC1.Azure - Vault           → decrypts the vaulted admin-password var
 #
 # Required inputs (survey / extra_vars / vaulted vars):
-#   - vm_size_tier                       small | medium | large (workflow survey)
+#   - vm_size_tier                       small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb (workflow survey)
 #   - dc1_azure_resource_group           RHDP resource group (JT extra_var)
 #   - dc1_azure_windows_admin_password   sensitive; MUST equal the password in
 #                                        the DC1.Azure - Windows Machine credential
@@ -59,11 +59,11 @@
     - name: Assert provisioning inputs are present
       ansible.builtin.assert:
         that:
-          - vm_size_tier | default('') in ['small', 'medium', 'large']
+          - vm_size_tier | default('') in ['small-2cpu-8gb', 'medium-4cpu-16gb', 'large-8cpu-32gb']
           - dc1_azure_resource_group | default('') | length > 0
           - dc1_azure_windows_admin_password | default('') | length >= 12
         fail_msg: >-
-          Need vm_size_tier (small|medium|large), dc1_azure_resource_group, and
+          Need vm_size_tier (small-2cpu-8gb|medium-4cpu-16gb|large-8cpu-32gb), dc1_azure_resource_group, and
           dc1_azure_windows_admin_password (>=12 chars; must match the
           'DC1.Azure - Windows Machine' credential). Provide via the workflow
           survey, JT extra_vars, or a vaulted var.
