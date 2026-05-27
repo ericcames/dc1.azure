@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # docs/dev-environment.sh — GITIGNORED, never commit
 #
-# Copy this file to docs/dev-environment.sh, fill in your values, then:
+# Copy this file (highlight and paste to terminal):
+#   cp docs/dev-environment.sh.example docs/dev-environment.sh
+#
+# Fill in your values, then:
 #
 #   source docs/dev-environment.sh && \
 #   ansible-playbook -i aap_config/inventory/ aap_config/load.yml

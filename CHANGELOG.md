@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- **`docs/dev-environment.sh.example` comment** (AB#64) — adds explicit `cp` command to the header comment so users can copy-paste to create their local file without constructing the command themselves.
 - **ROADMAP.md Phase 4** (AB#63) — updated to reflect live run results (provision
   green, configure chain blocked on AB#59), all PRs from sessions 2026-05-27,
   and three new decisions log entries (AB#60 credential type, AB#62 tier labels,
