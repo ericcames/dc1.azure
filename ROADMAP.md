@@ -275,13 +275,17 @@ file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 **Exit criteria:** ✅ Met 2026-05-26. `load.yml` run green against Ansible Product Demo AAP; all objects created; `validate.yml` passed; re-run is idempotent.
 
 ### Phase 4 — Post-Provision Playbooks  🔄
-*Code built 2026-05-26 (PR #5). Live end-to-end run deferred until the target EE + AAP/Controller credential are confirmed on the Product Demo AAP.*
+*Provision node green 2026-05-27. Configure chain blocked on missing variables (AB#59).*
 
 - ✅ `playbooks/provision_vm.yml` — runs `terraform init/apply` (CLI + `output -json`) for the survey's `vm_size_tier`, parses the `ansible_inventory` Terraform output, then **registers the VM into the `dc1-azure` inventory's `windemo` group via the controller API** (short-lived token created + deleted in `always:`, mirroring the `aap.dailydemo.windows` `inventory` role) and `set_stats` for the workflow. Replaces the AWS provisioning nodes.
-- ✅ Configure half is **not** a new `configure_windows.yml` — it reuses the pinned `aap.dailydemo.windows` project's existing playbooks via the Phase 3 Configure JTs (`05_powershell_improve` / `06_website_setup` / `06_windows_account_create` / `07_windows_patching`), which target `hosts: windemo`. This is what "retain the existing workflow" means in practice.
+- ✅ Configure half reuses the pinned `aap.dailydemo.windows` project's existing playbooks via the Phase 3 Configure JTs (`05_powershell_improve` / `06_website_setup` / `06_windows_account_create` / `07_windows_patching`), which target `hosts: windemo`.
 - ✅ `playbooks/teardown.yml` — `terraform destroy` + deregisters the host from the inventory (token lifecycle in `always:`).
-- ✅ New `DC1.Azure - Controller` (Red Hat AAP) credential added to `aap_config/` and attached to the Provision/Teardown JTs so they can call the controller API. RG/location passed as JT `extra_vars` from env-baked group vars.
-- ⬜ **Live run** against the Product Demo AAP: EE blocker resolved (see 2026-05-27 decisions); need to push `dc1-azure-ee:latest` to quay.io, run `load.yml` to register it in Controller via CaC, then re-launch the workflow. Admin password delivered via the workflow survey.
+- ✅ New `DC1.Azure - Controller` (Red Hat AAP) credential attached to Provision/Teardown JTs for controller API calls. RG/location passed as JT `extra_vars` from env-baked group vars.
+- ✅ **Live run 2026-05-27** — `DC1.Azure - Provision and Configure` (workflow 28) launched against RHDP AAP (`cluster-blsvm-2`). Provision VM: **SUCCESS**. Powershell Improvement (first configure node): **SUCCESS**. WinRM works.
+- ✅ EE pulls from Private Automation Hub (AB#56). Terraform authenticates via `ARM_*` env vars mapped from AAP Azure RM credential (AB#57). Nightly teardown schedule added (AB#58).
+- ✅ **Password survey replaced** (AB#60) — `DC1.Azure - Windows Admin Password` custom credential type injects `dc1_azure_windows_admin_password` as an extra var into the Provision VM JT. `WINDOWS_ADMIN_PASSWORD` is the single source of truth. No password prompt at workflow launch.
+- ✅ **VM size tier choices** (AB#62) — choices renamed `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb`; spec visible in AAP survey Multiple Choice Options field. `terraform/locals.tf` keys updated to match.
+- 🔄 **Configure chain blocked (AB#59)** — Website Setup fails: `ticket_number` undefined. Provision Access fails on a `no_log` task (likely `default_passwd` undefined). These vars come from a ServiceNow/survey trigger in the original `aap.dailydemo.windows` demo; DC1.Azure JTs don't supply them yet. Decision pending: hardcode demo defaults vs. wire a workflow survey. **This is the only remaining blocker for Phase 4 exit.**
 
 **Open design note:** host hand-off uses explicit controller-API registration (mirrors the daily demo). A future alternative is an `azure_rm` dynamic inventory source on `dc1-azure` that auto-discovers the tagged VM — removes the Controller credential + registration step, but needs `azure.azcollection` in the EE.
 
@@ -428,6 +432,9 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-27 | Custom EE (`execution-environment.yml`) built with ansible-builder v3 on `ee-minimal-rhel9:2.17.14` + **Terraform 1.15.4** | Phase 4 blocker — default EE lacks `terraform`; one EE covers all six JTs (Terraform for Provision/Teardown, pywinrm from azure.azcollection for Windows Configure) |
 | 2026-05-27 | EE image hosted on **quay.io** (public) as `quay.io/zigfreed/dc1-azure-ee:latest`; Hub syncs from quay.io; Controller points to Hub (or quay.io directly via `DC1_AZURE_EE_IMAGE` override) | quay.io = always-accessible source; Hub copy = enterprise demo story; `DC1_AZURE_EE_IMAGE` env var lets either work without code changes |
 | 2026-05-27 | EE registration in Controller handled by **CaC** (`aap_config/files/controller_execution_environments.yml` + `hub_ee_registries.yml` + `hub_ee_repositories.yml`) | Eliminates the only remaining manual bootstrap step for Phase 4; `load.yml` is now fully self-contained for a fresh env |
+| 2026-05-27 | **`DC1.Azure - Windows Admin Password` custom credential type** (AB#60) replaces the workflow survey `dc1_azure_windows_admin_password` question | Credential type injects the password as an extra var — zero friction at workflow launch. `WINDOWS_ADMIN_PASSWORD` env var covers both Machine credential (WinRM) and custom credential (Terraform) |
+| 2026-05-27 | **VM size tier choices** renamed `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb` (AB#62) | Choice string = Terraform map key; DNS-label-safe format makes the spec visible directly in the AAP survey Multiple Choice Options field without a "display vs value" split (which AAP multiplechoice doesn't support) |
+| 2026-05-27 | **`docs/dev-environment.sh`** (gitignored, sourceable) replaces `docs/dev-environment.md` (AB#61); `docs/dev-environment.sh.example` committed as template | `source docs/dev-environment.sh && ansible-playbook …` is the canonical load.yml invocation — all exports and the playbook run in one shell call (env vars don't persist across separate invocations) |
 
 ---
 

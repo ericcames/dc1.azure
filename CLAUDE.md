@@ -39,14 +39,6 @@ Place these in `terraform/terraform.tfvars` (gitignored — only the `.example`
 is committed) and in an AAP "Microsoft Azure Resource Manager" credential named
 `DC1.Azure - Azure RM`. Never commit them.
 
-## Bootstrapping (planned — Phase 3)
-
-`playbooks/bootstrap_aap.yml` will use the `infra.aap_configuration` collection
-to create credentials, project, inventory, job templates, and the workflow.
-Pattern mirrors `aap.as.code/playbooks/bootstrap_dev.yml`. Until Phase 3 lands,
-use `aap.as.code` to bootstrap the AAP base, then add `dc1.azure` objects
-manually for testing.
-
 ## Project Conventions
 
 - **No project-local `ansible.cfg`** — the user's `~/.ansible/ansible.cfg`
@@ -61,6 +53,9 @@ manually for testing.
   is prefixed `DC1.Azure -` to coexist with `demo.datacenter` AWS objects in
   shared AAP instances. See the naming-conventions table in `ROADMAP.md`.
 - **Terraform state lives in Azure Storage** — never commit `*.tfstate*`.
+- **Run `terraform fmt` before committing** any changes to `terraform/`. The
+  CI pipeline runs `terraform fmt -check` and will fail the PR if formatting
+  is off. Run `terraform fmt terraform/` locally to auto-fix.
 - **Images go in `docs/images/`** (committed, not gitignored).
   `docs/dev-environment.sh` (and the legacy `docs/dev-environment.md`) are the
   only gitignored files under `docs/`. `docs/dev-environment.sh.example` IS

@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- **ROADMAP.md Phase 4** (AB#63) — updated to reflect live run results (provision
+  green, configure chain blocked on AB#59), all PRs from sessions 2026-05-27,
+  and three new decisions log entries (AB#60 credential type, AB#62 tier labels,
+  AB#61 dev-environment.sh).
+- **CLAUDE.md** (AB#63) — removed stale Phase 3 bootstrap note (Phase 3 is
+  complete); added `terraform fmt` convention so CI doesn't catch formatting
+  issues after the fact.
+
+
 - **VM size tier choices now carry spec info** (AB#62) — renamed from `small /
   medium / large` to `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb` so
   the spec is visible in the AAP survey Multiple Choice Options field. Updated
