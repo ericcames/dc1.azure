@@ -30,18 +30,15 @@ controller_templates:
       description: "Pick a VM size tier"
       spec:
         - question_name: VM size tier
-          question_description: >-
-            small → Standard_D2s_v5 (2 vCPU / 8 GB) |
-            medium → Standard_D4s_v5 (4 vCPU / 16 GB) |
-            large → Standard_D8s_v5 (8 vCPU / 32 GB) — verify RHDP quota before using
+          question_description: Azure VM t-shirt size — all Dsv5 family. Verify RHDP quota before using large-8cpu-32gb.
           variable: vm_size_tier
           type: multiplechoice
           required: true
-          default: medium
+          default: medium-4cpu-16gb
           choices:
-            - small
-            - medium
-            - large
+            - small-2cpu-8gb
+            - medium-4cpu-16gb
+            - large-8cpu-32gb
 
   - name: "DC1.Azure - Powershell Improvement"
     job_type: run

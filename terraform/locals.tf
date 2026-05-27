@@ -1,10 +1,11 @@
 locals {
-  # T-shirt tier → Azure SKU. All same family (Dsv5) for a clean "more cores" story.
-  # Confirm RHDP open-env quota covers Standard_D8s_v5 (8 vCPU) before relying on `large`.
+  # T-shirt tier → Azure SKU. Keys match the AAP survey choices exactly.
+  # All same family (Dsv5) for a clean "more cores" story.
+  # Confirm RHDP open-env quota covers Standard_D8s_v5 (8 vCPU) before relying on `large-8cpu-32gb`.
   vm_size_map = {
-    small  = "Standard_D2s_v5" # 2 vCPU /  8 GB
-    medium = "Standard_D4s_v5" # 4 vCPU / 16 GB
-    large  = "Standard_D8s_v5" # 8 vCPU / 32 GB
+    "small-2cpu-8gb"   = "Standard_D2s_v5"
+    "medium-4cpu-16gb" = "Standard_D4s_v5"
+    "large-8cpu-32gb"  = "Standard_D8s_v5"
   }
 
   vm_size = local.vm_size_map[var.vm_size_tier]

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **VM size tier choices now carry spec info** (AB#62) — renamed from `small /
+  medium / large` to `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb` so
+  the spec is visible in the AAP survey Multiple Choice Options field. Updated
+  `terraform/locals.tf` map keys and survey defaults to match. The format is
+  DNS-label-safe so `vm_name` and `dns_label` remain valid Azure resource names.
+
 ### Added
 - **`docs/dev-environment.sh.example`** (AB#61) — committed placeholder template
   for the gitignored `docs/dev-environment.sh` env file. Copy it, fill in real
