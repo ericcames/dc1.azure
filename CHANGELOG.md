@@ -14,6 +14,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   destroyed. `teardown.yml` now passes the same four `-backend-config` flags as
   `provision_vm.yml` (with `dc1_azure_tf_container` / `dc1_azure_tf_key` defaults),
   and the Teardown JT supplies `dc1_azure_tf_storage_account`.
+- **`DC1.Azure - Teardown` stale `vm_size_tier` default** (AB#72) — `teardown.yml`'s
+  destroy step defaulted `vm_size_tier` to `small`, a pre-AB#62 name the
+  `terraform/variables.tf` validation now rejects, so `terraform destroy` failed at
+  variable validation (job 56, hidden by `no_log`). Default changed to a valid tier
+  (`medium-4cpu-16gb`); the value is irrelevant to destroy (config comes from state).
+  Sibling of AB#65 / AB#66.
 
 ## 0.3.0 — 2026-05-27
 
