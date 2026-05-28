@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## 0.3.0 — 2026-05-27
+
 ### Changed
 - **`ROADMAP.md` Sizing Tiers table** — tier names updated from `small / medium / large`
   to `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb` to match the AB#62 rename
