@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **`docs/demo-runbook.md`** (AB#76) — SE-facing live-demo runbook for the v1
+  AAP-driven flow: pre-flight checklist, talking track, click-by-click through
+  the AAP UI (launch *DC1.Azure - Provision and Configure* + the `vm_size_tier`
+  survey), per-node talking points with timings observed from live runs
+  (provision ~10 min, teardown ~7 min), the IIS landing-page payoff, the
+  self-cleaning teardown story (nightly 18:00 America/Phoenix = 01:00 UTC, plus
+  the manual JT), a failure-mode appendix, a screenshot-capture checklist
+  (Appendix B), and a quick-reference table. README + ROADMAP Phase 6 updated;
+  screenshot capture remains.
+
 ### Removed
 - **Legacy `docs/dev-environment.md`** (AB#75) — fully superseded by the
   sourceable `docs/dev-environment.sh` (template `docs/dev-environment.sh.example`)

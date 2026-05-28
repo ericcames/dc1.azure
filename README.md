@@ -48,7 +48,7 @@ dc1.azure/
 ├── .claude/skills/       ← repo-based Claude skills (install-dc1-azure)
 ├── docs/
 │   ├── INSTALL.md        ← manual install guide (Phase 7)
-│   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — planned, not yet written)
+│   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — AAP-driven flow)
 │   └── images/
 ├── collections/requirements.yml
 ├── galaxy.yml

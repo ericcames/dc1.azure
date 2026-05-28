@@ -304,13 +304,13 @@ file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 
 **Exit criteria:** ✅ Met 2026-05-26. PRs trigger the Lint gate; merging to `main` mirrors to GitHub within ~1 minute; no manual `git push github main` needed.
 
-### Phase 6 — Demo Runbook (v1 — AAP-driven)  ⬜
-- ⬜ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow
-- ⬜ Persona framing, click-by-click flow through AAP UI, talking points, expected timings
-- ⬜ Failure-mode appendix (what to do if Azure quota hit, if WinRM doesn't come up, if AAP project sync fails)
-- ⬜ `docs/images/` — screenshots of the AAP survey, the IIS landing page, the ADO Boards epic
+### Phase 6 — Demo Runbook (v1 — AAP-driven)  🔄
+- ✅ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow (AB#76)
+- ✅ Persona framing, click-by-click flow through AAP UI, talking points, expected timings (from live runs: provision ~10 min, teardown ~7 min)
+- ✅ Failure-mode appendix (Azure quota, WinRM not up, project sync, expired token, teardown)
+- ⬜ `docs/images/` — screenshots of the AAP survey, the IIS landing page, the ADO Boards epic (capture checklist in Appendix B of the runbook; inline 📸 placeholders to be replaced with real embeds)
 
-**Exit criteria:** Eric runs the AAP-driven demo cold off the runbook end-to-end without consulting the source code.
+**Exit criteria:** Eric runs the AAP-driven demo cold off the runbook end-to-end without consulting the source code. *(Runbook written; pending screenshot capture + a cold dry-run to confirm.)*
 
 ### Phase 7 — Install Documentation (manual + Claude Code skill)  ✅
 *Completed 2026-05-26. Docs + skill written (PR #6); acceptance test passed via first live `load.yml` run using the `/install-dc1-azure` skill (2026-05-26). Lessons from the live run captured in a follow-up PR (PR #9, AB#50).*

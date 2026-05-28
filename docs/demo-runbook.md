@@ -1,0 +1,272 @@
+# DC1.Azure — Demo Runbook (v1, AAP-driven)
+
+The Solutions-Engineer script for running the **DC1.Azure Windows-on-Azure**
+demo straight from the **AAP web UI**. The goal: a customer watches Ansible
+Automation Platform stand up a real Windows Server 2025 VM in Azure, configure
+it, and serve a live web page — in about ten minutes, from a single survey
+click.
+
+> **This is the v1 (AAP-driven) flow.** The same workflow is later surfaced
+> through the AAP Self-Service Portal (Phase 9), ServiceNow (Phase 8), and Azure
+> DevOps (Phase 10). Those triggers reuse the *exact* workflow documented here —
+> only the front door changes. See [`ROADMAP.md`](../ROADMAP.md).
+
+---
+
+## At a glance
+
+| | |
+|---|---|
+| **Front door** | AAP web UI → Templates → *DC1.Azure - Provision and Configure* |
+| **One input** | `vm_size_tier` survey: `small-2cpu-8gb` / `medium-4cpu-16gb` / `large-8cpu-32gb` |
+| **Run time** | ~10 min provision + configure (Provision VM dominates at ~7 min) |
+| **Payoff** | Browse `http://<vm-fqdn>` → live IIS page on Windows Server 2025; optional RDP |
+| **Cleanup** | Auto-destroys nightly at **18:00 America/Phoenix (01:00 UTC)**; or run *DC1.Azure - Teardown* manually |
+| **Cost guardrail** | The nightly teardown means a forgotten VM costs at most one evening |
+
+**Observed timings (live workflow job 60, `medium-4cpu-16gb`):**
+
+| Node | Typical | What's happening |
+|------|---------|------------------|
+| Provision VM | ~7 min | `terraform apply` builds VNet/NSG/public IP/VM, then registers the host into the `dc1-azure` inventory |
+| Powershell Improvement | <1 min | Installs PowerShell 7 |
+| Website Setup | ~2 min | Installs IIS + deploys the Azure demo landing page |
+| Provision Access | <1 min | Creates the demo Windows account |
+| Patching | ~1 min | Applies Windows Updates |
+| **Total** | **~10 min** | end-to-end, green |
+
+---
+
+## Personas
+
+- **You (the SE / platform engineer)** — narrate the platform's value while it
+  works. You drive the AAP UI.
+- **The customer's app developer / requester** — the person who, in the
+  end-state demo, would self-serve a VM. In v1 you *speak as if* you are them
+  ("I need a Windows box, medium size, now"), then show the platform deliver it.
+- **The customer's platform/ops team** — the audience who cares that this is
+  governed, repeatable, and self-cleaning (one workflow, one survey, audited
+  jobs, nightly teardown).
+
+---
+
+## 1. Pre-flight checklist (do this before the customer is watching)
+
+Run through this 15–20 minutes ahead. Most failures are environmental, not
+demo-logic.
+
+- [ ] **RHDP Azure open env is alive** — not expired. Confirm the resource
+      group still exists and the Service Principal still authenticates.
+- [ ] **AAP is reachable** — log into the AAP UI in a browser tab and leave it
+      open. (URL + creds live in your gitignored `docs/dev-environment.sh`.)
+- [ ] **The DC1.Azure project is synced to the latest `main`** — Projects →
+      *DC1.Azure* → sync. The project no longer auto-syncs on launch (AB#74, for
+      speed), so a manual sync after any code change is on you. API shortcut:
+      `POST /api/controller/v2/projects/21/update/`.
+- [ ] **`dc1-azure` inventory is empty (0 hosts)** — a leftover host from a prior
+      run is cosmetic but looks sloppy on screen. If the nightly teardown ran,
+      it's already clean.
+- [ ] **Azure quota headroom** — `medium-4cpu-16gb` (4 vCPU) is the safe default.
+      Only pick `large-8cpu-32gb` (8 vCPU) if you've confirmed the RHDP
+      subscription's regional vCPU quota allows it.
+- [ ] **Nightly teardown schedule is enabled** — Schedules → *DC1.Azure -
+      Nightly Teardown*, next run 18:00 America/Phoenix. (Leave it on — it's part
+      of the story.)
+- [ ] **Decide your tier** up front so you're not hesitating on the survey.
+
+> 📸 *Screenshot to capture: the AAP Templates list with the DC1.Azure objects
+> visible → `docs/images/demo-00-templates.png`*
+
+---
+
+## 2. Set the scene (≈60 seconds of talking before you click)
+
+> "Say I'm an application developer and I need a Windows server in Azure —
+> today, not next week. Traditionally that's a ticket, a wait, a hand-off
+> between teams. With Ansible Automation Platform, the platform team has turned
+> that whole process into **one self-service action**. I pick a size, I click
+> launch, and the platform does the rest — provision the cloud infrastructure,
+> harden and configure the OS, stand up the app, and even clean itself up
+> overnight so we're not paying for idle VMs."
+
+Key points to land:
+- **One workflow, many front doors.** Today I'm in the AAP UI; the same workflow
+  is exposed via Self-Service, ServiceNow, and Azure DevOps — identical result.
+- **Infrastructure *and* configuration.** Terraform builds the Azure resources;
+  Ansible configures the OS. One platform orchestrates both.
+- **Governed and repeatable.** Every run is an audited job. Same inputs → same
+  result, every time.
+
+---
+
+## 3. Run it — click-by-click (AAP web UI)
+
+### 3.1 Log in
+Open the AAP UI. You should already be authenticated from pre-flight.
+
+### 3.2 Open the workflow template
+Left nav → **Automation Execution → Templates**. Find
+**`DC1.Azure - Provision and Configure`** (type: *Workflow Job Template*).
+
+> 📸 *Screenshot: the workflow template in the Templates list →
+> `docs/images/demo-01-workflow-template.png`*
+
+### 3.3 Launch and answer the survey
+Click **Launch**. A single-question survey appears:
+
+- **VM size tier** — choose your pre-decided tier. Default is
+  `medium-4cpu-16gb`. Narrate: *"This is the only decision the requester
+  makes — t-shirt sizing, no Azure SKU knowledge required."*
+
+Submit the survey to start the run.
+
+> 📸 *Screenshot: the survey dialog with the `vm_size_tier` dropdown open →
+> `docs/images/demo-02-survey.png`*
+
+### 3.4 Watch the workflow graph
+The workflow visualizer shows five nodes running left-to-right. Talk through
+each as it goes green:
+
+| # | Node | What to say |
+|---|------|-------------|
+| 1 | **Provision VM** | "Terraform is building the Azure footprint — virtual network, security group, public IP with a DNS name, and the Windows Server 2025 VM at the size I picked. When it finishes, the platform registers the new host into its own inventory so the next steps can reach it." *(This is the long one — ~7 min. Good moment for Q&A or to talk architecture.)* |
+| 2 | **Powershell Improvement** | "Now we're configuring the OS — installing PowerShell 7, a modern shell for whatever the app team runs next." |
+| 3 | **Website Setup** | "Installing IIS and deploying a demo web app — so we end on something the customer can actually see in a browser." |
+| 4 | **Provision Access** | "Creating the demo user account — access provisioning is part of the same automated flow, not a separate ticket." |
+| 5 | **Patching** | "Applying Windows Updates. The VM is born already patched — no drift, no manual hardening step." |
+
+> 📸 *Screenshot: the workflow visualizer with all five nodes green →
+> `docs/images/demo-03-workflow-success.png`*
+
+---
+
+## 4. The payoff — show the running machine
+
+### 4.1 Get the VM's address
+The DNS name follows the pattern:
+
+```
+dc1az-<tier>-<random>.<region>.cloudapp.azure.com
+```
+
+e.g. `dc1az-medium-4cpu-16gb-z8crz.eastus.cloudapp.azure.com`. Get the exact
+value from either:
+- the **Provision VM** job output (the `fqdn` / `ansible_inventory` Terraform
+  output), or
+- the host's name in the **`dc1-azure` inventory** (Inventories → *dc1-azure* →
+  Hosts), or
+- the Azure portal (public IP resource).
+
+### 4.2 Browse to it
+Open `http://<vm-fqdn>` in a browser. The IIS landing page shows:
+
+- A welcome header and the AAP logo
+- **"This website is running on Microsoft Windows Server 2025 Datacenter on Azure"**
+- A **Provisioning Details** panel: Request Number, Server DNS Name, Azure
+  Region, VM Size, Platform
+- A red note: *"The DC1.Azure Windows Demo will auto destruct at 01:00 hrs UTC time."*
+
+Narrate: *"This page is served by the VM the platform just built and
+configured. Everything you see — the OS, IIS, this app, the patch level — was
+done by that one workflow, from one survey click."*
+
+> **Note:** the **Request Number** field shows `N/A` in v1 — it's wired to the
+> ServiceNow RITM number, which arrives with the Phase 8 ServiceNow integration.
+> That's expected; don't apologize for it.
+
+> 📸 *Screenshot: the live IIS landing page in a browser →
+> `docs/images/demo-04-landing-page.png`*
+
+### 4.3 (Optional) RDP in
+If the room wants to see a real desktop: RDP to the same FQDN as
+**`demoadmin`** (the admin password is the one you set via
+`WINDOWS_ADMIN_PASSWORD` at install). Show PowerShell 7 and the demo account to
+prove the configuration steps landed.
+
+---
+
+## 5. Teardown — the self-cleaning story
+
+This is a selling point, not an afterthought — say it out loud.
+
+- **Automatic:** the **`DC1.Azure - Nightly Teardown`** schedule runs the
+  *DC1.Azure - Teardown* job template every night at **18:00 America/Phoenix
+  (01:00 UTC)** — exactly the time the landing page advertises. It runs
+  `terraform destroy` and deregisters the host, returning the `dc1-azure`
+  inventory to zero. *"A VM someone forgets about costs at most one evening."*
+- **Manual:** to tear down on demand (e.g. right after the demo), launch
+  **Templates → `DC1.Azure - Teardown`**. No survey, no inputs — it reads the
+  Terraform state and destroys what's there. ~7 minutes.
+
+> The Teardown JT deliberately runs against a small **`dc1-azure-control`**
+> inventory (not `dc1-azure`) so it can deregister the VM's host without AAP
+> locking it as "in use" (AB#73). You don't need to mention this on stage — it's
+> just why teardown reliably goes green.
+
+> 📸 *Screenshot: a successful Teardown job + the empty dc1-azure inventory →
+> `docs/images/demo-05-teardown-success.png`*
+
+---
+
+## 6. Reset between back-to-back demos
+
+If you're running the demo more than once in a day:
+
+1. Run **`DC1.Azure - Teardown`** (or wait for the nightly).
+2. Confirm **`dc1-azure`** is back to **0 hosts**.
+3. Re-launch the workflow for the next audience.
+
+There's no other state to clear — Terraform state lives in Azure Storage and is
+reused; the next provision starts clean.
+
+---
+
+## Appendix A — Failure modes & recovery
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| **Provision VM fails fast at `terraform apply`**, error mentions quota/`SkuNotAvailable` | RHDP subscription is out of regional vCPU quota for the chosen tier | Re-launch with a smaller tier (`small-2cpu-8gb`); for the demo, default to `medium`. Don't pick `large` without confirming quota in pre-flight. |
+| **Provision VM fails at auth / `terraform init`** | RHDP env expired, or Service Principal / storage-account backend creds stale | Re-activate the RHDP env; refresh values in `docs/dev-environment.sh`; re-apply `aap_config/load.yml` so the AAP credentials match. |
+| **Workflow runs *old* playbook behavior after a code change** | Project didn't sync — update-on-launch is off (AB#74) | Manually sync the *DC1.Azure* project (Projects → sync, or `POST /api/controller/v2/projects/21/update/`) and re-launch. |
+| **A configure node (Powershell/Website/Access/Patching) fails to connect** | WinRM not up yet, or the host didn't register into `dc1-azure` | Confirm the host appears in the `dc1-azure` inventory; give the VM a minute and **Retry** the failed node (the workflow supports node-level retry). If WinRM never comes up, tear down and re-provision. |
+| **`load.yml` / any API step returns 401** | AAP token expired | Mint a fresh gateway token (the `/install-dc1-azure` skill or the token pattern in the project notes) and re-run. The stored token in `dev-environment.sh` is not long-lived. |
+| **Teardown reports failed but the VM is gone** | Pre-fix behavior (AB#71/72/73) | Should not recur — all three are fixed and live-validated (job 68 green, inventory cleared). If it does, delete the orphan host from `dc1-azure` via the API and file a work item. |
+| **Landing page won't load** | NSG/port, IIS not finished, or DNS not yet propagated | Confirm the Website Setup node was green; try the public IP directly; give DNS a moment. Port 80 is opened by the NSG in Terraform. |
+
+---
+
+## Appendix B — Screenshots to capture
+
+Capture these once on a clean run and commit them to `docs/images/` (committed,
+not gitignored — so they render on GitHub for everyone). Then replace the
+inline 📸 placeholders above with real `![alt](images/...)` embeds.
+
+- [ ] `demo-00-templates.png` — AAP Templates list showing the DC1.Azure objects
+- [ ] `demo-01-workflow-template.png` — the *Provision and Configure* workflow template
+- [ ] `demo-02-survey.png` — the `vm_size_tier` survey dialog
+- [ ] `demo-03-workflow-success.png` — workflow visualizer, all five nodes green
+- [ ] `demo-04-landing-page.png` — the live IIS landing page in a browser
+- [ ] `demo-05-teardown-success.png` — successful teardown + empty inventory
+- [ ] *(optional)* the ADO Boards Phase 6 epic/board, for the "how this was built" aside
+
+---
+
+## Appendix C — Quick reference
+
+| Thing | Value |
+|-------|-------|
+| Workflow | `DC1.Azure - Provision and Configure` |
+| Nodes (in order) | Provision VM → Powershell Improvement → Website Setup → Provision Access → Patching |
+| Survey variable | `vm_size_tier` ∈ {`small-2cpu-8gb`, `medium-4cpu-16gb`, `large-8cpu-32gb`} (default `medium`) |
+| Provision JT | `DC1.Azure - Provision VM` |
+| Teardown JT | `DC1.Azure - Teardown` (runs against `dc1-azure-control`) |
+| Story inventory | `dc1-azure` (VM host registered at runtime) |
+| Project | `DC1.Azure` (ADO `main`; manual sync, no update-on-launch) |
+| VM FQDN pattern | `dc1az-<tier>-<suffix>.<region>.cloudapp.azure.com` |
+| Default region | `eastus` |
+| Admin user | `demoadmin` |
+| Nightly teardown | 18:00 America/Phoenix = 01:00 UTC, daily |
+| Sizing tiers | small=`Standard_D2s_v5`, medium=`Standard_D4s_v5`, large=`Standard_D8s_v5` |
+
+See also: [`INSTALL.md`](INSTALL.md) (how to install the CaC),
+[`ROADMAP.md`](../ROADMAP.md) (phases + decisions), [`README.md`](../README.md).
