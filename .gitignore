@@ -33,8 +33,8 @@ collections/ansible_collections/
 .vault_password
 *.vault_pass
 
-# direnv-loaded local environment; contains Azure SP credentials per developer.
-# Copy .envrc.example to .envrc and fill in your values.
+# direnv-loaded local environment, if you use direnv for per-developer secrets.
+# (The repo's canonical secret file is docs/dev-environment.sh — see below.)
 .envrc
 
 # Local dev environment — fill in from docs/dev-environment.sh.example (never commit)

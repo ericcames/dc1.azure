@@ -14,7 +14,7 @@ the deprecated `playbooks/bootstrap_aap.yml`.
 | `requirements.yml` | Collection pins (4.4.0) + note on the reused Windows project |
 | `inventory/aap.yml` | localhost only — CaC runs locally and talks to AAP over the API |
 | `group_vars/all.yml` | Connection + secret references (env-var lookups) + object names |
-| `files/controller_credentials.yml` | 4 credentials (Vault, Azure RM, ADO SCM, Windows Machine) |
+| `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
 | `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) |
 | `files/controller_inventories.yml` | `dc1-azure` inventory (WinRM group vars; hosts added at runtime) |
 | `files/controller_job_templates.yml` | 6 JTs — var is `controller_templates` |
@@ -43,22 +43,22 @@ dc1.azure-native (built in Phase 4).
 
 ## Run it
 
+The full environment-variable list and one-time prerequisites (Hub Galaxy
+credentials, the AAP personal token, the Terraform state Storage Account) live
+in [`../docs/INSTALL.md`](../docs/INSTALL.md). The canonical invocation sources
+the gitignored env file so every export and the playbook run share one shell:
+
 ```bash
 # 1. Install collections (uses the Hub token — see ../ansible.cfg.example)
 ansible-galaxy collection install -r requirements.yml
 
-# 2. Create a personal API token in the AAP UI, then export inputs:
-export AAP_HOSTNAME=https://<aap-host>
-export AAP_TOKEN=<personal token>
-export AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... \
-       AZURE_CLIENT_ID=... AZURE_CLIENT_SECRET=...
-export ADO_PAT=... WINDOWS_ADMIN_PASSWORD=... DC1_AZURE_VAULT_PASSWORD=...
-# Optional: DC1_AZURE_EE=<Windows-capable EE name on the target AAP>
-
-# 3. Apply + verify (idempotent)
-ansible-playbook -i inventory/ load.yml
+# 2. Copy the env template, fill it in, then source + run (idempotent):
+cp ../docs/dev-environment.sh.example ../docs/dev-environment.sh
+# edit ../docs/dev-environment.sh — never commit it
+source ../docs/dev-environment.sh && ansible-playbook -i inventory/ load.yml
 ```
 
 No secrets live in this directory — every sensitive value is an environment
-lookup resolved at runtime (the Phase 7 setup skill exports them). See
-[`../ROADMAP.md`](../ROADMAP.md) Phase 3 for the full design.
+lookup resolved at runtime (the Phase 7 setup skill, or `dev-environment.sh`,
+exports them). See [`../docs/INSTALL.md`](../docs/INSTALL.md) for the env-var
+table and [`../ROADMAP.md`](../ROADMAP.md) Phase 3 for the full design.

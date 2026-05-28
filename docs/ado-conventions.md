@@ -34,9 +34,9 @@ the project is solo).
 paths give the customer something recognizable on the dashboard and tie
 chunks of work to a date range.
 
-**Tags (apply liberally):** `phase-0`, `phase-1`, `phase-2`, `phase-3`,
-`phase-4`, `phase-5`, `phase-6`, `phase-7`, `phase-8`, `terraform`, `aap`,
-`ado`, `windows`, `azure`, `servicenow`, `cac`, `docs`, `pipeline`.
+**Tags (apply liberally):** `phase-0` … `phase-10` (one per ROADMAP phase),
+`terraform`, `aap`, `ado`, `windows`, `azure`, `servicenow`, `cac`, `docs`,
+`pipeline`.
 
 ---
 
@@ -54,9 +54,9 @@ Configured under: *Project Settings → Repositories → dc1.azure → Policies 
 | **Comment requirements**              | All comments resolved before completion                              | Forces explicit closure on every review point                       |
 | **Block direct push to `main`**       | Enabled (Phase 0.5 exit criterion)                                   | All changes go through PRs — applies to humans AND service accounts |
 
-Until Phase 0.5 fully lands, direct push to `main` is **not** blocked
-(the very commits creating this policy will push directly). Block it
-once branch policies are in place.
+All seven policies above are now active on `main` (Phase 0.5 completed
+2026-05-26, build-validation policy added with the Phase 5 pipeline). Direct
+push to `main` is blocked — every change goes through a PR.
 
 ---
 

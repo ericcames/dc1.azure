@@ -12,7 +12,7 @@ Open work item → branch from main → implement → open PR (AB#N) → merge �
 2. **Branch from `main`** — use the naming pattern `<type>/<short-description>` (e.g. `fix/winrm-bootstrap`, `feat/storage-backend`, `docs/roadmap-update`).
 3. **One concern per PR** — group changes by shared root cause, not item count. The test: would you revert these together? If yes, ship them together. Behavior changes stay isolated regardless.
 4. **Reference the work item** — include `AB#<id>` in your PR description so the work item autolinks in ADO. The PR template at [`.azuredevops/pull_request_template.md`](.azuredevops/pull_request_template.md) has a dedicated `AB#` field — fill it in. Set the work item state to *Resolved* in the PR side-panel so it closes on merge.
-5. **PRs target `main`** — direct pushes to `main` are not blocked yet (Phase 0.5 will enforce that via branch policy), but all non-trivial changes should go through a PR for traceability and to exercise the ADO Pipeline checks.
+5. **PRs target `main`** — direct pushes to `main` are blocked by branch policy (enforced in Phase 0.5). Every change goes through a PR, which also exercises the ADO Pipeline lint/validate checks before merge.
 6. **Update CHANGELOG.md** — every PR must include a CHANGELOG entry grouped under Added / Changed / Fixed / Removed.
 
 ### `AB#<id>` autolink syntax
@@ -62,7 +62,6 @@ See [CLAUDE.md](CLAUDE.md) for full detail. Key rules:
 Never commit:
 
 - Credentials, tokens, or passwords of any kind
-- `.envrc` (contains Azure Service Principal credentials — copy from `.envrc.example`)
+- `docs/dev-environment.sh` — your env file with AAP / Azure / ADO secrets (copy from `docs/dev-environment.sh.example`)
 - Terraform state files (`*.tfstate*`) — state lives in Azure Storage
 - `terraform.tfvars` (real values) — only `terraform.tfvars.example` is committed
-- `docs/dev-environment.md` — local dev notes including AAP URL/password

@@ -198,7 +198,8 @@ in the repo.
 | `AZURE_LOCATION` | — | `eastus` | Azure region |
 | `ADO_PAT` | ✅ | — | `DC1.Azure - ADO Source Control` credential |
 | `WINDOWS_ADMIN_USERNAME` | — | `demoadmin` | `DC1.Azure - Windows Machine` (matches Terraform default) |
-| `WINDOWS_ADMIN_PASSWORD` | ✅ | — | `DC1.Azure - Windows Machine` credential |
+| `WINDOWS_ADMIN_PASSWORD` | ✅ | — | `DC1.Azure - Windows Machine` credential (and the `DC1.Azure - Windows Admin Password` custom credential — Terraform admin password) |
+| `DC1_AZURE_DEFAULT_PASSWD` | ✅ | — | `DC1.Azure - Demo Account Password` credential — password for the `devops` / `ansible-svc` demo accounts created on the VM by the Provision Access JT |
 | `AAP_CONTROLLER_USERNAME` | — | `admin` | `DC1.Azure - Controller` (Red Hat AAP) credential |
 | `AAP_CONTROLLER_PASSWORD` | ✅ | — | `DC1.Azure - Controller` credential |
 | `AZURE_TF_STORAGE_ACCOUNT` | ✅ | `REPLACE_ME_TF_STATE_SA` | Azure Storage Account name for Terraform remote state backend — must exist before `load.yml` runs (see §2.6) |
@@ -218,12 +219,15 @@ in the repo.
 > `ansible.windows`, `community.windows`, `infra.aap_configuration`, and
 > `pywinrm` (via collection Python requirements).
 
-> **Password sync (important):** the Windows admin password is needed in **two**
-> places that must match — the `DC1.Azure - Windows Machine` credential (set
-> from `WINDOWS_ADMIN_PASSWORD` here) and Terraform's `admin_password` at
-> provision time. Supply the same value to the **Provision VM** and **Teardown**
-> job templates as a vaulted extra var named `dc1_azure_windows_admin_password`
-> (JT *Variables* field, or at launch). A future change may unify these.
+> **Password sync (handled automatically):** the Windows admin password is needed
+> in two places that must match — the `DC1.Azure - Windows Machine` credential
+> (WinRM) and Terraform's `admin_password` at provision time. Both are wired from
+> the single `WINDOWS_ADMIN_PASSWORD` env var: it sets the Machine credential
+> **and** the `DC1.Azure - Windows Admin Password` custom credential type, which
+> injects `dc1_azure_windows_admin_password` into the Provision VM JT (AB#60). No
+> vaulted extra var or launch-time prompt is required. The Teardown JT bakes a
+> non-secret placeholder (destroy never uses the password), so scheduled/manual
+> teardown runs need no password input.
 
 ## 6. Apply the configuration
 
@@ -280,8 +284,10 @@ idempotent.
 
 ## 7. Confirm and launch
 
-In the AAP UI you should now see (all prefixed `DC1.Azure -`): 6 credentials
-(including `DC1.Azure - Hub Registry`), 2 projects (`DC1.Azure`,
+In the AAP UI you should now see (all prefixed `DC1.Azure -`): 8 credentials
+(Vault, Azure RM, ADO Source Control, Windows Machine, Controller, Hub Registry,
+plus the Windows Admin Password and Demo Account Password custom-type
+credentials), 2 projects (`DC1.Azure`,
 `aap.dailydemo.windows`), the `dc1-azure` inventory, 6 job templates, the
 `DC1.Azure - EE` execution environment, the **`DC1.Azure - Provision and
 Configure`** workflow, and the `DC1.Azure - Nightly Teardown` schedule on the

@@ -17,18 +17,18 @@ decisions log.
 ## Story (the demo)
 
 1. An app-developer persona logs into AAP self-service
-2. Picks a t-shirt size — `small`, `medium`, or `large`
+2. Picks a t-shirt size — `small-2cpu-8gb`, `medium-4cpu-16gb`, or `large-8cpu-32gb`
 3. Watches the workflow run for ~10 minutes
 4. Lands on a Windows Server 2025 VM with PowerShell 7, a demo account, an
    IIS landing page, and Windows Update applied — reachable via RDP and HTTP
 
 ## Sizing tiers
 
-| Tier   | Azure SKU         | vCPU | RAM   |
-|--------|-------------------|------|-------|
-| small  | `Standard_D2s_v5` | 2    | 8 GB  |
-| medium | `Standard_D4s_v5` | 4    | 16 GB |
-| large  | `Standard_D8s_v5` | 8    | 32 GB |
+| Tier (survey choice) | Azure SKU         | vCPU | RAM   |
+|----------------------|-------------------|------|-------|
+| `small-2cpu-8gb`     | `Standard_D2s_v5` | 2    | 8 GB  |
+| `medium-4cpu-16gb`   | `Standard_D4s_v5` | 4    | 16 GB |
+| `large-8cpu-32gb`    | `Standard_D8s_v5` | 8    | 32 GB |
 
 ## Repo layout
 
@@ -38,16 +38,17 @@ dc1.azure/
 ├── CHANGELOG.md
 ├── CLAUDE.md             ← Claude Code working guidelines for this repo
 ├── CONTRIBUTING.md       ← workflow, branch naming, ADO Boards conventions
-├── azure-pipelines.yml   ← ADO Pipeline: lint + validate on PR (Phase 5)
+├── azure-pipelines.yml   ← ADO Pipeline: lint + validate + GitHub mirror (Phase 5)
+├── execution-environment.yml ← custom EE (Terraform + collections) for the JTs (Phase 4)
 ├── terraform/            ← Azure infra (Phase 2)
 ├── aap_config/           ← AAP Config-as-Code — the canonical install path (Phase 3)
-├── playbooks/            ← provision + teardown playbooks (Phase 4); deprecated bootstrap
+├── playbooks/            ← provision + configure + teardown playbooks (Phase 4); deprecated bootstrap
 ├── inventories/dc1-azure/
 ├── ansible.cfg.example   ← Hub galaxy_server template → ~/.ansible.cfg (Phase 7)
 ├── .claude/skills/       ← repo-based Claude skills (install-dc1-azure)
 ├── docs/
 │   ├── INSTALL.md        ← manual install guide (Phase 7)
-│   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6)
+│   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — planned, not yet written)
 │   └── images/
 ├── collections/requirements.yml
 ├── galaxy.yml
@@ -75,19 +76,19 @@ personal API token, an RHDP Azure Service Principal + resource group, an Azure
 DevOps PAT, a Windows admin password, and an Automation Hub token for collection
 install (seed `~/.ansible.cfg` from [`ansible.cfg.example`](ansible.cfg.example)).
 
-> **End-to-end status:** all objects and the provision→configure→teardown
-> automation are defined; a green *live* run still needs the target execution
-> environment + credentials wired on your AAP — see `docs/INSTALL.md` and
+> **End-to-end status:** validated end-to-end (workflow job 46, 2026-05-27) —
+> the provision→configure→teardown automation stands up a reachable Windows VM
+> serving an IIS page, with the demo accounts, PowerShell 7, and Windows Update
+> applied. `load.yml` now creates the execution environment via CaC, so a fresh
+> AAP needs only the credentials/env vars in `docs/INSTALL.md`. See
 > [`ROADMAP.md`](ROADMAP.md) Phase 4.
 
-### Mirror to GitHub (Phase 5 — manual today)
+### Mirror to GitHub (automatic — Phase 5)
 
-Today the GitHub remote is pushed by hand after every push to ADO:
-
-```bash
-git push origin main
-git push github main   # until Phase 5 pipeline auto-mirrors
-```
+The ADO Pipeline auto-mirrors `main` to GitHub on every merge (the **Mirror**
+stage in `azure-pipelines.yml`, using the `github-ericcames` service connection).
+No manual `git push github main` is needed — push to ADO `origin` and the GitHub
+mirror follows within ~1 minute.
 
 ## Related repos
 

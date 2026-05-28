@@ -13,6 +13,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `website_setup_azure` role must live in `playbooks/roles/` (AWX EE search path);
   `DC1.Azure - Demo Account Password` custom credential type (JT surveys don't fire
   inside workflows); Azure-native IIS template replaces AWS-only upstream role.
+- **Documentation accuracy sweep — docs catching up to Phases 4 & 5** (AB#68):
+  - `README.md` — updated the story step and Sizing-tiers table to the AB#62 tier
+    names (`small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb`, companion to the
+    ROADMAP fix above); rewrote the stale "End-to-end status" callout (Phase 4 is
+    complete — workflow job 46 green, EE created by CaC); rewrote the "Mirror to
+    GitHub" section (Phase 5 auto-mirror is live; manual `git push github main`
+    retired); added `execution-environment.yml` to the repo layout and flagged
+    `docs/demo-runbook.md` as not-yet-written.
+  - `docs/INSTALL.md` — corrected the post-install credential count (6 → 8); updated
+    the password-sync callout to reflect the AB#60 Windows Admin Password credential
+    type (no manual vaulted extra var needed).
+  - `aap_config/README.md` — credential count 4 → 8; replaced the drifting partial
+    env-var list in "Run it" with the canonical `source dev-environment.sh` flow and
+    a pointer to `docs/INSTALL.md` for the full table.
+  - `aap_config/files/controller_credentials.yml` — header comment 4 → 8 credentials.
+  - `CONTRIBUTING.md` — direct push to `main` is now blocked (Phase 0.5 complete, no
+    longer "not blocked yet"); replaced the vestigial `.envrc` / `.envrc.example` and
+    legacy `docs/dev-environment.md` references with `docs/dev-environment.sh`.
+  - `docs/ado-conventions.md` — removed the stale "until Phase 0.5 lands, push is not
+    blocked" note; extended the phase-tag list to `phase-10`.
+  - `.gitignore` — corrected the `.envrc` comment (no `.envrc.example` exists; the
+    canonical secret file is `docs/dev-environment.sh`).
+
+### Fixed
+- **`docs/INSTALL.md` §5 env-var table** (AB#68) — added the **required**
+  `DC1_AZURE_DEFAULT_PASSWD` variable, which feeds the `DC1.Azure - Demo Account
+  Password` credential (the `devops` / `ansible-svc` demo accounts the Provision
+  Access JT creates). It was present in `docs/dev-environment.sh.example` but
+  missing from the manual-install table, so a doc-only installer would have left
+  the credential empty and broken the Provision Access step.
 
 ## 0.2.0 — 2026-05-27
 
