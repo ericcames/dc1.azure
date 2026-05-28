@@ -8,7 +8,12 @@ controller_projects:
     scm_url: "{{ ado_project_scm_url }}"
     scm_branch: main
     credential: "{{ cred_ado_scm }}"
-    scm_update_on_launch: true
+    # update_on_launch disabled (AB#74): with it on, EVERY workflow node that
+    # uses this project fired a blocking SCM sync before its job ran, adding
+    # minutes to each Provision/Configure run. Trade-off: the project no longer
+    # auto-syncs, so trigger a manual sync after merging playbook/role changes —
+    # POST /api/controller/v2/projects/<id>/update/ (already the established flow).
+    scm_update_on_launch: false
     scm_clean: true
     default_environment: "{{ my_execution_environment }}"
 

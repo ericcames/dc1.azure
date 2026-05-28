@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **`DC1.Azure` project `scm_update_on_launch` → `false`** (AB#74) — with
+  update-on-launch enabled, every workflow node that uses the `DC1.Azure` project
+  fired a blocking SCM sync before its job ran, adding minutes to each
+  Provision/Configure run. Disabled it to match the `aap.dailydemo.windows`
+  project. Trade-off: the project no longer auto-syncs on job launch, so a manual
+  project sync (`POST /api/controller/v2/projects/<id>/update/`) is required after
+  merging playbook/role changes — already the established workflow.
+
 ### Fixed
 - **`DC1.Azure - Teardown` deregistration self-block** (AB#73) — the Teardown JT
   ran against the `dc1-azure` inventory, so AAP locked that inventory's hosts for
