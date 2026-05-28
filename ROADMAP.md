@@ -335,7 +335,7 @@ dc1.azure workflow in AAP. AAP runs Terraform + post-provision. On success,
 AAP calls back to ServiceNow to update the RITM with status, public IP,
 FQDN, admin username. End user closes the ticket.
 
-**Instance:** Red Hat shared ServiceNow dev (URL TBD — capture in `docs/dev-environment.sh` when obtained).
+**Instance:** Red Hat shared ServiceNow dev — instance URL + `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` are captured in `docs/dev-environment.sh` (gitignored); `EDA_EVENT_STREAM_TOKEN` minted there too. EDA verified enabled on the AAP (2026-05-28).
 
 Inbound is **event-driven** (EDA), not a direct REST launch: a ServiceNow
 Business Rule → Outbound REST Message → AAP EDA event stream → dc1.azure-owned
@@ -448,6 +448,7 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-27 | **`DC1.Azure - Demo Account Password` custom credential type** (AB#59) injects `default_passwd` extra var for the Provision Access JT | JT surveys do not fire when a JT runs as a workflow node — the credential type is the only way to inject the secret without a survey at workflow launch |
 | 2026-05-27 | Azure-native `website_setup_azure` role (AB#59) instead of reusing `aap.dailydemo.windows`'s `website_setup` role | Upstream `website_setup` used AWS-only vars (`my_ami_id`, `vpc_create_time`, availability zone etc.); Azure equivalents are `inventory_hostname`, `vm_size_tier`, `dc1_azure_location`. `ticket_number` left as `default('N/A')` until ServiceNow (Phase 8) |
 | 2026-05-28 | **Phase 8 ServiceNow: AAP calls SNow back** (not SNow polls AAP); **direct REST** SNow→AAP (not mid-server); **callback node on success+failure paths** (AB#78) | Callback gives the richer demo payoff (RITM auto-fills with IP/FQDN on screen) and keeps status logic out of SNow; direct REST is far less setup than a MID Server for a demo; dual-path callback means the RITM never hangs silently on a failed/timed-out workflow. `ticket_number` passed into the launch threads to both the landing page and the callback, closing the `N/A` loop. Design-doc-first: code deferred until the live instance is wired |
+| 2026-05-28 | **Phase 8 ServiceNow REDESIGNED to event-driven** (AB#79) — *supersedes the inbound + sequencing parts of the AB#78 row above*: inbound is now SNow Business Rule → Outbound REST Message → **AAP EDA event stream** → dc1.azure-owned rulebook → `run_workflow_template` (**not** a direct REST `launch/`); callback scope expanded to **full Windows parity** (RITM + CMDB CI + relationship + Incident-on-failure); status flipped to **ready to implement** (no longer deferred) | EDA event stream means SNow holds no workflow ID / launch token and EDA routes by `short_description` — one ingress for every SNow demo, mirroring the proven `aap.dailydemo.windows` pattern. Full parity is mostly *wiring* the already-synced Windows ServiceNow playbooks, not new code. `SN_*` creds + a minted `EDA_EVENT_STREAM_TOKEN` are in `docs/dev-environment.sh`; EDA verified enabled on the AAP. *(The AB#78 decisions that still hold: AAP-calls-SNow-back and the dual success/failure callback path.)* |
 
 ---
 

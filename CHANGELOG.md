@@ -6,18 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
-- **`docs/servicenow-integration.md`** (AB#78, Epic AB#77) — Phase 8 ServiceNow
-  integration design + build spec. Resolves the three ROADMAP open questions:
-  **AAP calls ServiceNow back** for the RITM update (not SNow-polls-AAP),
-  **direct REST** for the SNow→AAP launch (mid-server documented as the
-  enterprise alternative), and a **callback node on both success and failure
-  paths** so the RITM never hangs. Documents the architecture/sequence, catalog
-  item + Flow Designer flow, the `DC1.Azure - ServiceNow` callback credential,
-  `servicenow_update_ritm.yml`, the Update-RITM JT + workflow wiring, threading
-  `ticket_number` through to close the landing-page `N/A` loop, and the
-  build/test plan. `docs/dev-environment.sh.example` seeded with commented
-  `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` placeholders. Implementation deferred
-  (design-doc-first) until the live instance is wired.
+- **`docs/servicenow-integration.md`** (AB#78 origin → **AB#79 redesign**, Epic
+  AB#77) — Phase 8 ServiceNow integration design + build spec, **event-driven
+  (Demo v2)**. Inbound: a ServiceNow **Business Rule** fires an **Outbound REST
+  Message** at an **AAP EDA event stream**; a dc1.azure-owned **rulebook**
+  (`rulebooks/servicenow_events.yml`) matches on `short_description` and runs the
+  workflow with `run_workflow_template` (ServiceNow holds no workflow ID / launch
+  token), mirroring the proven `aap.dailydemo.windows` pattern. Outbound: **AAP
+  calls ServiceNow back** with **full Windows parity** — RITM update (success +
+  failure) + CMDB CI (`cmdb_ci_win_server`) + relationship + Incident-on-failure,
+  built by wiring the already-synced Windows ServiceNow playbooks. Documents the
+  architecture/sequence, catalog item, the EDA CaC building blocks (event-stream +
+  ITSM credentials, decision environment, event stream, rulebook activation,
+  `ansible.eda`), the `DC1.Azure - ServiceNow` callback credential, threading
+  provisioning details via `set_stats`, and the build/test plan. Resolves the EDA
+  project git URL (the Azure DevOps repo) and the CMDB CI class. Status: **ready
+  to implement** — `SN_*` creds + a minted `EDA_EVENT_STREAM_TOKEN` are in
+  `docs/dev-environment.sh`; `docs/dev-environment.sh.example` carries the
+  commented placeholders. EDA verified enabled on the AAP.
+  *(History: v1 used ServiceNow Flow Designer + a direct REST `launch/`; replaced
+  by the event-driven design above in AB#79 before any code shipped.)*
 - **`docs/demo-runbook.md`** (AB#76) — SE-facing live-demo runbook for the v1
   AAP-driven flow: pre-flight checklist, talking track, click-by-click through
   the AAP UI (launch *DC1.Azure - Provision and Configure* + the `vm_size_tier`
@@ -38,22 +46,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checklist. Historical changelog entries referencing the old file are left intact.
 
 ### Changed
-- **`docs/servicenow-integration.md` redesigned to event-driven (Demo v2)** —
-  the inbound trigger is no longer ServiceNow Flow Designer doing a direct REST
-  `launch/`. Instead a ServiceNow **Business Rule** fires an **Outbound REST
-  Message** at an **AAP EDA event stream**; a dc1.azure-owned **rulebook**
-  (`rulebooks/servicenow_events.yml`) matches on `short_description` and runs the
-  workflow with `run_workflow_template` — mirroring the proven
-  `aap.dailydemo.windows` pattern (ServiceNow holds no workflow ID / launch
-  token). Callback scope expanded to **full Windows parity**: RITM update
-  (success + failure) + CMDB CI + CMDB relationship + Incident-on-failure, built
-  by wiring the already-synced Windows ServiceNow playbooks. Adds EDA CaC
-  building blocks (event-stream + ITSM credentials, decision environment, event
-  stream, rulebook activation, `ansible.eda` collection) and an
-  `EDA_EVENT_STREAM_TOKEN` secret. Resolves the EDA project git URL (the Azure
-  DevOps repo) and the CMDB CI class (`cmdb_ci_win_server`). Status flipped to
-  **ready to implement** — the `SN_*` callback creds are already in
-  `docs/dev-environment.sh`; only `EDA_EVENT_STREAM_TOKEN` remains to mint.
 - **`DC1.Azure` project `scm_update_on_launch` → `false`** (AB#74) — with
   update-on-launch enabled, every workflow node that uses the `DC1.Azure` project
   fired a blocking SCM sync before its job ran, adding minutes to each
