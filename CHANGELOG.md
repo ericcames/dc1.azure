@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **`DC1.Azure - Teardown` terraform init backend config** (AB#71) — the teardown
+  playbook ran a bare `terraform init` (no `-backend-config`) and the Teardown JT
+  never passed `dc1_azure_tf_storage_account`, so the azurerm backend initialized
+  with an empty `container_name`; the nightly teardown failed every run (job 54:
+  `containerName cannot be an empty string`) and provisioned VMs were never
+  destroyed. `teardown.yml` now passes the same four `-backend-config` flags as
+  `provision_vm.yml` (with `dc1_azure_tf_container` / `dc1_azure_tf_key` defaults),
+  and the Teardown JT supplies `dc1_azure_tf_storage_account`.
+
 ## 0.3.0 — 2026-05-27
 
 ### Changed

@@ -98,6 +98,7 @@ controller_templates:
     extra_vars:
       dc1_azure_resource_group: "{{ azure_resource_group }}"
       dc1_azure_location: "{{ azure_location }}"
+      dc1_azure_tf_storage_account: "{{ azure_tf_storage_account }}"
       # destroy doesn't use the admin password, but terraform requires the var
       # (12-72 chars) and teardown.yml asserts its length. Bake a non-secret
       # placeholder so scheduled/manual teardown runs need no password input.
