@@ -57,8 +57,8 @@ is committed) and in an AAP "Microsoft Azure Resource Manager" credential named
   CI pipeline runs `terraform fmt -check` and will fail the PR if formatting
   is off. Run `terraform fmt terraform/` locally to auto-fix.
 - **Images go in `docs/images/`** (committed, not gitignored).
-  `docs/dev-environment.sh` (and the legacy `docs/dev-environment.md`) are the
-  only gitignored files under `docs/`. `docs/dev-environment.sh.example` IS
+  `docs/dev-environment.sh` is the only gitignored file under `docs/`.
+  `docs/dev-environment.sh.example` IS
   committed — it's the placeholder template.
 - **CHANGELOG.md** — every PR adds an entry under Added / Changed / Fixed /
   Removed.

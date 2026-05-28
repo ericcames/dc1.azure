@@ -64,4 +64,4 @@ needs explicit risk + rollback notes here.
 - [ ] Work item linked above (`AB#<id>` autolink) and State set to *Resolved*
 - [ ] One concern per PR (would you revert these changes together?)
 - [ ] `CHANGELOG.md` updated under Added / Changed / Fixed / Removed
-- [ ] No secrets, `*.tfstate*`, real `terraform.tfvars`, or `docs/dev-environment.md` committed
+- [ ] No secrets, `*.tfstate*`, real `terraform.tfvars`, or `docs/dev-environment.sh` committed

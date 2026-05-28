@@ -335,9 +335,9 @@ dc1.azure workflow in AAP. AAP runs Terraform + post-provision. On success,
 AAP calls back to ServiceNow to update the RITM with status, public IP,
 FQDN, admin username. End user closes the ticket.
 
-**Instance:** Red Hat shared ServiceNow dev (URL TBD — capture in `docs/dev-environment.md` when obtained).
+**Instance:** Red Hat shared ServiceNow dev (URL TBD — capture in `docs/dev-environment.sh` when obtained).
 
-- ⬜ Capture Red Hat shared SNow URL + access credentials in `docs/dev-environment.md`
+- ⬜ Capture Red Hat shared SNow URL + access credentials in `docs/dev-environment.sh`
 - ⬜ ServiceNow catalog item: "Request Windows VM (Azure)"
   - ⬜ Variables: `vm_size_tier` (dropdown small/medium/large), `justification` (text), `requestor` (auto-populated)
   - ⬜ Flow Designer flow: REST POST to AAP `/api/v2/job_templates/<id>/launch/` with extra_vars

@@ -2,7 +2,7 @@
 # Inventory group vars for the dc1.azure AAP bootstrap.
 #
 # No secrets in this file — every sensitive value is resolved at runtime via
-# environment-variable or file lookups. See docs/dev-environment.md (gitignored)
+# environment-variable or file lookups. See docs/dev-environment.sh (gitignored)
 # for the canonical local copy of the live RHDP env credentials.
 #
 # Before running playbooks/bootstrap_aap.yml, export the following:

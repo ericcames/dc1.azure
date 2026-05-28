@@ -43,7 +43,7 @@
 # inventories/dc1-azure/group_vars/all.yml — no secrets in this file.
 #
 # Run with:
-#   export CONTROLLER_HOST=<aap url from docs/dev-environment.md>
+#   export CONTROLLER_HOST=<aap url from docs/dev-environment.sh>
 #   export CONTROLLER_USERNAME=admin
 #   export CONTROLLER_PASSWORD=<aap admin password>
 #   export AZURE_SUBSCRIPTION_ID=...

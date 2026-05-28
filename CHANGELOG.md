@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Removed
+- **Legacy `docs/dev-environment.md`** (AB#75) — fully superseded by the
+  sourceable `docs/dev-environment.sh` (template `docs/dev-environment.sh.example`)
+  since AB#61. Purged the remaining stale references from `CLAUDE.md`, `.gitignore`,
+  `ROADMAP.md` (the Phase 8 ServiceNow credential-capture target is now
+  `dev-environment.sh`), `playbooks/bootstrap_aap.yml`,
+  `inventories/dc1-azure/group_vars/all.yml`, and the ADO pull-request template
+  checklist. Historical changelog entries referencing the old file are left intact.
+
 ### Changed
 - **`DC1.Azure` project `scm_update_on_launch` → `false`** (AB#74) — with
   update-on-launch enabled, every workflow node that uses the `DC1.Azure` project
