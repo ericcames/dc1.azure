@@ -132,11 +132,11 @@ API-launchable workflow — no parallel re-implementations.
 The provisioning JT survey asks for `vm_size_tier`. Mapping is enforced in
 Terraform `locals.tf`:
 
-| Tier   | Azure SKU          | vCPU | RAM   | Approx $/hr | Use case                |
-|--------|--------------------|------|-------|-------------|-------------------------|
-| small  | `Standard_D2s_v5`  | 2    | 8 GB  | ~$0.10      | Dev / quick smoke test  |
-| medium | `Standard_D4s_v5`  | 4    | 16 GB | ~$0.19      | Default demo path       |
-| large  | `Standard_D8s_v5`  | 8    | 32 GB | ~$0.38      | "Production-like" story |
+| Tier              | Azure SKU          | vCPU | RAM   | Approx $/hr | Use case                |
+|-------------------|--------------------|------|-------|-------------|-------------------------|
+| `small-2cpu-8gb`  | `Standard_D2s_v5`  | 2    | 8 GB  | ~$0.10      | Dev / quick smoke test  |
+| `medium-4cpu-16gb`| `Standard_D4s_v5`  | 4    | 16 GB | ~$0.19      | Default demo path       |
+| `large-8cpu-32gb` | `Standard_D8s_v5`  | 8    | 32 GB | ~$0.38      | "Production-like" story |
 
 All three are in the `Dsv5` general-purpose family — same family / more
 cores tells a clean scaling story without introducing burstable-vs-dedicated
@@ -274,22 +274,23 @@ file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 
 **Exit criteria:** ✅ Met 2026-05-26. `load.yml` run green against Ansible Product Demo AAP; all objects created; `validate.yml` passed; re-run is idempotent.
 
-### Phase 4 — Post-Provision Playbooks  🔄
-*Provision node green 2026-05-27. Configure chain blocked on missing variables (AB#59).*
+### Phase 4 — Post-Provision Playbooks  ✅
+*Completed 2026-05-27. End-to-end workflow validated green (workflow job 46, ~14 min).*
 
 - ✅ `playbooks/provision_vm.yml` — runs `terraform init/apply` (CLI + `output -json`) for the survey's `vm_size_tier`, parses the `ansible_inventory` Terraform output, then **registers the VM into the `dc1-azure` inventory's `windemo` group via the controller API** (short-lived token created + deleted in `always:`, mirroring the `aap.dailydemo.windows` `inventory` role) and `set_stats` for the workflow. Replaces the AWS provisioning nodes.
-- ✅ Configure half reuses the pinned `aap.dailydemo.windows` project's existing playbooks via the Phase 3 Configure JTs (`05_powershell_improve` / `06_website_setup` / `06_windows_account_create` / `07_windows_patching`), which target `hosts: windemo`.
+- ✅ `playbooks/website_setup.yml` + `playbooks/roles/website_setup_azure/` (AB#59) — Azure-specific IIS role with a clean `index.html.j2` using `inventory_hostname`, `vm_size_tier`, `dc1_azure_location`, and `ticket_number | default('N/A')` (placeholder until ServiceNow integration). Replaces the AWS-only `website_setup` role from `aap.dailydemo.windows`.
+- ✅ Configure half: `05_powershell_improve` / `06_windows_account_create` / `07_windows_patching` still reuse pinned `aap.dailydemo.windows` playbooks; `06_website_setup` replaced by the dc1.azure-native role above.
 - ✅ `playbooks/teardown.yml` — `terraform destroy` + deregisters the host from the inventory (token lifecycle in `always:`).
 - ✅ New `DC1.Azure - Controller` (Red Hat AAP) credential attached to Provision/Teardown JTs for controller API calls. RG/location passed as JT `extra_vars` from env-baked group vars.
-- ✅ **Live run 2026-05-27** — `DC1.Azure - Provision and Configure` (workflow 28) launched against RHDP AAP (`cluster-blsvm-2`). Provision VM: **SUCCESS**. Powershell Improvement (first configure node): **SUCCESS**. WinRM works.
 - ✅ EE pulls from Private Automation Hub (AB#56). Terraform authenticates via `ARM_*` env vars mapped from AAP Azure RM credential (AB#57). Nightly teardown schedule added (AB#58).
-- ✅ **Password survey replaced** (AB#60) — `DC1.Azure - Windows Admin Password` custom credential type injects `dc1_azure_windows_admin_password` as an extra var into the Provision VM JT. `WINDOWS_ADMIN_PASSWORD` is the single source of truth. No password prompt at workflow launch.
-- ✅ **VM size tier choices** (AB#62) — choices renamed `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb`; spec visible in AAP survey Multiple Choice Options field. `terraform/locals.tf` keys updated to match.
-- 🔄 **Configure chain blocked (AB#59)** — Website Setup fails: `ticket_number` undefined. Provision Access fails on a `no_log` task (likely `default_passwd` undefined). These vars come from a ServiceNow/survey trigger in the original `aap.dailydemo.windows` demo; DC1.Azure JTs don't supply them yet. Decision pending: hardcode demo defaults vs. wire a workflow survey. **This is the only remaining blocker for Phase 4 exit.**
+- ✅ **Windows Admin Password** (AB#60) — `DC1.Azure - Windows Admin Password` custom credential type injects `dc1_azure_windows_admin_password` as an extra var. `WINDOWS_ADMIN_PASSWORD` is the single source of truth.
+- ✅ **Demo Account Password** (AB#59) — `DC1.Azure - Demo Account Password` custom credential type injects `default_passwd` extra var for the Provision Access JT. Sourced from `DC1_AZURE_DEFAULT_PASSWD` in `dev-environment.sh`. No survey prompt at workflow launch.
+- ✅ **VM size tier choices** (AB#62) — choices renamed `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb`; spec visible in AAP survey Multiple Choice Options field. `terraform/locals.tf` and `terraform/variables.tf` keys updated to match.
+- ✅ **Validation run bugs fixed** (AB#65/66/67) — `provision_vm.yml` assert + `terraform/variables.tf` validation rule both used old tier names; `website_setup_azure` role was at project root `roles/` (AWX EE searches `<playbook_dir>/roles/`). All three fixed.
 
 **Open design note:** host hand-off uses explicit controller-API registration (mirrors the daily demo). A future alternative is an `azure_rm` dynamic inventory source on `dc1-azure` that auto-discovers the tagged VM — removes the Controller credential + registration step, but needs `azure.azcollection` in the EE.
 
-**Exit criteria:** end-to-end workflow run produces a VM that serves an IIS page on its public IP, has the demo account, has PS7, and has run Windows Update.
+**Exit criteria:** ✅ Met 2026-05-27. End-to-end workflow run (job 46) produced a VM serving an IIS page on its public IP, with the demo accounts, PS7, and Windows Update applied.
 
 ### Phase 5 — Azure DevOps Pipeline  ✅
 *Completed 2026-05-26. Lint/validate pipeline (PR #7), Build Validation branch policy (AB#48), and GitHub auto-mirror stage (AB#49) all landed. Pipeline verified green on every PR since. `git push github main` is retired — mirror runs automatically on every merge to `main`.*
@@ -435,6 +436,9 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-27 | **`DC1.Azure - Windows Admin Password` custom credential type** (AB#60) replaces the workflow survey `dc1_azure_windows_admin_password` question | Credential type injects the password as an extra var — zero friction at workflow launch. `WINDOWS_ADMIN_PASSWORD` env var covers both Machine credential (WinRM) and custom credential (Terraform) |
 | 2026-05-27 | **VM size tier choices** renamed `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb` (AB#62) | Choice string = Terraform map key; DNS-label-safe format makes the spec visible directly in the AAP survey Multiple Choice Options field without a "display vs value" split (which AAP multiplechoice doesn't support) |
 | 2026-05-27 | **`docs/dev-environment.sh`** (gitignored, sourceable) replaces `docs/dev-environment.md` (AB#61); `docs/dev-environment.sh.example` committed as template | `source docs/dev-environment.sh && ansible-playbook …` is the canonical load.yml invocation — all exports and the playbook run in one shell call (env vars don't persist across separate invocations) |
+| 2026-05-27 | **`website_setup_azure` role** (AB#59) at `playbooks/roles/` instead of project root `roles/` | AWX EEs search `<playbook_dir>/roles/` only — project root `roles/` is invisible to the EE. All roles called from `playbooks/` must live in `playbooks/roles/`. |
+| 2026-05-27 | **`DC1.Azure - Demo Account Password` custom credential type** (AB#59) injects `default_passwd` extra var for the Provision Access JT | JT surveys do not fire when a JT runs as a workflow node — the credential type is the only way to inject the secret without a survey at workflow launch |
+| 2026-05-27 | Azure-native `website_setup_azure` role (AB#59) instead of reusing `aap.dailydemo.windows`'s `website_setup` role | Upstream `website_setup` used AWS-only vars (`my_ami_id`, `vpc_create_time`, availability zone etc.); Azure equivalents are `inventory_hostname`, `vm_size_tier`, `dc1_azure_location`. `ticket_number` left as `default('N/A')` until ServiceNow (Phase 8) |
 
 ---
 

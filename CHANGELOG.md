@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **`ROADMAP.md` Sizing Tiers table** — tier names updated from `small / medium / large`
+  to `small-2cpu-8gb / medium-4cpu-16gb / large-8cpu-32gb` to match the AB#62 rename
+  that landed in the Terraform and AAP CaC layers.
+- **`ROADMAP.md` Decisions Log** — added three 2026-05-27 entries for AB#59:
+  `website_setup_azure` role must live in `playbooks/roles/` (AWX EE search path);
+  `DC1.Azure - Demo Account Password` custom credential type (JT surveys don't fire
+  inside workflows); Azure-native IIS template replaces AWS-only upstream role.
+
+## 0.2.0 — 2026-05-27
+
 ### Fixed
 - **`roles/website_setup_azure` moved to `playbooks/roles/`** (AB#67) — AWX EE
   searches `<playbook_dir>/roles/` not the project root `roles/`, so the role
