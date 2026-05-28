@@ -1,186 +1,324 @@
 # ServiceNow Integration — Design (Phase 8, Demo v2)
 
-**Status:** Design approved 2026-05-28 · implementation deferred until the live
-ServiceNow instance is wired (decision: design-doc-first). This document is the
-build spec — when the instance credentials land in `docs/dev-environment.sh`,
-implementation should be mechanical.
+**Status:** Design v2 (event-driven) — 2026-05-28. Supersedes the v1
+direct-REST design. **Ready to implement:** the ServiceNow callback creds
+(`SN_HOST`/`SN_USERNAME`/`SN_PASSWORD`) are already in `docs/dev-environment.sh`;
+the only secret still to mint is `EDA_EVENT_STREAM_TOKEN` (a value we generate,
+shared between the AAP event-stream credential and the ServiceNow Outbound REST
+Message). This document is the build spec — follow the build plan below.
+
+> **What changed from v1:** the inbound trigger is no longer ServiceNow Flow
+> Designer doing a direct REST `launch/` of the workflow. Instead a ServiceNow
+> **Business Rule** fires an **Outbound REST Message** at an **AAP Event-Driven
+> Ansible (EDA) event stream**; a dc1.azure-owned **rulebook** matches the
+> request and runs the workflow with `run_workflow_template`. This mirrors the
+> proven `aap.dailydemo.windows` pattern. The AAP→ServiceNow callback half is
+> unchanged in spirit (now expanded to full Windows parity).
 
 ## Goal
 
 A business user opens the **ServiceNow self-service catalog**, requests a
-Windows VM on Azure, picks a t-shirt size, and submits. ServiceNow triggers the
-existing **`DC1.Azure - Provision and Configure`** workflow in AAP. When the
+Windows VM on Azure, picks a t-shirt size, and submits. A ServiceNow Business
+Rule posts the request to an AAP EDA event stream. EDA matches it and launches
+the existing **`DC1.Azure - Provision and Configure`** workflow. When the
 workflow finishes, **AAP calls ServiceNow back** to update the request item
-(RITM) with the outcome — status, public IP, FQDN, admin user. The user closes
-the ticket. No AAP login, no Azure knowledge required of the requester.
+(RITM) with the outcome — state, public IP, FQDN, admin user — register the VM
+as a **CMDB CI** (with a relationship to its business app), and on failure open
+an **Incident**. The user closes the ticket. No AAP login, no Azure knowledge
+required of the requester.
 
-This is **Demo v2**. It reuses the *exact* Phase 4 workflow unchanged except for
-one appended callback node — the same workflow the AAP-UI (Phase 6),
+This is **Demo v2**. It reuses the *exact* Phase 4 provisioning chain; the
+ServiceNow-specific work is the EDA ingress in front and the callback/CMDB/
+incident nodes appended behind — the same core workflow the AAP-UI (Phase 6),
 Self-Service Portal (Phase 9), and ADO (Phase 10) triggers all drive.
 
 ---
 
-## Decisions (resolves the three ROADMAP open questions)
+## Decisions
 
-| Open question | Decision | Why |
-|---------------|----------|-----|
-| **Result-reporting direction** — SNow polls AAP vs AAP calls SNow back | **AAP calls SNow back** | Richer demo payoff: the RITM auto-fills with IP/FQDN on screen. Keeps the polling/status logic out of ServiceNow. Uses the existing `ServiceNow ITSM Credential` type. |
-| **Auth from SNow → AAP** — mid-server vs direct REST | **Direct REST** (no mid-server) | This is a demo on the Red Hat shared SNow dev instance, not enterprise prod. Direct REST from Flow Designer to the AAP launch endpoint is far less setup. *Mid-server documented below as the enterprise-standard alternative.* |
-| **Timeout behavior** — what does the RITM show if provisioning hangs? | **The callback node runs on both success and failure paths** | The RITM always reaches a terminal state (Fulfilled or a failure note) — never hangs silently. See [Failure & timeout behavior](#failure--timeout-behavior). |
+| Question | Decision | Why |
+|----------|----------|-----|
+| **Inbound trigger** — direct REST `launch/` vs EDA event stream | **EDA event stream** (Business Rule → Outbound REST Message → event stream → rulebook → `run_workflow_template`) | ServiceNow holds **no workflow ID and no launch-scoped OAuth token** — only the event-stream URL + a bearer token. EDA decides *which* workflow runs by `short_description`, so one ingress serves every SNow-driven demo. Matches the proven `aap.dailydemo.windows` pattern. |
+| **Rulebook home** — extend the shared `event.driven.ansible` rulebook vs a dc1.azure-owned rulebook | **dc1.azure-owned rulebook** | Keeps every Azure asset in this repo — no cross-repo PR into `ericcames/event.driven.ansible`, consistent with the repo-standalone principle. dc1.azure registers itself as an EDA project and ships its own rulebook + activation. |
+| **Result-reporting direction** — SNow polls AAP vs AAP calls SNow back | **AAP calls SNow back** | Richer payoff: the RITM auto-fills with IP/FQDN on screen and the CMDB updates. Keeps polling/status logic out of ServiceNow. Uses the existing `ServiceNow ITSM Credential` type. |
+| **Callback scope** | **Full Windows parity** — RITM update (success + failure) + CMDB CI + CMDB relationship + Incident-on-failure | Mirrors the `aap.dailydemo.windows` node graph. Most complete demo; built mostly by *wiring* the already-synced Windows ServiceNow playbooks, not new code. |
+| **Auth from SNow → EDA** — direct outbound vs MID Server | **Direct Outbound REST Message** (token-auth) | Demo on the Red Hat shared SNow dev instance, not enterprise prod. *MID Server documented below as the enterprise-standard alternative.* |
+| **Timeout behavior** — what does the RITM show if provisioning hangs? | **Callback runs on both success and failure paths** | The RITM always reaches a terminal state (Fulfilled or a failure note + Incident) — never hangs silently. See [Failure & timeout behavior](#failure--timeout-behavior). |
 
 ---
 
 ## Architecture & sequence
 
 ```
- ServiceNow                         AAP (Controller)                 Azure
- ──────────                         ────────────────                 ─────
- 1. User submits catalog
-    item "Request Windows
-    VM (Azure)" (size,
-    justification)
+ ServiceNow                          AAP / EDA                          AAP Controller + Azure
+ ──────────                          ─────────                          ──────────────────────
+ 1. User submits catalog item
+    "Request Windows VM (Azure)"
+    (size, justification)
         │
-        │ 2. Flow Designer: REST POST
-        │    /api/controller/v2/workflow_job_templates/<id>/launch/
-        │    Bearer <AAP token>
-        │    extra_vars: { vm_size_tier, ticket_number: <RITM number> }
+        │ 2. Business Rule (on sc_req_item
+        │    insert/approve) fires an
+        │    Outbound REST Message:
+        │      POST <event-stream URL>
+        │      Authorization: Bearer <token>
+        │      body: { number, sys_id,
+        │              short_description,
+        │              vm_size_tier }
         ▼
-                                   3. Workflow runs (Phase 4, unchanged):
-                                      Provision VM ─► Powershell ─►
-                                      Website Setup ─► Provision Access ─►
-                                      Patching ──────────────────────► VM live
-                                                                         in Azure
-                                   4. NEW final node: "Update ServiceNow RITM"
-                                      runs servicenow_update_ritm.yml
-        ┌───────────────────────────────┘
-        │ 5. servicenow.itsm PATCHes the RITM (Table API):
-        │    state, public IP, FQDN, admin user, work note
+                            3. Event Stream (type: snow) feeds
+                               the rulebook source __SOURCE_1.
+                               Rulebook rule:
+                                 condition: event.payload.short_description
+                                            == my_azure_catalog_short_description
+                                 action: run_workflow_template ─────────► 4. Workflow runs (Phase 4 chain):
+                                   extra_vars:                               Provision VM ─► Powershell ─►
+                                     ticket_number = event.payload.number    Website Setup ─► Provision Access ─►
+                                     ticket_sys_id = event.payload.sys_id     Patching ──────────────► VM live
+                                     vm_size_tier  = event.payload.vm_size_tier
+                                                                            5. NEW nodes (full parity):
+                                                                               success ► Create CMDB CI ► Relationship
+                                                                                        ► Update RITM (Fulfilled)
+                                                                               failure ► Create Incident
+                                                                                        ► Update RITM (failed + incident #)
+        ┌───────────────────────────────────────────────────────────────────────┘
+        │ 6. servicenow.itsm PATCHes sc_req_item (state, work note w/ FQDN+IP+admin),
+        │    creates the cmdb_ci_* record + rel_ci relationship, opens incident on failure
         ▼
- 6. RITM shows Fulfilled +
-    connection details; user
-    closes the ticket
+ 7. RITM shows Fulfilled + connection details, CMDB has the new CI; user closes the ticket
 ```
 
-The `ticket_number` (the RITM number, e.g. `RITM0012345`) is passed **into** the
-launch as an extra var. It serves two purposes:
-- it flows to the IIS landing page (`ticket_number` already templated in
-  `website_setup_azure/templates/index.html.j2` — today it shows `N/A`; this
-  closes that loop), and
-- it tells the callback node **which** RITM to update.
+`ticket_number` (e.g. `RITM0012345`) and `ticket_sys_id` thread into the launch.
+They serve three purposes:
+- `ticket_number` flows to the IIS landing page (already templated in
+  `website_setup_azure/templates/index.html.j2` — today shows `N/A`; this closes
+  that loop),
+- `ticket_sys_id` tells the callback nodes **which** record to PATCH (no second
+  lookup needed — though the Windows `update_requested_item` role also resolves
+  by `numberSTARTSWITH` as a fallback), and
+- `vm_size_tier` drives the Provision VM node (the catalog dropdown maps to the
+  same survey choices).
 
 ---
 
 ## Component inventory
 
+### Inbound — EDA ingress (new)
+
 | Component | Status | Where |
 |-----------|--------|-------|
-| `ServiceNow ITSM Credential` **type** (injects `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD`) | ✅ exists (from `aap.as.code`) | `aap_config/files/controller_credential_types.yml` |
-| `servicenow.itsm` collection | ⬜ add | `aap_config/requirements.yml` + `execution-environment.yml` (EE rebuild) |
+| `ansible.eda` collection | ⬜ add | `aap_config/requirements.yml` |
+| dc1.azure EDA project (this repo, hosting the rulebook) | ⬜ add | `aap_config/files/eda_projects.yml` (already has `event.driven.ansible`; add a `DC1.Azure - EDA` entry → this repo) |
+| `rulebooks/servicenow_events.yml` (Azure-owned rulebook) | ⬜ write | new `rulebooks/` dir in this repo |
+| `ServiceNow Event Stream` credential (built-in type; token auth) | ⬜ add | `aap_config/files/eda_credentials.yml` |
+| `Controller Credential` (so EDA can launch the workflow) | ⬜ add | `aap_config/files/eda_credentials.yml` |
+| Decision Environment | ⬜ add | `aap_config/files/eda_decision_environments.yml` |
+| Event Stream (`event_stream_type: snow`, `forward_events: true`) | ⬜ add | `aap_config/files/eda_event_streams.yml` |
+| Rulebook Activation (binds event stream → source `__SOURCE_1`) | ⬜ add | `aap_config/files/eda_rulebook_activations.yml` |
+
+### Outbound — callback / CMDB / incident (full parity)
+
+| Component | Status | Where |
+|-----------|--------|-------|
+| `servicenow.itsm` collection | ⬜ add | `aap_config/requirements.yml` + EE rebuild |
+| `ServiceNow ITSM Credential` **type** | ✅ exists | `aap_config/files/controller_credential_types.yml` |
 | `DC1.Azure - ServiceNow` credential **instance** | ⬜ add | `aap_config/files/controller_credentials.yml` |
-| `playbooks/servicenow_update_ritm.yml` | ⬜ write | `playbooks/` |
-| `DC1.Azure - Update ServiceNow RITM` JT | ⬜ add | `aap_config/files/controller_job_templates.yml` |
-| Workflow callback node (success + failure) | ⬜ wire | `aap_config/files/controller_workflow_job_templates.yml` |
-| `validate.yml` assertions (new cred + JT) | ⬜ extend | `aap_config/validate.yml` |
-| ServiceNow catalog item + Flow Designer flow | ⬜ build in SNow | ServiceNow instance |
+| `Update RITM (success)` / `Update RITM (failure)` JTs | ⬜ add | `aap_config/files/controller_job_templates.yml` |
+| `Create CMDB CI` / `Create CMDB Relationship` / `Create Incident` JTs | ⬜ add | `aap_config/files/controller_job_templates.yml` |
+| Workflow nodes (success → CMDB → RITM; failure → Incident → RITM) | ⬜ wire | `aap_config/files/controller_workflow_job_templates.yml` |
+| `validate.yml` assertions (creds + JTs + EDA objects) | ⬜ extend | `aap_config/validate.yml` |
 | SNow secrets placeholders | ⬜ add | `docs/dev-environment.sh.example` |
+
+> **Playbook reuse:** the callback/CMDB/incident JTs point at the **already-synced
+> `aap.dailydemo.windows` project** (`windows_project_name`, pinned `v1.0.1`) and
+> its cloud-agnostic ServiceNow playbooks — `playbooks/servicenow/update_sn_req_itm.yml`
+> (role `update_requested_item`), `create_ci.yml` (`create_configuration_item`),
+> `create_cmdb_relationship.yml`, and `incident_create.yml` (`create_incident`).
+> No new playbooks in dc1.azure unless an Azure field needs threading the CMDB CI
+> doesn't already get from `set_stats` (see [Threading](#threading-provisioning-details-to-the-callback)).
 
 ---
 
-## Inbound: ServiceNow → AAP (trigger)
+## Inbound: ServiceNow → EDA (trigger)
 
 ### Catalog item — "Request Windows VM (Azure)"
 Variables:
 - `vm_size_tier` — dropdown, choices `small-2cpu-8gb` / `medium-4cpu-16gb` /
   `large-8cpu-32gb` (mirror the AAP survey exactly; default `medium-4cpu-16gb`).
-- `justification` — single-line text (free text; for the demo narrative).
-- `requestor` — reference to `sys_user`, auto-populated from the logged-in user.
+- `justification` — single-line text (for the demo narrative).
+- `requestor` — reference to `sys_user`, auto-populated.
 
-### Flow Designer flow
-On catalog request submission:
-1. Create/Use the generated RITM (`sc_req_item`).
-2. **REST step** → AAP:
-   - Method: `POST`
-   - URL: `https://<aap-host>/api/controller/v2/workflow_job_templates/<WF_ID>/launch/`
-     *(look up `<WF_ID>` for `DC1.Azure - Provision and Configure` per env)*
-   - Header: `Authorization: Bearer <AAP_OAUTH_TOKEN>` (stored as a SNow
-     Connection & Credential alias — **not** inline)
-   - Body:
-     ```json
-     { "extra_vars": { "vm_size_tier": "${vm_size_tier}", "ticket_number": "${number}" } }
-     ```
-   - `Content-Type: application/json`, TLS verify on.
-3. Post a work note on the RITM: "Provisioning requested — AAP job launched."
+The catalog item's **`short_description`** must be a unique, stable string —
+this is what the rulebook matches on. Pin it as the var
+`my_azure_catalog_short_description` (e.g. `"DC1.Azure Windows VM on Azure"`)
+used in *both* the rulebook condition and the activation `extra_vars`.
 
-> **Auth alternative (enterprise):** route the REST call through a **MID Server**
-> instead of direct outbound REST. Standard in regulated environments (no direct
-> SNow→internet path) but requires standing up + registering a MID Server. Out of
-> scope for the demo; noted for customer conversations.
+### Business Rule + Outbound REST Message
+On `sc_req_item` insert (or on approval, matching the demo narrative), a
+**Business Rule** triggers an **Outbound REST Message**:
+- Method `POST`, endpoint = the **EDA event-stream URL** (AAP shows it after the
+  event stream is created).
+- Header `Authorization: Bearer <token>` — the same token configured on the
+  `ServiceNow Event Stream` credential (`http_header_key: Authorization`,
+  `auth_type: token`). Stored as a SNow credential/secret, **not** inline.
+- Body (JSON): `number`, `sys_id`, `short_description`, and `vm_size_tier`
+  from the catalog variables.
+
+> **Auth alternative (enterprise):** route the Outbound REST Message through a
+> **MID Server** rather than direct outbound. Standard in regulated environments
+> (no direct SNow→internet path) but requires standing up + registering a MID
+> Server. Out of scope for the demo; noted for customer conversations.
+
+### EDA objects (CaC, consumed by `infra.aap_configuration.dispatch`)
+
+`eda_credentials.yml`:
+```yaml
+eda_credentials:
+  - name: Controller Credential          # lets EDA launch the workflow
+    credential_type: 'Red Hat Ansible Automation Platform'
+    organization: "{{ my_organization }}"
+    inputs:
+      host: "{{ aap_hostname }}/api/controller/"
+      username: "admin"
+      password: "{{ aap_password }}"
+      verify_ssl: true
+  - name: DC1.Azure - ServiceNow Event Stream
+    credential_type: 'ServiceNow Event Stream'   # built-in EDA type
+    organization: "{{ my_organization }}"
+    inputs:
+      auth_type: token
+      http_header_key: Authorization
+      token: "{{ eda_event_stream_token }}"      # shared secret w/ SNow Outbound REST
+```
+
+`eda_decision_environments.yml`: a `Default Decision Environment`
+(`de-supported-rhel8:latest` from `registry.redhat.io`) — needs a
+`registry.redhat.io` Container Registry credential.
+
+`eda_event_streams.yml`:
+```yaml
+eda_event_streams:
+  - name: DC1.Azure - ServiceNow Event Stream
+    credential_name: DC1.Azure - ServiceNow Event Stream
+    organization: "{{ my_organization }}"
+    event_stream_type: snow
+    forward_events: true
+```
+
+`eda_projects.yml`: add a dc1.azure EDA project pointing at **this repo's Azure
+DevOps git URL** (the rulebook's home). EDA needs an SCM credential that can
+reach the ADO repo (a PAT-backed Source Control credential) — reuse the same
+auth the controller `DC1.Azure` project already uses against ADO.
+
+`eda_rulebook_activations.yml`:
+```yaml
+eda_rulebook_activations:
+  - name: DC1.Azure - Catch ServiceNow Events
+    project: DC1.Azure - EDA
+    organization: "{{ my_organization }}"
+    rulebook: servicenow_events.yml
+    decision_environment: Default Decision Environment
+    extra_vars:
+      my_azure_catalog_short_description: "{{ my_azure_catalog_short_description }}"
+    event_streams:
+      - event_stream: DC1.Azure - ServiceNow Event Stream
+        source_name: __SOURCE_1
+    eda_credentials: Controller Credential
+    state: present
+```
+
+### Rulebook — `rulebooks/servicenow_events.yml`
+Pattern from `event.driven.ansible/rulebooks/servicenow/servicenow_events.yml`,
+scoped to the one Azure rule:
+```yaml
+---
+- name: Listen for approved requested items from ServiceNow
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+  rules:
+    - name: Run the DC1.Azure provision-and-configure workflow
+      condition: event.payload.short_description == vars.my_azure_catalog_short_description
+      action:
+        run_workflow_template:
+          name: "DC1.Azure - Provision and Configure"
+          organization: "{{ my_organization }}"
+          job_args:
+            extra_vars:
+              ticket_number: "{{ event.payload.number }}"
+              ticket_sys_id: "{{ event.payload.sys_id }}"
+              vm_size_tier: "{{ event.payload.vm_size_tier }}"
+```
+The event stream wraps this `webhook` source via `source_name: __SOURCE_1` in
+the activation — AAP exposes the external URL and enforces the bearer token.
 
 ---
 
-## Outbound: AAP → ServiceNow (callback)
+## Outbound: AAP → ServiceNow (callback, CMDB, incident)
 
 ### Credential instance — `DC1.Azure - ServiceNow`
-Of type `ServiceNow ITSM Credential` (already defined). Injects:
-- `SN_HOST` ← `lookup(env, 'SN_HOST')`
-- `SN_USERNAME` ← `lookup(env, 'SN_USERNAME')`
-- `SN_PASSWORD` ← `lookup(env, 'SN_PASSWORD')`
+Of type `ServiceNow ITSM Credential` (already defined). Injects
+`SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` from `docs/dev-environment.sh`
+(gitignored). Namespaced `DC1.Azure -`.
 
-Sourced at load time from `docs/dev-environment.sh` (gitignored). Namespaced
-`DC1.Azure -` per repo convention.
+### Job templates (point at the synced Windows project)
+- `DC1.Azure - Create CMDB CI` → `playbooks/servicenow/create_ci.yml`
+  (role `create_configuration_item`; CI class **`cmdb_ci_win_server`** as-is from
+  the role's `vars/main.yml`). The role's AWS-flavored fields —
+  `serial_number` (`my_instance_id`), `asset_tag` (`my_ami_id`), `model_number`
+  (`my_instance_type`) — need Azure equivalents threaded via `set_stats` (Azure
+  VM ID, resource ID/omit, and `vm_size_tier`/SKU respectively).
+- `DC1.Azure - Create CMDB Relationship` → `playbooks/servicenow/create_cmdb_relationship.yml`
+- `DC1.Azure - Update RITM (success)` → `playbooks/servicenow/update_sn_req_itm.yml`
+  (state Fulfilled, work note w/ FQDN + public IP + admin user)
+- `DC1.Azure - Update RITM (failure)` → same playbook, failure vars (state 4 +
+  the incident number + error message — the role's `defaults/main.yml` already
+  models this)
+- `DC1.Azure - Create Incident` → `playbooks/servicenow/incident_create.yml`
 
-### Playbook — `playbooks/servicenow_update_ritm.yml`
-- `hosts: localhost`, `connection: local`, `gather_facts: false`.
-- Reads `ticket_number`, plus the Terraform outputs threaded via `set_stats`
-  from the Provision VM node (FQDN, public IP, admin user, vm_size_tier).
-- Uses `servicenow.itsm.api` (or `servicenow.itsm.<table>` module) to PATCH the
-  `sc_req_item` record matching `number == ticket_number`:
-  - `state` → Fulfilled (success) / a failure state (on failure path)
-  - a **work note** with FQDN + public IP + admin user, or the failure reason
-- Auth: `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` from the injected credential.
-- Guard: skip gracefully (no-op + debug) if `ticket_number` is absent — so the
-  same workflow still runs cleanly when launched from the AAP UI / Self-Service
-  (Phase 6/9), which don't supply a ticket.
+All carry the `DC1.Azure - ServiceNow` credential. Inventory: `dc1-azure-control`
+(localhost plays; same reasoning as the Teardown JT — keep them off `dc1-azure`).
 
-### Update-RITM JT — `DC1.Azure - Update ServiceNow RITM`
-- `project: DC1.Azure`, `playbook: playbooks/servicenow_update_ritm.yml`
-- credentials: `DC1.Azure - ServiceNow`
-- inventory: the `dc1-azure-control` inventory (localhost play; same reasoning as
-  the Teardown JT — keep it off `dc1-azure`).
+### Workflow wiring — append to `DC1.Azure - Provision and Configure`
+Mirror the Windows graph (`controller_templates_workflow.yml`):
+- **Patching** `always_nodes` → **Create CMDB CI** → `success_nodes` →
+  **Create CMDB Relationship** → **Update RITM (success)**.
+- **Provision VM** (and any node that can fail) `failure_nodes` →
+  **Create Incident** → `always_nodes` → **Update RITM (failure)**.
 
-### Workflow wiring
-Append to `DC1.Azure - Provision and Configure` **after Patching**:
-- **on success** → `Update ServiceNow RITM` (sets Fulfilled + details)
-- **on failure** (from any prior node) → `Update ServiceNow RITM` with a
-  failure-path var so the RITM gets a failure note instead of hanging.
-
-Implementation note: in `infra.aap_configuration` workflow nodes this is
-`success_nodes` / `failure_nodes` (or `always_nodes`) on the relevant nodes.
-Verify the exact key against the collection's `controller_workflows` schema when
-wiring.
+In `infra.aap_configuration` workflow nodes this is `success_nodes` /
+`failure_nodes` / `always_nodes` under each node's `related:`. Verify exact keys
+against the collection's `controller_workflows` schema when wiring (the Windows
+file is the working reference).
 
 ---
 
 ## Threading provisioning details to the callback
 
-The callback needs FQDN / public IP / admin user. `provision_vm.yml` already
-parses the Terraform `ansible_inventory` output; extend it to `set_stats` the
-fields the callback reports (FQDN, public IP, admin user, vm_size_tier,
-ticket_number) so they propagate as workflow artifacts to the final node. No new
-Azure calls — reuse the values already in hand.
+The callback + CMDB nodes need FQDN / public IP / admin user / vm_size_tier /
+ticket_number / ticket_sys_id, plus the CMDB CI fields the
+`create_configuration_item` role expects (`my_server`, `my_public_ip`, and the
+Azure stand-ins for `my_instance_id` / `my_ami_id` / `my_instance_type`).
+`provision_vm.yml` already parses the Terraform `ansible_inventory` output;
+extend it to `set_stats` those fields so they propagate as workflow artifacts to
+the later nodes. No new Azure calls — reuse values already in hand. The Windows
+`get_instance_info` role (which queries the cloud) is **not** needed for Azure;
+`set_stats` from Provision VM replaces it.
 
 ---
 
 ## Failure & timeout behavior
 
 - The workflow has a finite run (~10 min; Provision VM ~7 min). If a node fails
-  or the workflow hits its timeout, the **failure path** still routes to
-  `Update ServiceNow RITM`, which writes a failure work note + a non-Fulfilled
-  state. The requester never sees a silently-stuck ticket.
-- If `ticket_number` is missing (non-SNow trigger), the callback no-ops — the
-  workflow stays green for the AAP-UI / Self-Service / ADO paths.
-- Azure quota / SP-auth failures surface in the RITM work note via the failure
-  path, mirroring the runbook's failure-mode appendix.
+  or the workflow times out, the **failure path** routes to **Create Incident**
+  then **Update RITM (failure)** — a failure work note + non-Fulfilled state +
+  the incident number. The requester never sees a silently-stuck ticket.
+- If `ticket_number` is missing (non-SNow trigger — AAP UI / Self-Service / ADO),
+  the callback/CMDB/incident nodes no-op or are skipped so the workflow stays
+  green for those paths. (Guard in the playbooks on `ticket_number is defined`.)
+- Azure quota / SP-auth failures surface in the RITM work note + Incident via the
+  failure path, mirroring the runbook's failure-mode appendix.
 
 ---
 
@@ -189,31 +327,47 @@ Azure calls — reuse the values already in hand.
 ```bash
 # --- ServiceNow (Phase 8) ---
 export SN_HOST="https://<instance>.service-now.com"   # ServiceNow instance URL
-export SN_USERNAME="REPLACE_ME_SNOW_USER"             # integration user
+export SN_USERNAME="REPLACE_ME_SNOW_USER"             # integration user (callback)
 export SN_PASSWORD="REPLACE_ME_SNOW_PASSWORD"
-# AAP OAuth token for SNow→AAP launch is stored IN ServiceNow (Connection &
-# Credential alias), not here — mint a dedicated token scoped to launch.
+# Shared bearer token for the EDA event stream. ServiceNow's Outbound REST
+# Message sends it as `Authorization: Bearer <token>`; the ServiceNow Event
+# Stream credential validates it. Mint a strong random value.
+export EDA_EVENT_STREAM_TOKEN="REPLACE_ME_EVENT_STREAM_TOKEN"
 ```
 
 Real values go in `docs/dev-environment.sh` only (gitignored), never committed.
+The `SN_*` callback creds are **already populated** in `docs/dev-environment.sh`;
+`EDA_EVENT_STREAM_TOKEN` is the one value still to mint and add there.
 
 ---
 
-## Build & test plan (when the instance is live)
+## Build & test plan
 
-1. **EE + collection** — add `servicenow.itsm` to `requirements.yml` and the EE
-   build; rebuild/push the EE; re-sync in AAP.
-2. **CaC** — add the `DC1.Azure - ServiceNow` credential, the Update-RITM JT, and
-   the workflow node (success + failure); extend `validate.yml`.
-3. **Playbook** — write `servicenow_update_ritm.yml`; test it standalone against
-   a hand-created RITM (pass `ticket_number` directly) before wiring the workflow.
-4. **`provision_vm.yml`** — add the `set_stats` fields the callback consumes.
-5. **ServiceNow** — build the catalog item + Flow Designer flow; store the AAP
-   token as a SNow credential alias.
-6. **End-to-end** — file a catalog request → watch the AAP workflow launch →
-   confirm the VM exists and the landing page shows the real RITM number → confirm
-   the RITM auto-fills with IP/FQDN/admin → close the ticket.
-7. **Runbook** — add the v2 (SNow-driven) section to `docs/demo-runbook.md`.
+The ServiceNow instance + callback creds are live (in `docs/dev-environment.sh`);
+mint `EDA_EVENT_STREAM_TOKEN` first, then work the steps.
+
+1. **EE + collections** — add `ansible.eda` and `servicenow.itsm` to
+   `requirements.yml` and the EE build; rebuild/push the EE; re-sync in AAP.
+2. **Rulebook** — add `rulebooks/servicenow_events.yml` to this repo; register the
+   `DC1.Azure - EDA` project so AAP/EDA syncs it.
+3. **EDA CaC** — add `eda_credentials.yml`, `eda_decision_environments.yml`,
+   `eda_event_streams.yml`, `eda_rulebook_activations.yml`; add them to
+   `load.yml` vars_files; extend `validate.yml`. Activate the rulebook; capture
+   the event-stream URL.
+4. **Controller CaC** — add the `DC1.Azure - ServiceNow` credential and the five
+   JTs (CMDB CI, CMDB Relationship, Update RITM success/failure, Create Incident)
+   pointing at the Windows project; wire the workflow success/failure/always
+   nodes; extend `validate.yml`.
+5. **`provision_vm.yml`** — add the `set_stats` fields the callback + CMDB nodes
+   consume.
+6. **ServiceNow** — build the catalog item (with the pinned `short_description`),
+   the Business Rule, and the Outbound REST Message → event-stream URL; store the
+   bearer token as a SNow secret.
+7. **End-to-end** — file a catalog request → watch EDA receive the event and
+   launch the workflow → confirm the VM exists and the landing page shows the real
+   RITM number → confirm the RITM auto-fills + CMDB CI/relationship appear → force
+   a failure and confirm the Incident opens + RITM reflects it → close the ticket.
+8. **Runbook** — add the v2 (SNow/EDA-driven) section to `docs/demo-runbook.md`.
 
 Each CaC change follows the established flow (work item → branch → PR →
 self-approve → squash-merge), validated against the live AAP per the project's
@@ -221,13 +375,25 @@ real-run preference.
 
 ---
 
+## Resolved
+
+- **EDA project git URL** → the **Azure DevOps repo** (PAT-backed SCM credential,
+  same auth as the controller `DC1.Azure` project).
+- **CMDB CI class** → **`cmdb_ci_win_server`**, as-is from the
+  `create_configuration_item` role (Azure field-mapping caveat noted above).
+
 ## Open items still to decide during implementation
 
-- Exact `servicenow.itsm` module for the PATCH (`api` generic vs a table-specific
-  module) — pick when testing against the live instance schema.
-- RITM state value mapping (which `state` integer = Fulfilled in the shared dev
-  instance's workflow).
-- Whether to also attach the admin **password** to the RITM (likely a secure
-  work note or omit for the demo — avoid plaintext secrets in the ticket).
+- **Webhook port** in the rulebook source — confirm the port AAP's event-stream
+  proxy expects for this DE (Windows uses `5003`; pick per the DE/activation).
+- Exact `servicenow.itsm` module per record — the Windows roles use
+  `servicenow.itsm.api` / `api_info` generically; reuse as-is.
+- RITM `state` integer mapping (which value = Fulfilled in the shared dev
+  instance) — the Windows role uses `state: 4` for the failure path; confirm the
+  success value on the live instance.
+- **Admin password on the RITM** — *recommendation:* **omit it from the ticket**
+  (or, if the demo needs it, a secure/encrypted work note only). Provision Access
+  already sets the credential in AAP; avoid plaintext secrets in ServiceNow.
+  Decide with Eric during the build.
 
 See [`ROADMAP.md`](../ROADMAP.md) Phase 8 and [`demo-runbook.md`](demo-runbook.md).

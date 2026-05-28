@@ -38,6 +38,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checklist. Historical changelog entries referencing the old file are left intact.
 
 ### Changed
+- **`docs/servicenow-integration.md` redesigned to event-driven (Demo v2)** —
+  the inbound trigger is no longer ServiceNow Flow Designer doing a direct REST
+  `launch/`. Instead a ServiceNow **Business Rule** fires an **Outbound REST
+  Message** at an **AAP EDA event stream**; a dc1.azure-owned **rulebook**
+  (`rulebooks/servicenow_events.yml`) matches on `short_description` and runs the
+  workflow with `run_workflow_template` — mirroring the proven
+  `aap.dailydemo.windows` pattern (ServiceNow holds no workflow ID / launch
+  token). Callback scope expanded to **full Windows parity**: RITM update
+  (success + failure) + CMDB CI + CMDB relationship + Incident-on-failure, built
+  by wiring the already-synced Windows ServiceNow playbooks. Adds EDA CaC
+  building blocks (event-stream + ITSM credentials, decision environment, event
+  stream, rulebook activation, `ansible.eda` collection) and an
+  `EDA_EVENT_STREAM_TOKEN` secret. Resolves the EDA project git URL (the Azure
+  DevOps repo) and the CMDB CI class (`cmdb_ci_win_server`). Status flipped to
+  **ready to implement** — the `SN_*` callback creds are already in
+  `docs/dev-environment.sh`; only `EDA_EVENT_STREAM_TOKEN` remains to mint.
 - **`DC1.Azure` project `scm_update_on_launch` → `false`** (AB#74) — with
   update-on-launch enabled, every workflow node that uses the `DC1.Azure` project
   fired a blocking SCM sync before its job ran, adding minutes to each

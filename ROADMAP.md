@@ -337,27 +337,31 @@ FQDN, admin username. End user closes the ticket.
 
 **Instance:** Red Hat shared ServiceNow dev (URL TBD — capture in `docs/dev-environment.sh` when obtained).
 
-- ⬜ Capture Red Hat shared SNow URL + access credentials in `docs/dev-environment.sh`
-- ⬜ ServiceNow catalog item: "Request Windows VM (Azure)"
-  - ⬜ Variables: `vm_size_tier` (dropdown small/medium/large), `justification` (text), `requestor` (auto-populated)
-  - ⬜ Flow Designer flow: REST POST to AAP `/api/v2/job_templates/<id>/launch/` with extra_vars
-- ⬜ AAP credential: `DC1.Azure - ServiceNow Callback` (HTTP token / Source Control type) for AAP→SNow callbacks
-- ⬜ AAP workflow: add a final "Update ServiceNow RITM" JT that PATCHes the RITM Table record with status + IP + FQDN
-- ⬜ `playbooks/servicenow_update_ritm.yml` — reusable callback playbook using `servicenow.itsm` collection
-- ⬜ `aap_config/files/controller_credentials.yml` — add ServiceNow callback credential entry
-- ⬜ `aap_config/files/controller_templates.yml` — add Update RITM JT
-- ⬜ `aap_config/files/controller_templates_workflow.yml` — wire callback into Provision-and-Configure workflow
-- ⬜ End-to-end test: file a request in SNow self-service → watch RITM update → confirm VM exists → close RITM
-- ⬜ `docs/demo-runbook.md` — v2 section covering the SNow-driven flow alongside v1 (AAP-driven)
+Inbound is **event-driven** (EDA), not a direct REST launch: a ServiceNow
+Business Rule → Outbound REST Message → AAP EDA event stream → dc1.azure-owned
+rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](docs/servicenow-integration.md).
 
-**Open questions — RESOLVED 2026-05-28 (see [`docs/servicenow-integration.md`](docs/servicenow-integration.md)):**
-- Connection direction → **AAP calls SNow back** (richer demo payoff; reuses the existing `ServiceNow ITSM Credential` type).
-- Time-out behavior → the **callback node runs on both success and failure paths**, so the RITM always reaches a terminal state (Fulfilled or a failure work note) and never hangs.
-- Auth from SNow → AAP → **direct REST** from Flow Designer to the AAP launch endpoint (mid-server documented as the enterprise alternative).
+- ⬜ Capture Red Hat shared SNow URL + access creds + `EDA_EVENT_STREAM_TOKEN` in `docs/dev-environment.sh`
+- ⬜ ServiceNow catalog item: "Request Windows VM (Azure)" — variables `vm_size_tier` (dropdown), `justification`, `requestor`; pinned unique `short_description`
+- ⬜ ServiceNow Business Rule + Outbound REST Message → EDA event-stream URL (Bearer token)
+- ⬜ EDA ingress (CaC): `ansible.eda` in `requirements.yml`; `DC1.Azure - EDA` project (this repo); `rulebooks/servicenow_events.yml`; `eda_credentials.yml` (event-stream + Controller creds); `eda_decision_environments.yml`; `eda_event_streams.yml` (type `snow`); `eda_rulebook_activations.yml`
+- ⬜ Callback / CMDB / incident (full Windows parity) — `DC1.Azure - ServiceNow` ITSM credential + five JTs (Create CMDB CI, Create CMDB Relationship, Update RITM success/failure, Create Incident) pointing at the synced Windows project's `playbooks/servicenow/*`
+- ⬜ Wire workflow nodes: Patching→CMDB CI→Relationship→Update RITM (success); failure→Create Incident→Update RITM (failure)
+- ⬜ `provision_vm.yml` — `set_stats` FQDN/IP/admin/size/ticket for the callback + CMDB nodes
+- ⬜ `validate.yml` — assert the new EDA objects + creds + JTs
+- ⬜ End-to-end test (incl. forced failure → Incident); `docs/demo-runbook.md` v2 section
+
+**Open questions — RESOLVED (see [`docs/servicenow-integration.md`](docs/servicenow-integration.md)):**
+- Inbound trigger → **EDA event stream** (Business Rule → Outbound REST → rulebook → `run_workflow_template`); SNow holds no workflow ID/launch token. *(Revised 2026-05-28 from the original direct-REST decision.)*
+- Rulebook home → **dc1.azure-owned rulebook** (no cross-repo PR into `event.driven.ansible`).
+- EDA project git URL → the **Azure DevOps repo** (PAT-backed SCM credential).
+- Result direction → **AAP calls SNow back** (reuses the `ServiceNow ITSM Credential` type).
+- Callback scope → **full Windows parity** (RITM + CMDB CI `cmdb_ci_win_server` + relationship + Incident-on-failure).
+- Timeout behavior → callback runs on **both success and failure paths**; RITM never hangs.
 
 **Progress:**
-- ✅ `docs/servicenow-integration.md` — design + build spec written (AB#78); decisions above resolved; `dev-environment.sh.example` seeded with commented `SN_*` placeholders.
-- ⬜ Implementation deferred (design-doc-first) until the live ServiceNow instance is wired into `docs/dev-environment.sh`; build plan in the design doc.
+- ✅ `docs/servicenow-integration.md` — design v1 written (AB#78), then **redesigned to event-driven Demo v2** (EDA event stream + full Windows parity); decisions above resolved.
+- 🔄 **Ready to implement** — SNow callback creds (`SN_*`) are in `docs/dev-environment.sh`; only `EDA_EVENT_STREAM_TOKEN` remains to mint. Build plan in the design doc.
 
 **Exit criteria:** a user with zero prior context can request a Windows VM through the SNow self-service portal, receive a fulfilled RITM with the IP + admin credentials, and RDP into a working Windows machine.
 

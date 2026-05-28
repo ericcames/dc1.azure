@@ -46,14 +46,20 @@ export AZURE_TF_STORAGE_ACCOUNT=REPLACE_ME_TF_STATE_SA        # must exist befor
 # --- Azure DevOps PAT -------------------------------------------------------
 export ADO_PAT=REPLACE_ME_ADO_PAT
 
-# --- ServiceNow (Phase 8 — design only; uncomment when the integration lands)
-# Consumed by the DC1.Azure - ServiceNow credential (ServiceNow ITSM Credential
-# type) for the AAP->SNow RITM callback. See docs/servicenow-integration.md.
-# The AAP OAuth token for the SNow->AAP launch lives IN ServiceNow (a Connection
-# & Credential alias), not here.
+# --- ServiceNow (Phase 8) ----------------------------------------------------
+# SN_* are consumed by the DC1.Azure - ServiceNow credential (ServiceNow ITSM
+# Credential type) for the AAP->SNow RITM/CMDB/incident callback.
+# See docs/servicenow-integration.md.
 # export SN_HOST=https://REPLACE_ME_SNOW_INSTANCE.service-now.com
 # export SN_USERNAME=REPLACE_ME_SNOW_USER
 # export SN_PASSWORD=REPLACE_ME_SNOW_PASSWORD
+#
+# EDA_EVENT_STREAM_TOKEN is a strong RANDOM value YOU mint (not received). The
+# same value goes two places and must match: the AAP "ServiceNow Event Stream"
+# credential (set at load time from this var) AND the Authorization: Bearer
+# header of the ServiceNow Outbound REST Message. Generate with e.g.
+#   openssl rand -hex 32
+# export EDA_EVENT_STREAM_TOKEN=REPLACE_ME_EVENT_STREAM_TOKEN
 
 # --- Optional overrides (safe to leave commented out) ----------------------
 # export AH_HOSTNAME=$AAP_HOSTNAME           # Hub hostname; defaults to AAP gateway host (correct for AAP 2.5)
