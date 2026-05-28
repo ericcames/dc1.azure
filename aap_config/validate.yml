@@ -18,7 +18,15 @@
       - endpoint: inventories
         names: ["{{ inventory_name }}"]
       - endpoint: credentials
-        names: ["{{ cred_vault }}", "{{ cred_azure_rm }}", "{{ cred_ado_scm }}", "{{ cred_windows }}", "{{ cred_controller }}", "{{ cred_hub_registry }}"]
+        names:
+          - "{{ cred_vault }}"
+          - "{{ cred_azure_rm }}"
+          - "{{ cred_ado_scm }}"
+          - "{{ cred_windows }}"
+          - "{{ cred_controller }}"
+          - "{{ cred_hub_registry }}"
+          - "{{ cred_win_admin_password }}"
+          - "{{ cred_demo_account_password }}"
       - endpoint: execution_environments
         names: ["{{ ee_name }}"]
       - endpoint: job_templates

@@ -43,6 +43,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Access JT creates). It was present in `docs/dev-environment.sh.example` but
   missing from the manual-install table, so a doc-only installer would have left
   the credential empty and broken the Provision Access step.
+- **`aap_config/validate.yml` credential coverage** (AB#69) — the post-load
+  validation asserted only 6 of the 8 credentials `load.yml` creates; it now also
+  checks `DC1.Azure - Windows Admin Password` and `DC1.Azure - Demo Account
+  Password` (the custom credential-type creds added in Phase 4). Previously a
+  partial apply that dropped either could still exit green.
 
 ## 0.2.0 — 2026-05-27
 
