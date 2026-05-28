@@ -16,7 +16,7 @@ the deprecated `playbooks/bootstrap_aap.yml`.
 | `group_vars/all.yml` | Connection + secret references (env-var lookups) + object names |
 | `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
 | `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) |
-| `files/controller_inventories.yml` | `dc1-azure` inventory (WinRM group vars; hosts added at runtime) |
+| `files/controller_inventories.yml` | `dc1-azure` inventory (WinRM group vars; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |
 | `files/controller_job_templates.yml` | 6 JTs — var is `controller_templates` |
 | `files/controller_workflow_job_templates.yml` | The core workflow — var is `controller_workflows` |
 

@@ -14,3 +14,13 @@ controller_inventories:
       ansible_port: 5986
       ansible_winrm_transport: ntlm
       ansible_winrm_server_cert_validation: ignore
+
+  # Control inventory the Teardown JT runs against (AB#73). The teardown play
+  # runs on localhost and deregisters the VM from `dc1-azure` over the API, so
+  # the JT must not run against `dc1-azure` itself — AAP locks the hosts of the
+  # inventory a running job uses, blocking the job from deleting the very host
+  # it's "running against". Kept empty: AWX provides an implicit localhost, so
+  # no host definition is needed for a `hosts: localhost`, `connection: local`
+  # play.
+  - name: "{{ control_inventory_name }}"
+    organization: "{{ my_organization }}"

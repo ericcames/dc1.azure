@@ -16,7 +16,7 @@
       - endpoint: projects
         names: ["{{ project_name }}", "{{ windows_project_name }}"]
       - endpoint: inventories
-        names: ["{{ inventory_name }}"]
+        names: ["{{ inventory_name }}", "{{ control_inventory_name }}"]
       - endpoint: credentials
         names:
           - "{{ cred_vault }}"

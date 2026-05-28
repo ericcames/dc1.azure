@@ -94,6 +94,12 @@ hub_registry_password: "{{ controller_cred_password }}"
 
 project_name: "DC1.Azure"
 inventory_name: "dc1-azure"
+# Control inventory the Teardown JT runs against. The teardown play runs on
+# localhost (deregistration hits dc1-azure via the API), so the JT must NOT run
+# against dc1-azure itself — AAP locks the hosts of the inventory a running job
+# uses, which blocks the JT from deleting the very host it's "running against"
+# (AB#73). An empty inventory is sufficient: AWX provides an implicit localhost.
+control_inventory_name: "dc1-azure-control"
 workflow_name: "DC1.Azure - Provision and Configure"
 # Teardown JT name (single source of truth — referenced by the JT definition
 # and the nightly teardown schedule) and the schedule object name.

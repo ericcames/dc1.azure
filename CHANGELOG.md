@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Fixed
+- **`DC1.Azure - Teardown` deregistration self-block** (AB#73) — the Teardown JT
+  ran against the `dc1-azure` inventory, so AAP locked that inventory's hosts for
+  the duration of the job and refused to let the job delete the very host it had
+  just destroyed; the "Remove host from inventory" step failed and the JT reported
+  **failed even though `terraform destroy` succeeded** (and stale hosts accumulated,
+  one per random VM FQDN). Added a small, empty `dc1-azure-control` inventory and
+  pointed the Teardown JT at it. The play already runs on `localhost` and the
+  deregistration step targets `dc1-azure` over the API regardless, so the host is
+  no longer "in use". `validate.yml` now asserts both inventories exist.
 - **`DC1.Azure - Teardown` terraform init backend config** (AB#71) — the teardown
   playbook ran a bare `terraform init` (no `-backend-config`) and the Teardown JT
   never passed `dc1_azure_tf_storage_account`, so the azurerm backend initialized

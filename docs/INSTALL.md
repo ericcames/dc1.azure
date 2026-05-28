@@ -288,7 +288,8 @@ In the AAP UI you should now see (all prefixed `DC1.Azure -`): 8 credentials
 (Vault, Azure RM, ADO Source Control, Windows Machine, Controller, Hub Registry,
 plus the Windows Admin Password and Demo Account Password custom-type
 credentials), 2 projects (`DC1.Azure`,
-`aap.dailydemo.windows`), the `dc1-azure` inventory, 6 job templates, the
+`aap.dailydemo.windows`), 2 inventories (`dc1-azure` plus the empty
+`dc1-azure-control` the Teardown JT runs against), 6 job templates, the
 `DC1.Azure - EE` execution environment, the **`DC1.Azure - Provision and
 Configure`** workflow, and the `DC1.Azure - Nightly Teardown` schedule on the
 Teardown job template (runs daily at 18:00 `America/Phoenix`).

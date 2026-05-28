@@ -87,7 +87,11 @@ controller_templates:
   - name: "{{ teardown_template }}"
     job_type: run
     organization: "{{ my_organization }}"
-    inventory: "{{ inventory_name }}"
+    # Runs against the control inventory, NOT dc1-azure (AB#73): AAP locks the
+    # hosts of the inventory a running job uses, which would block this job from
+    # deregistering the VM it just destroyed. The play runs on localhost and the
+    # deregistration step targets dc1-azure over the API regardless.
+    inventory: "{{ control_inventory_name }}"
     project: "{{ project_name }}"
     playbook: playbooks/teardown.yml
     execution_environment: "{{ my_execution_environment }}"
