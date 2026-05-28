@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **`docs/servicenow-integration.md`** (AB#78, Epic AB#77) — Phase 8 ServiceNow
+  integration design + build spec. Resolves the three ROADMAP open questions:
+  **AAP calls ServiceNow back** for the RITM update (not SNow-polls-AAP),
+  **direct REST** for the SNow→AAP launch (mid-server documented as the
+  enterprise alternative), and a **callback node on both success and failure
+  paths** so the RITM never hangs. Documents the architecture/sequence, catalog
+  item + Flow Designer flow, the `DC1.Azure - ServiceNow` callback credential,
+  `servicenow_update_ritm.yml`, the Update-RITM JT + workflow wiring, threading
+  `ticket_number` through to close the landing-page `N/A` loop, and the
+  build/test plan. `docs/dev-environment.sh.example` seeded with commented
+  `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` placeholders. Implementation deferred
+  (design-doc-first) until the live instance is wired.
 - **`docs/demo-runbook.md`** (AB#76) — SE-facing live-demo runbook for the v1
   AAP-driven flow: pre-flight checklist, talking track, click-by-click through
   the AAP UI (launch *DC1.Azure - Provision and Configure* + the `vm_size_tier`

@@ -49,6 +49,7 @@ dc1.azure/
 ├── docs/
 │   ├── INSTALL.md        ← manual install guide (Phase 7)
 │   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — AAP-driven flow)
+│   ├── servicenow-integration.md ← ServiceNow design + build spec (Phase 8)
 │   └── images/
 ├── collections/requirements.yml
 ├── galaxy.yml

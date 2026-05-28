@@ -46,6 +46,15 @@ export AZURE_TF_STORAGE_ACCOUNT=REPLACE_ME_TF_STATE_SA        # must exist befor
 # --- Azure DevOps PAT -------------------------------------------------------
 export ADO_PAT=REPLACE_ME_ADO_PAT
 
+# --- ServiceNow (Phase 8 — design only; uncomment when the integration lands)
+# Consumed by the DC1.Azure - ServiceNow credential (ServiceNow ITSM Credential
+# type) for the AAP->SNow RITM callback. See docs/servicenow-integration.md.
+# The AAP OAuth token for the SNow->AAP launch lives IN ServiceNow (a Connection
+# & Credential alias), not here.
+# export SN_HOST=https://REPLACE_ME_SNOW_INSTANCE.service-now.com
+# export SN_USERNAME=REPLACE_ME_SNOW_USER
+# export SN_PASSWORD=REPLACE_ME_SNOW_PASSWORD
+
 # --- Optional overrides (safe to leave commented out) ----------------------
 # export AH_HOSTNAME=$AAP_HOSTNAME           # Hub hostname; defaults to AAP gateway host (correct for AAP 2.5)
 # export DC1_AZURE_EE='DC1.Azure - EE'       # EE name; load.yml creates this automatically

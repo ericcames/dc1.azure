@@ -327,7 +327,7 @@ interactively.
 
 **Exit criteria:** ✅ Met 2026-05-26. First-time install completed via the Claude Code skill without consulting source code beyond what the skill prompted.
 
-### Phase 8 — ServiceNow Integration (Demo v2)  ⬜
+### Phase 8 — ServiceNow Integration (Demo v2)  🔄
 
 End-state demo flow: business user goes to ServiceNow self-service catalog,
 requests a Windows VM (Azure), picks size, submits. SNow triggers the
@@ -350,10 +350,14 @@ FQDN, admin username. End user closes the ticket.
 - ⬜ End-to-end test: file a request in SNow self-service → watch RITM update → confirm VM exists → close RITM
 - ⬜ `docs/demo-runbook.md` — v2 section covering the SNow-driven flow alongside v1 (AAP-driven)
 
-**Open questions for Phase 8 (decide during phase execution):**
-- Connection direction: SNow polls AAP (simpler) vs AAP calls SNow back (richer UX; requires AAP→SNow cred)
-- Time-out behavior: what does the RITM show if Azure provisioning hangs at 9 minutes (workflow time-out)?
-- Auth from SNow to AAP: mid-server vs direct REST (mid-server is enterprise-standard but more setup)
+**Open questions — RESOLVED 2026-05-28 (see [`docs/servicenow-integration.md`](docs/servicenow-integration.md)):**
+- Connection direction → **AAP calls SNow back** (richer demo payoff; reuses the existing `ServiceNow ITSM Credential` type).
+- Time-out behavior → the **callback node runs on both success and failure paths**, so the RITM always reaches a terminal state (Fulfilled or a failure work note) and never hangs.
+- Auth from SNow → AAP → **direct REST** from Flow Designer to the AAP launch endpoint (mid-server documented as the enterprise alternative).
+
+**Progress:**
+- ✅ `docs/servicenow-integration.md` — design + build spec written (AB#78); decisions above resolved; `dev-environment.sh.example` seeded with commented `SN_*` placeholders.
+- ⬜ Implementation deferred (design-doc-first) until the live ServiceNow instance is wired into `docs/dev-environment.sh`; build plan in the design doc.
 
 **Exit criteria:** a user with zero prior context can request a Windows VM through the SNow self-service portal, receive a fulfilled RITM with the IP + admin credentials, and RDP into a working Windows machine.
 
@@ -439,6 +443,7 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-05-27 | **`website_setup_azure` role** (AB#59) at `playbooks/roles/` instead of project root `roles/` | AWX EEs search `<playbook_dir>/roles/` only — project root `roles/` is invisible to the EE. All roles called from `playbooks/` must live in `playbooks/roles/`. |
 | 2026-05-27 | **`DC1.Azure - Demo Account Password` custom credential type** (AB#59) injects `default_passwd` extra var for the Provision Access JT | JT surveys do not fire when a JT runs as a workflow node — the credential type is the only way to inject the secret without a survey at workflow launch |
 | 2026-05-27 | Azure-native `website_setup_azure` role (AB#59) instead of reusing `aap.dailydemo.windows`'s `website_setup` role | Upstream `website_setup` used AWS-only vars (`my_ami_id`, `vpc_create_time`, availability zone etc.); Azure equivalents are `inventory_hostname`, `vm_size_tier`, `dc1_azure_location`. `ticket_number` left as `default('N/A')` until ServiceNow (Phase 8) |
+| 2026-05-28 | **Phase 8 ServiceNow: AAP calls SNow back** (not SNow polls AAP); **direct REST** SNow→AAP (not mid-server); **callback node on success+failure paths** (AB#78) | Callback gives the richer demo payoff (RITM auto-fills with IP/FQDN on screen) and keeps status logic out of SNow; direct REST is far less setup than a MID Server for a demo; dual-path callback means the RITM never hangs silently on a failed/timed-out workflow. `ticket_number` passed into the launch threads to both the landing page and the callback, closing the `N/A` loop. Design-doc-first: code deferred until the live instance is wired |
 
 ---
 
