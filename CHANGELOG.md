@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Fixed
+- **`roles/website_setup_azure` moved to `playbooks/roles/`** (AB#67) — AWX EE
+  searches `<playbook_dir>/roles/` not the project root `roles/`, so the role
+  was not found at runtime. Moved to `playbooks/roles/website_setup_azure/`.
 - **`terraform/variables.tf` vm_size_tier validation** (AB#66) — validation rule
   and default still used `small|medium|large` after AB#62 renamed them to
   `small-2cpu-8gb|medium-4cpu-16gb|large-8cpu-32gb`, causing `terraform apply`
