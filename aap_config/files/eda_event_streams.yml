@@ -1,0 +1,10 @@
+---
+# Consumed by the infra.aap_configuration.eda_event_streams role.
+# The external ingress ServiceNow's Outbound REST Message POSTs to. Its type is
+# inferred from the credential type ('ServiceNow Event Stream'); forward_events
+# wires it to the rulebook activation's source __SOURCE_1.
+eda_event_streams:
+  - name: "{{ eda_event_stream_name }}"
+    credential_name: "{{ eda_snow_event_stream_credential }}"
+    organization: "{{ my_organization }}"
+    forward_events: true

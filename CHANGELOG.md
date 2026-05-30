@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 8 EDA inbound trigger** (AB#81, Epic AB#77) — a ServiceNow-shaped event
+  posted to an AAP EDA event stream now launches the existing
+  *DC1.Azure - Provision and Configure* workflow. Adds the dc1.azure-owned
+  rulebook **`rulebooks/servicenow_events.yml`** (matches on
+  `short_description == my_azure_catalog_short_description`, runs
+  `run_workflow_template` threading `ticket_number`/`ticket_sys_id`/`vm_size_tier`)
+  and its EDA Config-as-Code: **`eda_credentials.yml`** (`DC1.Azure - EDA Controller`
+  Red Hat AAP cred, `DC1.Azure - ServiceNow Event Stream` event-stream cred,
+  `DC1.Azure - EDA Source Control` ADO-PAT SCM cred), **`eda_event_streams.yml`**,
+  **`eda_rulebook_activations.yml`** (`DC1.Azure - Catch ServiceNow Events`), and a
+  `DC1.Azure - EDA` entry in **`eda_projects.yml`** syncing this repo's rulebook
+  from the ADO git URL. Wires all four into `load.yml`, extends `validate.yml`
+  with EDA-object assertions (`/api/eda/v1/`), and adds `ansible.eda` (2.11.0) to
+  `aap_config/requirements.yml`. Reuses the platform's built-in *Default Decision
+  Environment* (no new registry credential). Test: POST a synthetic payload to the
+  event-stream URL with the bearer token → the workflow launches.
 - **`docs/servicenow-integration.md`** (AB#78 origin → **AB#79 redesign**, Epic
   AB#77) — Phase 8 ServiceNow integration design + build spec, **event-driven
   (Demo v2)**. Inbound: a ServiceNow **Business Rule** fires an **Outbound REST

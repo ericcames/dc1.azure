@@ -1,0 +1,23 @@
+---
+# Consumed by the infra.aap_configuration.eda_rulebook_activations role.
+# Binds the rulebook (synced via the DC1.Azure - EDA project) to the event
+# stream and a decision environment, and authenticates to Controller via the
+# EDA Controller credential so the rulebook can launch the workflow.
+eda_rulebook_activations:
+  - name: "{{ eda_rulebook_activation_name }}"
+    project: "{{ eda_project_name }}"
+    organization: "{{ my_organization }}"
+    rulebook: servicenow_events.yml
+    decision_environment: "{{ eda_decision_environment }}"
+    # Injects the match string into the rulebook so the condition lives in CaC.
+    extra_vars:
+      my_azure_catalog_short_description: "{{ my_azure_catalog_short_description }}"
+    # Bind the event stream to the rulebook's first (only) source. EDA names an
+    # unnamed source __SOURCE_1; swap_single_source (default true) maps it.
+    event_streams:
+      - event_stream: "{{ eda_event_stream_name }}"
+        source_name: __SOURCE_1
+    # List of EDA credential names — lets the rulebook authenticate to Controller.
+    eda_credentials:
+      - "{{ eda_controller_credential }}"
+    state: present

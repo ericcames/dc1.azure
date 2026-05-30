@@ -122,3 +122,28 @@ windows_project_scm_branch: "v1.0.1"
 
 # --- ADO repo this project syncs from (HTTPS + PAT auth) ---------------------
 ado_project_scm_url: "https://dev.azure.com/ericcames/dc1.azure/_git/dc1.azure"
+
+# --- Phase 8: EDA inbound (ServiceNow event-driven trigger) -------------------
+# EDA object names (namespaced `DC1.Azure -`). EDA keeps its own credential and
+# project stores, separate from the controller_* objects above.
+eda_project_name: "DC1.Azure - EDA"
+eda_controller_credential: "DC1.Azure - EDA Controller"
+eda_snow_event_stream_credential: "DC1.Azure - ServiceNow Event Stream"
+eda_event_stream_name: "DC1.Azure - ServiceNow Event Stream"
+eda_scm_credential: "DC1.Azure - EDA Source Control"
+eda_rulebook_activation_name: "DC1.Azure - Catch ServiceNow Events"
+# Decision environment the activation runs in. Reuses the platform's built-in
+# DE so we don't have to mint a registry.redhat.io EDA registry credential; the
+# stock de-supported image already ships ansible.eda. Override DC1_AZURE_EDA_DE
+# if your AAP names its default DE differently.
+eda_decision_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EDA_DE') | default('Default Decision Environment', true) }}"
+
+# The catalog item's short_description — the rulebook matches on this exact
+# string. Must equal the ServiceNow catalog item's Short description verbatim.
+my_azure_catalog_short_description: "DC1.Azure Windows VM on Azure"
+
+# Shared bearer token: ServiceNow's Outbound REST Message sends it as
+# `Authorization: Bearer <token>`; the ServiceNow Event Stream credential
+# validates it. Minted once (openssl rand -hex 32) and stored in
+# docs/dev-environment.sh — never committed.
+eda_event_stream_token: "{{ lookup('ansible.builtin.env', 'EDA_EVENT_STREAM_TOKEN') }}"

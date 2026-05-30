@@ -7,3 +7,15 @@ eda_projects:
     url: https://github.com/ericcames/event.driven.ansible.git
     organization: "{{ my_organization }}"
     tls_validation: true
+
+  # dc1.azure's own EDA project — syncs this repo's rulebooks/ from the Azure
+  # DevOps git URL so the rulebook activation can run servicenow_events.yml.
+  # Uses an EDA-side Source Control credential (ADO PAT). sync: true pulls the
+  # rulebook on apply (the rulebook must already be on `main`).
+  - name: "{{ eda_project_name }}"
+    description: "dc1.azure EDA rulebooks (ServiceNow event-driven trigger)"
+    url: "{{ ado_project_scm_url }}"
+    scm_branch: main
+    credential: "{{ eda_scm_credential }}"
+    organization: "{{ my_organization }}"
+    sync: true

@@ -32,6 +32,9 @@
     - files/gateway_organizations.yml
     - files/gateway_teams.yml
     - files/eda_projects.yml
+    - files/eda_credentials.yml                  # Phase 8: EDA inbound creds
+    - files/eda_event_streams.yml                # Phase 8: ServiceNow event stream
+    - files/eda_rulebook_activations.yml         # Phase 8: rulebook activation
     - files/controller_credential_types.yml
     - files/controller_credentials.yml
     - files/controller_projects.yml

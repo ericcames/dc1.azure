@@ -14,6 +14,14 @@ collections:
     version: 2.6.20251106
   - name: ansible.controller
     version: 4.7.8
+  # Phase 8: the infra.aap_configuration.eda_* roles (eda_credentials,
+  # eda_event_streams, eda_rulebook_activations, ...) call ansible.eda.* modules,
+  # so the control node running load.yml needs this collection. The rulebook
+  # itself runs in the Decision Environment (which already ships ansible.eda);
+  # this pin is only for load.yml's CaC apply. servicenow.itsm + the EE rebuild
+  # land with the outbound callback work (PR2).
+  - name: ansible.eda
+    version: 2.11.0
 
 # NOTE on reusing the Windows daily-demo roles (decision 2026-05-26):
 # dc1.azure does NOT vendor or galaxy-install those roles here. Instead it

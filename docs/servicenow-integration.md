@@ -391,9 +391,35 @@ real-run preference.
 - RITM `state` integer mapping (which value = Fulfilled in the shared dev
   instance) — the Windows role uses `state: 4` for the failure path; confirm the
   success value on the live instance.
-- **Admin password on the RITM** — *recommendation:* **omit it from the ticket**
-  (or, if the demo needs it, a secure/encrypted work note only). Provision Access
-  already sets the credential in AAP; avoid plaintext secrets in ServiceNow.
-  Decide with Eric during the build.
+- **Admin password on the RITM** — **DECIDED (2026-05-29): omit it entirely.**
+  The RITM work note carries FQDN + public IP + admin username only; the password
+  stays in the AAP credential (Provision Access sets it). No plaintext secret in
+  ServiceNow.
+
+## As-built deltas — PR1 (AB#81, inbound EDA trigger)
+
+The inbound half shipped; these refine the spec above against the
+`infra.aap_configuration` 4.4.0 / `ansible.eda` 2.11.0 contracts verified at
+build time:
+
+- **`event_stream_type: snow` dropped.** `ansible.eda.event_stream` deprecates
+  and ignores that field — the stream's type is inferred from its credential type
+  (`ServiceNow Event Stream`). `eda_event_streams.yml` omits it.
+- **Activation `eda_credentials` is a list of names**, not a scalar — corrected in
+  `eda_rulebook_activations.yml` (`- "{{ eda_controller_credential }}"`).
+- **EDA needs its own SCM credential.** EDA keeps a credential store separate from
+  the controller's, so the EDA project can't reuse `DC1.Azure - ADO Source
+  Control`; PR1 adds `DC1.Azure - EDA Source Control` (type `Source Control`, same
+  ADO PAT).
+- **Decision Environment reused, not created.** The activation points at the
+  platform's built-in *Default Decision Environment* (overridable via
+  `DC1_AZURE_EDA_DE`) so we don't have to mint a `registry.redhat.io` EDA registry
+  credential; the stock DE already ships `ansible.eda`. No `eda_decision_environments.yml`.
+- **Webhook port = 5000** (the rulebook's internal source port; the event-stream
+  proxy forwards to it — value is isolated to the activation pod).
+- **Apply-order note:** the EDA project syncs `sync: true` on apply, but if the
+  rulebook activation is created before the sync finishes pulling
+  `servicenow_events.yml`, re-run `load.yml` (idempotent) so the activation finds
+  the rulebook.
 
 See [`ROADMAP.md`](../ROADMAP.md) Phase 8 and [`demo-runbook.md`](demo-runbook.md).

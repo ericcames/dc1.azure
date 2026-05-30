@@ -1,0 +1,43 @@
+---
+# ============================================================================
+# rulebooks/servicenow_events.yml — Phase 8 (event-driven, Demo v2)
+# ============================================================================
+# dc1.azure-owned Event-Driven Ansible rulebook. Listens for ServiceNow catalog
+# requests forwarded by the "DC1.Azure - ServiceNow Event Stream" event stream
+# and launches the existing provision-and-configure workflow.
+#
+# Flow:
+#   ServiceNow Business Rule → Outbound REST Message → AAP EDA event stream →
+#   THIS rulebook (source __SOURCE_1) → run_workflow_template
+#
+# The webhook source below is the rulebook's single source. The event stream is
+# bound to it as `__SOURCE_1` by the rulebook activation
+# (aap_config/files/eda_rulebook_activations.yml), so AAP — not this file —
+# exposes the external URL and enforces the bearer token. The host/port here are
+# internal to the activation pod; the event-stream proxy forwards to them.
+#
+# The activation injects `my_azure_catalog_short_description` as an extra var so
+# the match string lives in CaC (group_vars/all.yml), not hard-coded here. Only
+# events whose `short_description` equals that string trigger the workflow, so a
+# single event stream can serve every ServiceNow-driven demo.
+# ============================================================================
+
+- name: Listen for approved requested items from ServiceNow
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    - name: Run the DC1.Azure provision-and-configure workflow
+      condition: event.payload.short_description == vars.my_azure_catalog_short_description
+      action:
+        run_workflow_template:
+          name: "DC1.Azure - Provision and Configure"
+          organization: "{{ my_organization }}"
+          job_args:
+            extra_vars:
+              ticket_number: "{{ event.payload.number }}"
+              ticket_sys_id: "{{ event.payload.sys_id }}"
+              vm_size_tier: "{{ event.payload.vm_size_tier }}"
