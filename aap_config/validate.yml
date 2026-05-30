@@ -41,6 +41,7 @@
           - "{{ cred_hub_registry }}"
           - "{{ cred_win_admin_password }}"
           - "{{ cred_demo_account_password }}"
+          - "{{ cred_servicenow }}"
       - endpoint: execution_environments
         names: ["{{ ee_name }}"]
       - endpoint: job_templates
@@ -51,6 +52,11 @@
           - "DC1.Azure - Provision Access"
           - "DC1.Azure - Patching"
           - "DC1.Azure - Teardown"
+          - "DC1.Azure - Create CMDB CI"
+          - "DC1.Azure - Create CMDB Relationship"
+          - "DC1.Azure - Update RITM (success)"
+          - "DC1.Azure - Update RITM (failure)"
+          - "DC1.Azure - Create Incident"
       - endpoint: workflow_job_templates
         names: ["{{ workflow_name }}"]
       - endpoint: schedules

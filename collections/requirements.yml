@@ -26,3 +26,11 @@ collections:
     version: 3.0.0
   - name: community.windows
     version: 3.0.0
+
+  # ServiceNow callback (Phase 8, AB#83) — the playbooks/servicenow/* callback,
+  # CMDB and incident playbooks call servicenow.itsm.* modules, so the EE must
+  # carry this collection. 2.13.0 matches the proven aap.dailydemo.windows pin
+  # (Hub-available). REQUIRES AN EE REBUILD: after merging, rebuild + push
+  # DC1.Azure - EE (see execution-environment.yml) and re-sync it in AAP.
+  - name: servicenow.itsm
+    version: 2.13.0

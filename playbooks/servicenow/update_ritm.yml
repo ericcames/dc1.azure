@@ -1,0 +1,92 @@
+---
+# ============================================================================
+# playbooks/servicenow/update_ritm.yml — Phase 8 (outbound callback)
+# ============================================================================
+# Updates the ServiceNow requested item (sc_req_item) the demo was launched
+# from — work note + state. One playbook drives BOTH the success and failure
+# JTs via ritm_outcome (set per JT in extra_vars). dc1.azure-owned + guarded on
+# ticket_number so non-ServiceNow launches no-op. Mirrors the Windows
+# update_requested_item role (resolve by numberSTARTSWITH, then api patch).
+#
+# Per the 2026-05-29 decision the admin PASSWORD is never written to the RITM —
+# the success note carries FQDN + public IP + admin USERNAME only.
+#
+# JT extra_vars:
+#   ritm_outcome   success | failure   (which JT is calling)
+# Workflow artifacts consumed:
+#   success: vm_fqdn / vm_public_ip / vm_admin_username (from provision_vm set_stats)
+#   failure: create_incident_ticket / vm_my_job_id / vm_my_error (incident + rescue)
+# Credential: DC1.Azure - ServiceNow.
+#
+# NOTE: ServiceNow request_state integers vary by instance. The failure state
+# mirrors the Windows role (4). servicenow_ritm_success_state defaults to 3
+# (commonly "Closed Complete") — CONFIRM the live instance's value and override
+# via the JT/extra_vars if different.
+# ============================================================================
+
+- name: Update the ServiceNow requested item with the demo outcome
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ritm_outcome: success
+    servicenow_ritm_success_state: "3"
+    servicenow_ritm_failure_state: "4"
+    ritm_success_comment: |-
+      Your Windows Server on Azure is ready.
+
+      FQDN:     {{ vm_fqdn | default('n/a') }}
+      Public IP:{{ vm_public_ip | default('n/a') }}
+      Admin user: {{ vm_admin_username | default('demoadmin') }}
+
+      (The admin password is held securely in Ansible Automation Platform — it is
+      intentionally NOT recorded on this ticket.)
+    ritm_failure_comment: |-
+      Provisioning did not complete.
+
+      ServiceNow incident: {{ create_incident_ticket | default('n/a') }}
+      Ansible Job ID:      {{ vm_my_job_id | default('n/a') }}
+      Message:             {{ vm_my_error | default('see Ansible job output') }}
+
+  tasks:
+    - name: Update the RITM (only on a ServiceNow-driven run)
+      when:
+        - ticket_number is defined
+        - ticket_number | string | length > 0
+      block:
+        - name: Resolve the requested item sys_id by number
+          register: ritm_lookup
+          servicenow.itsm.api_info:
+            resource: sc_req_item
+            sysparm_query: "numberSTARTSWITH{{ ticket_number }}"
+
+        - name: Fail clearly if the RITM was not found
+          ansible.builtin.assert:
+            that:
+              - ritm_lookup.record | length > 0
+            fail_msg: "No sc_req_item matched number '{{ ticket_number }}'."
+
+        - name: Select state + work note for this outcome
+          ansible.builtin.set_fact:
+            ritm_target_state: >-
+              {{ servicenow_ritm_success_state if ritm_outcome == 'success'
+                 else servicenow_ritm_failure_state }}
+            ritm_comment: >-
+              {{ ritm_success_comment if ritm_outcome == 'success'
+                 else ritm_failure_comment }}
+
+        - name: Patch the requested item (state + work note)
+          servicenow.itsm.api:
+            action: patch
+            resource: sc_req_item
+            sys_id: "{{ ritm_lookup.record[0].sys_id }}"
+            data:
+              state: "{{ ritm_target_state }}"
+              request_state: "{{ ritm_target_state }}"
+              comments: "{{ ritm_comment }}"
+
+    - name: Note skip on a non-ServiceNow run
+      when: ticket_number is not defined or (ticket_number | string | length == 0)
+      ansible.builtin.debug:
+        msg: "No ticket_number — non-ServiceNow launch; skipping RITM update."

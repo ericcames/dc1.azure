@@ -221,6 +221,79 @@ reused; the next provision starts clean.
 
 ---
 
+## 7. The ServiceNow-driven variant (Demo v2 — event-driven)
+
+Same workflow, different front door: a business user requests the VM from the
+**ServiceNow self-service catalog** and never touches AAP. This is the higher-value
+story for an ITSM audience — *"your existing request process, now fulfilled by
+automation, with the ticket and CMDB updated automatically."* Full design:
+[`servicenow-integration.md`](servicenow-integration.md).
+
+**How it flows**
+
+```
+ServiceNow catalog request  →  Business Rule → Outbound REST Message
+   →  AAP EDA event stream  →  rulebook (matches short_description)
+   →  DC1.Azure - Provision and Configure  (the same v1 workflow)
+   →  success: Create CMDB CI → Relationship → Update RITM (Fulfilled, with FQDN/IP)
+      failure: Create Incident → Update RITM (failed, cites the incident #)
+```
+
+The requester sees the RITM auto-fill with the VM's FQDN + public IP + admin
+**username** (never the password) and the new CMDB CI appear — then closes the
+ticket. No AAP login required.
+
+**One-time setup (before the first ServiceNow demo)**
+
+1. **Rebuild the EE.** PR2 added `servicenow.itsm` to the EE — rebuild + push
+   `DC1.Azure - EE` and re-sync it in AAP (see `execution-environment.yml` build
+   provenance). Without this the callback JTs fail to find the collection.
+2. **Apply the CaC** — `load.yml` creates the `DC1.Azure - ServiceNow` credential,
+   the five callback JTs, and the workflow nodes (and the Phase-8 EDA inbound
+   objects). Confirm `validate.yml` is green and the rulebook activation is
+   *running*.
+3. **In ServiceNow** (one-time):
+   - Catalog item **"Request Windows VM (Azure)"** whose **Short description** is
+     exactly `DC1.Azure Windows VM on Azure` (the rulebook matches this string),
+     with a `vm_size_tier` choice variable mirroring the survey.
+   - A **Business Rule** on `sc_req_item` that fires an **Outbound REST Message**
+     `POST`ing to the EDA **event-stream URL** with
+     `Authorization: Bearer <EDA_EVENT_STREAM_TOKEN>` and a JSON body of
+     `number`, `sys_id`, `short_description`, `vm_size_tier`.
+
+**Smoke-test the trigger without ServiceNow** (proves the inbound half):
+
+```bash
+source docs/dev-environment.sh && \
+curl -sk -X POST '<event-stream-url-from-AAP>' \
+  -H "Authorization: Bearer $EDA_EVENT_STREAM_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"number":"RITM0099999","sys_id":"test","short_description":"DC1.Azure Windows VM on Azure","vm_size_tier":"medium-4cpu-16gb"}'
+```
+
+The workflow should launch within a few seconds (Automation Decisions → Rulebook
+Activations → *DC1.Azure - Catch ServiceNow Events* shows the event; Templates
+shows the new job).
+
+**Running it live**
+
+1. Open the ServiceNow catalog item, pick a size, submit.
+2. Show the RITM moving as the workflow runs; narrate the same node story as §3.4.
+3. Payoff: the RITM work note fills with the connection details and the **CMDB CI**
+   appears with its relationship — *the ticket closed itself out with real data.*
+4. **Failure demo (optional but powerful):** force a Provision VM failure (e.g.
+   request `large` against exhausted quota) and show the **Incident** opening
+   automatically with the job ID + error, and the RITM citing the incident number.
+
+> 📸 *Screenshots: the catalog item, the auto-updated RITM, and the CMDB CI →
+> `docs/images/demo-06..08-*.png` (see Appendix B).*
+
+> **Non-ServiceNow triggers stay green:** the callback JTs no-op when there's no
+> `ticket_number`, so launching the *same* workflow from the AAP UI (§3),
+> Self-Service Portal (Phase 9), or ADO (Phase 10) skips the ServiceNow nodes.
+
+---
+
 ## Appendix A — Failure modes & recovery
 
 | Symptom | Likely cause | Fix |
@@ -248,6 +321,9 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 - [ ] `demo-04-landing-page.png` — the live IIS landing page in a browser
 - [ ] `demo-05-teardown-success.png` — successful teardown + empty inventory
 - [ ] *(optional)* the ADO Boards Phase 6 epic/board, for the "how this was built" aside
+- [ ] `demo-06-snow-catalog.png` — the ServiceNow "Request Windows VM (Azure)" catalog item *(Demo v2, §7)*
+- [ ] `demo-07-snow-ritm.png` — the RITM auto-filled with FQDN/IP + Fulfilled state *(Demo v2)*
+- [ ] `demo-08-snow-cmdb-ci.png` — the new CMDB CI with its business-app relationship *(Demo v2)*
 
 ---
 
@@ -257,6 +333,8 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 |-------|-------|
 | Workflow | `DC1.Azure - Provision and Configure` |
 | Nodes (in order) | Provision VM → Powershell Improvement → Website Setup → Provision Access → Patching |
+| ServiceNow nodes (Demo v2) | success: Patching→Create CMDB CI→Create CMDB Relationship→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
+| ServiceNow match string | catalog item Short description = `DC1.Azure Windows VM on Azure` |
 | Survey variable | `vm_size_tier` ∈ {`small-2cpu-8gb`, `medium-4cpu-16gb`, `large-8cpu-32gb`} (default `medium`) |
 | Provision JT | `DC1.Azure - Provision VM` |
 | Teardown JT | `DC1.Azure - Teardown` (runs against `dc1-azure-control`) |

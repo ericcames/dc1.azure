@@ -25,6 +25,25 @@
 #   Pinned to 1.15.4 (latest available as of 2026-05).
 #   Verify newer releases at: https://releases.hashicorp.com/terraform/
 #   Bump the version string in the two RUN lines below when upgrading.
+#
+# ------------------------------------------------------------
+# BUILD PROVENANCE / CHANGE LOG (why this EE looks the way it does)
+# ------------------------------------------------------------
+# This is the ONLY execution-environment definition in dc1.azure. Record every
+# notable change here so the next person knows WHAT is in the image and WHY —
+# the image tag alone doesn't explain intent. Collections come from
+# collections/requirements.yml (see that file for per-collection rationale).
+#
+#   Phase 4 (initial) — base ee-minimal-rhel9 + Terraform on PATH so the
+#     Provision VM / Teardown JTs can shell out to `terraform`; plus the
+#     azure.azcollection / ansible.windows / community.windows / CaC collections
+#     the provision + reused Windows configure playbooks need. python3.11-devel +
+#     wheel added in the builder stage to compile systemd-python (a transitive
+#     dep) into a proper wheel.
+#   Phase 8 (AB#83) — added servicenow.itsm (2.13.0) to collections/requirements.yml
+#     for the ServiceNow callback/CMDB/incident playbooks (playbooks/servicenow/*).
+#     This bumped the EE; rebuild + push and re-sync DC1.Azure - EE in AAP for the
+#     callback JTs to run. No Containerfile/base-image change — collections only.
 # ============================================================
 
 version: 3

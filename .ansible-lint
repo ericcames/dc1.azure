@@ -25,6 +25,11 @@ mock_modules:
   - ansible.windows.win_wait_for
   - ansible.windows.win_template
   - ansible.windows.win_copy
+  # servicenow.itsm — used by playbooks/servicenow/* (Phase 8); not installed in CI
+  - servicenow.itsm.configuration_item
+  - servicenow.itsm.api
+  - servicenow.itsm.api_info
+  - servicenow.itsm.incident
 
 mock_roles:
   - infra.aap_configuration.dispatch

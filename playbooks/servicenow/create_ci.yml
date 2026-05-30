@@ -1,0 +1,66 @@
+---
+# ============================================================================
+# playbooks/servicenow/create_ci.yml — Phase 8 (outbound callback)
+# ============================================================================
+# Registers the provisioned Windows VM as a ServiceNow CMDB CI
+# (class cmdb_ci_win_server). dc1.azure-owned (not the reused Windows role) so we
+# can GUARD on ticket_number — non-ServiceNow workflow launches (AAP UI /
+# Self-Service / ADO) carry no ticket_number, so this node no-ops and the
+# workflow stays green. Mirrors the aap.dailydemo.windows create_configuration_item
+# role's module + fields; Azure stand-ins come from provision_vm.yml's set_stats.
+#
+# Consumed inputs (workflow artifacts from Provision VM via set_stats):
+#   my_server         CI name (VM FQDN)            -> name
+#   my_public_ip      public IP                    -> ip_address
+#   my_instance_id    Azure stand-in (vm_name)     -> serial_number (optional)
+#   my_instance_type  Azure SKU (vm_size_chosen)   -> other.model_number (optional)
+# Credential: DC1.Azure - ServiceNow (ServiceNow ITSM Credential → SN_* env).
+# ============================================================================
+
+- name: Create or update the ServiceNow CMDB CI for the Azure VM
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ci_sys_class_name: cmdb_ci_win_server
+    ci_environment: production
+    ci_install_status: installed
+    ci_operational_status: operational
+    ci_category: Hardware
+    ci_support_group: "Ansible West Tigers"
+    ci_assigned_to: service.ansible
+    ci_short_description: "Created by the DC1.Azure demo (Windows Server on Azure)"
+
+  tasks:
+    - name: Register the CI (only on a ServiceNow-driven run)
+      when:
+        - ticket_number is defined
+        - ticket_number | string | length > 0
+      block:
+        - name: Create a configuration item
+          register: server_info
+          servicenow.itsm.configuration_item:
+            name: "{{ my_server }}"
+            state: present
+            short_description: "{{ ci_short_description }}"
+            serial_number: "{{ my_instance_id | default(omit) }}"
+            sys_class_name: "{{ ci_sys_class_name }}"
+            assigned_to: "{{ ci_assigned_to }}"
+            environment: "{{ ci_environment }}"
+            install_status: "{{ ci_install_status }}"
+            category: "{{ ci_category }}"
+            operational_status: "{{ ci_operational_status }}"
+            ip_address: "{{ my_public_ip | default(omit) }}"
+            other:
+              model_number: "{{ my_instance_type | default(omit) }}"
+              assignment_group: "{{ ci_support_group }}"
+
+        - name: Show the CI result
+          ansible.builtin.debug:
+            var: server_info.record.sys_id
+
+    - name: Note skip on a non-ServiceNow run
+      when: ticket_number is not defined or (ticket_number | string | length == 0)
+      ansible.builtin.debug:
+        msg: "No ticket_number — non-ServiceNow launch; skipping CMDB CI creation."

@@ -6,6 +6,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 8 ServiceNow outbound callback** (AB#83, Epic AB#77) — when the
+  *DC1.Azure - Provision and Configure* workflow runs from a ServiceNow request,
+  AAP now calls ServiceNow back: updates the requested item (RITM), registers the
+  VM as a CMDB CI with a business-app relationship, and opens an Incident on
+  failure. Adds **four dc1.azure-owned guarded playbooks** under
+  `playbooks/servicenow/` (`create_ci.yml`, `create_cmdb_relationship.yml`,
+  `update_ritm.yml`, `create_incident.yml`) that call `servicenow.itsm` and
+  **no-op when `ticket_number` is absent**, so AAP-UI / Self-Service / ADO
+  launches stay green (single shared workflow preserved). Adds five JTs
+  (Create CMDB CI / Create CMDB Relationship / Update RITM success+failure /
+  Create Incident) on the `dc1-azure-control` inventory, the
+  `DC1.Azure - ServiceNow` credential (ServiceNow ITSM type, `SN_*` from
+  `dev-environment.sh`), and wires the workflow nodes (Patching `always`→CMDB CI→
+  Relationship→Update RITM success; Provision VM `failure`→Incident→`always`→
+  Update RITM failure). `provision_vm.yml` now `set_stats` the FQDN/IP/SKU/admin-
+  user the callback consumes and wraps provisioning in a `rescue` that captures
+  `vm_my_error`/`vm_my_job_id`/`vm_my_job_template_name` for the Incident.
+  `validate.yml` asserts the new credential + 5 JTs. **The admin password is
+  never written to the RITM** (decision 2026-05-29). Adds `servicenow.itsm`
+  (2.13.0) to the EE manifest — **requires an EE rebuild** (see
+  `execution-environment.yml` build provenance). Test: run the workflow with a
+  `ticket_number` → RITM/CMDB update; force a failure → Incident opens + RITM
+  reflects it.
 - **Phase 8 EDA inbound trigger** (AB#81, Epic AB#77) — a ServiceNow-shaped event
   posted to an AAP EDA event stream now launches the existing
   *DC1.Azure - Provision and Configure* workflow. Adds the dc1.azure-owned

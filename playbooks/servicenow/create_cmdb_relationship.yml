@@ -1,0 +1,46 @@
+---
+# ============================================================================
+# playbooks/servicenow/create_cmdb_relationship.yml — Phase 8 (outbound callback)
+# ============================================================================
+# Relates the new CMDB CI to the business application it supports
+# (cmdb_rel_ci, "Uses::Used by"). dc1.azure-owned + guarded on ticket_number so
+# non-ServiceNow launches no-op. Mirrors the Windows create_cmdb_relationship role.
+#
+# Consumed inputs (workflow artifact): my_server (CI name = VM FQDN) -> parent.
+# Credential: DC1.Azure - ServiceNow.
+# ============================================================================
+
+- name: Relate the Azure VM CI to the business application it supports
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    rel_resource: cmdb_rel_ci
+    rel_child: "Ansible Demonstrations"
+    rel_type: "Uses::Used by"
+
+  tasks:
+    - name: Create the relationship (only on a ServiceNow-driven run)
+      when:
+        - ticket_number is defined
+        - ticket_number | string | length > 0
+      block:
+        - name: Relate the CI to its business application
+          register: rel_result
+          servicenow.itsm.api:
+            action: post
+            resource: "{{ rel_resource }}"
+            data:
+              child: "{{ rel_child }}"
+              parent: "{{ my_server }}"
+              type: "{{ rel_type }}"
+
+        - name: Show the relationship result
+          ansible.builtin.debug:
+            var: rel_result.record
+
+    - name: Note skip on a non-ServiceNow run
+      when: ticket_number is not defined or (ticket_number | string | length == 0)
+      ansible.builtin.debug:
+        msg: "No ticket_number — non-ServiceNow launch; skipping CMDB relationship."

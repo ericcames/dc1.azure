@@ -84,6 +84,64 @@ controller_templates:
     credentials:
       - "{{ cred_windows }}"
 
+  # --- Phase 8: ServiceNow callback JTs --------------------------------------
+  # These run THIS repo's guarded playbooks/servicenow/* (not the Windows roles)
+  # so non-ServiceNow launches no-op (guard on ticket_number). All run on the
+  # control inventory (localhost plays) with the ServiceNow credential.
+  - name: "DC1.Azure - Create CMDB CI"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/servicenow/create_ci.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+
+  - name: "DC1.Azure - Create CMDB Relationship"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/servicenow/create_cmdb_relationship.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+
+  - name: "DC1.Azure - Update RITM (success)"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/servicenow/update_ritm.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+    extra_vars:
+      ritm_outcome: success
+
+  - name: "DC1.Azure - Update RITM (failure)"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/servicenow/update_ritm.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+    extra_vars:
+      ritm_outcome: failure
+
+  - name: "DC1.Azure - Create Incident"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/servicenow/create_incident.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+
   - name: "{{ teardown_template }}"
     job_type: run
     organization: "{{ my_organization }}"

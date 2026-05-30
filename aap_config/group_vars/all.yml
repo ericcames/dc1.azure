@@ -88,6 +88,9 @@ cred_hub_registry: "DC1.Azure - Hub Registry"
 # (same env var as cred_windows), so one export covers both credentials.
 cred_win_admin_password: "DC1.Azure - Windows Admin Password"
 cred_demo_account_password: "DC1.Azure - Demo Account Password"
+# ServiceNow callback credential (Phase 8 outbound) — ServiceNow ITSM Credential
+# type; injects SN_HOST/SN_USERNAME/SN_PASSWORD for the callback/CMDB/incident JTs.
+cred_servicenow: "DC1.Azure - ServiceNow"
 hub_registry_host: "{{ ah_hostname }}"
 hub_registry_username: "{{ controller_cred_username }}"
 hub_registry_password: "{{ controller_cred_password }}"
@@ -147,3 +150,10 @@ my_azure_catalog_short_description: "DC1.Azure Windows VM on Azure"
 # validates it. Minted once (openssl rand -hex 32) and stored in
 # docs/dev-environment.sh — never committed.
 eda_event_stream_token: "{{ lookup('ansible.builtin.env', 'EDA_EVENT_STREAM_TOKEN') }}"
+
+# --- Phase 8: ServiceNow callback (outbound) inputs --------------------------
+# Consumed by the DC1.Azure - ServiceNow credential. Already populated in
+# docs/dev-environment.sh; never committed.
+servicenow_instance: "{{ lookup('ansible.builtin.env', 'SN_HOST') }}"
+servicenow_username: "{{ lookup('ansible.builtin.env', 'SN_USERNAME') }}"
+servicenow_password: "{{ lookup('ansible.builtin.env', 'SN_PASSWORD') }}"

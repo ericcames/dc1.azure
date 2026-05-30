@@ -1,0 +1,65 @@
+---
+# ============================================================================
+# playbooks/servicenow/create_incident.yml — Phase 8 (outbound callback)
+# ============================================================================
+# Opens a ServiceNow incident when provisioning fails, then publishes the
+# incident number as a workflow artifact (create_incident_ticket) so the
+# downstream "Update RITM (failure)" node can cite it. dc1.azure-owned + guarded
+# on ticket_number so non-ServiceNow launches no-op. Mirrors the Windows
+# create_incident role.
+#
+# Workflow artifacts consumed (set by provision_vm.yml's rescue on failure):
+#   vm_my_error / vm_my_job_id / vm_my_job_template_name
+# Credential: DC1.Azure - ServiceNow.
+# ============================================================================
+
+- name: Open a ServiceNow incident for the failed provisioning run
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    incident_caller: service.ansible
+    incident_impact: low
+    incident_urgency: low
+    incident_support_group: "Ansible West Tigers"
+
+  tasks:
+    - name: Create the incident (only on a ServiceNow-driven run)
+      when:
+        - ticket_number is defined
+        - ticket_number | string | length > 0
+      block:
+        - name: Create the incident ticket
+          register: incident_info
+          servicenow.itsm.incident:
+            state: new
+            caller: "{{ incident_caller }}"
+            short_description: >-
+              Ansible Automation Platform - Job ID {{ vm_my_job_id | default('n/a') }}
+              ({{ vm_my_job_template_name | default('DC1.Azure - Provision VM') }}) failed
+            description: |-
+              ServiceNow Request: {{ ticket_number }}
+
+              Ansible Job ID:    {{ vm_my_job_id | default('n/a') }}
+              Template:          {{ vm_my_job_template_name | default('DC1.Azure - Provision VM') }}
+
+              Message: {{ vm_my_error | default('see Ansible job output') }}
+            impact: "{{ incident_impact }}"
+            urgency: "{{ incident_urgency }}"
+            other:
+              assignment_group: "{{ incident_support_group }}"
+
+        - name: Show the incident number
+          ansible.builtin.debug:
+            var: incident_info.record.number
+
+        - name: Publish the incident number to the workflow
+          ansible.builtin.set_stats:
+            data:
+              create_incident_ticket: "{{ incident_info.record.number }}"
+
+    - name: Note skip on a non-ServiceNow run
+      when: ticket_number is not defined or (ticket_number | string | length == 0)
+      ansible.builtin.debug:
+        msg: "No ticket_number — non-ServiceNow launch; skipping incident creation."

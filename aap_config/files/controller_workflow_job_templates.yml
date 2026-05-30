@@ -10,6 +10,15 @@
 #   Provision VM ──► Powershell Improvement ──┬─► Website Setup ───┐
 #                                             └─► Provision Access ┴─► Patching
 #
+# Phase 8 ServiceNow callback (append):
+#   Patching      ─always─► Create CMDB CI ─success─► Create CMDB Relationship
+#                                                     ─success─► Update RITM (success)
+#   Provision VM  ─failure─► Create Incident ─always─► Update RITM (failure)
+# The callback JTs run THIS repo's guarded playbooks/servicenow/*, which no-op
+# when ticket_number is absent — so AAP-UI / Self-Service / ADO launches (no
+# ticket) stay green; only ServiceNow-triggered runs (ticket_number from EDA)
+# actually touch ServiceNow.
+#
 # vm_size_tier is surveyed on the workflow so every trigger passes it in the
 # same way; it flows to the Provision VM node.
 controller_workflows:
@@ -42,6 +51,8 @@ controller_workflows:
           related:
             success_nodes:
               - identifier: powershell-improvement
+            failure_nodes:
+              - identifier: create-incident
 
         - identifier: powershell-improvement
           unified_job_template:
@@ -77,6 +88,55 @@ controller_workflows:
         - identifier: patching
           unified_job_template:
             name: "DC1.Azure - Patching"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            always_nodes:
+              - identifier: create-cmdb-ci
+
+        # --- Phase 8 ServiceNow callback nodes (success path) ---------------
+        - identifier: create-cmdb-ci
+          unified_job_template:
+            name: "DC1.Azure - Create CMDB CI"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: create-cmdb-relationship
+
+        - identifier: create-cmdb-relationship
+          unified_job_template:
+            name: "DC1.Azure - Create CMDB Relationship"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: update-ritm-success
+
+        - identifier: update-ritm-success
+          unified_job_template:
+            name: "DC1.Azure - Update RITM (success)"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+
+        # --- Phase 8 ServiceNow callback nodes (failure path) ---------------
+        - identifier: create-incident
+          unified_job_template:
+            name: "DC1.Azure - Create Incident"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            always_nodes:
+              - identifier: update-ritm-failure
+
+        - identifier: update-ritm-failure
+          unified_job_template:
+            name: "DC1.Azure - Update RITM (failure)"
             type: job_template
             organization:
               name: "{{ my_organization }}"
