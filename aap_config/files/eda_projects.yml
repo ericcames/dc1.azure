@@ -1,13 +1,7 @@
 ---
 # Consumed by the infra.aap_configuration.eda_projects role.
-# Event-Driven Ansible projects. Sourced from aap.as.code.
+# Event-Driven Ansible projects for dc1.azure.
 eda_projects:
-  - name: event.driven.ansible
-    description: my awesome project
-    url: https://github.com/ericcames/event.driven.ansible.git
-    organization: "{{ my_organization }}"
-    tls_validation: true
-
   # dc1.azure's own EDA project — syncs this repo's rulebooks/ from the Azure
   # DevOps git URL so the rulebook activation can run servicenow_events.yml.
   # Uses an EDA-side Source Control credential (ADO PAT). sync: true pulls the

@@ -53,6 +53,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   screenshot capture remains.
 
 ### Removed
+- **Stale `event.driven.ansible` EDA project** (AB#82) — removed the boilerplate
+  EDA project entry carried over from `aap.as.code` (description "my awesome
+  project") from `aap_config/files/eda_projects.yml`. Nothing in dc1.azure
+  referenced it; the `DC1.Azure - EDA` project (AB#81) covers the rulebook-hosting
+  role. Aligns with the repo-standalone principle. (Declarative removal: it is no
+  longer managed by CaC; set `state: absent` if it must also be deleted from a
+  live AAP it was previously applied to.)
 - **Legacy `docs/dev-environment.md`** (AB#75) — fully superseded by the
   sourceable `docs/dev-environment.sh` (template `docs/dev-environment.sh.example`)
   since AB#61. Purged the remaining stale references from `CLAUDE.md`, `.gitignore`,
