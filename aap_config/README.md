@@ -44,7 +44,8 @@ dc1.azure-native (built in Phase 4).
 ## Run it
 
 The full environment-variable list and one-time prerequisites (Hub Galaxy
-credentials, the AAP personal token, the Terraform state Storage Account) live
+credentials, the AAP admin username/password — the run mints + deletes its own
+short-lived token, AB#85 — the Terraform state Storage Account) live
 in [`../docs/INSTALL.md`](../docs/INSTALL.md). The canonical invocation sources
 the gitignored env file so every export and the playbook run share one shell:
 

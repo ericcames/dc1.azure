@@ -102,6 +102,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checklist. Historical changelog entries referencing the old file are left intact.
 
 ### Changed
+- **Docs accuracy sweep — Phase 8 status + token model** (AB#88, Epic AB#77) —
+  caught the docs up to merged code. `ROADMAP.md` Phase 8: flipped the shipped
+  checklist items to ✅ with AB# refs (EDA ingress AB#81, callback/CMDB/incident
+  + 5 JTs AB#83, workflow wiring AB#83/AB#84, `provision_vm.yml` set_stats AB#83,
+  `validate.yml` AB#81, runbook v2 §7), kept the genuinely-open items (catalog
+  item, Business Rule, EE rebuild/push, end-to-end test), and rewrote the Progress
+  block from "ready to implement" to "implementation merged; remaining =
+  operational." `README.md` + `aap_config/README.md`: replaced the stale "personal
+  API token" prerequisite with the AB#85 admin-username/password mint model.
+  `README.md` repo-layout: added `docs/ee-security-remediation.md` +
+  `docs/ado-conventions.md`. Docs-only.
 - **Harden `DC1.Azure - EE`: apply OS errata at build time** (AB#86, Epic AB#77) —
   added `microdnf upgrade` as the first `prepend_base` step in
   `execution-environment.yml`, so every rebuild pulls all ubi9-available RHEL

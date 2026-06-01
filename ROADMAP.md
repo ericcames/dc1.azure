@@ -341,15 +341,17 @@ Inbound is **event-driven** (EDA), not a direct REST launch: a ServiceNow
 Business Rule → Outbound REST Message → AAP EDA event stream → dc1.azure-owned
 rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](docs/servicenow-integration.md).
 
-- ⬜ Capture Red Hat shared SNow URL + access creds + `EDA_EVENT_STREAM_TOKEN` in `docs/dev-environment.sh`
-- ⬜ ServiceNow catalog item: "Request Windows VM (Azure)" — variables `vm_size_tier` (dropdown), `justification`, `requestor`; pinned unique `short_description`
-- ⬜ ServiceNow Business Rule + Outbound REST Message → EDA event-stream URL (Bearer token)
-- ⬜ EDA ingress (CaC): `ansible.eda` in `requirements.yml`; `DC1.Azure - EDA` project (this repo); `rulebooks/servicenow_events.yml`; `eda_credentials.yml` (event-stream + Controller creds); `eda_decision_environments.yml`; `eda_event_streams.yml` (type `snow`); `eda_rulebook_activations.yml`
-- ⬜ Callback / CMDB / incident (full Windows parity) — `DC1.Azure - ServiceNow` ITSM credential + five JTs (Create CMDB CI, Create CMDB Relationship, Update RITM success/failure, Create Incident) pointing at the synced Windows project's `playbooks/servicenow/*`
-- ⬜ Wire workflow nodes (mirror DDW): Provision VM success→CMDB CI→Relationship (parallel, early); Patching `always`→Update RITM (success); Provision VM failure→Create Incident→Update RITM (failure)
-- ⬜ `provision_vm.yml` — `set_stats` FQDN/IP/admin/size/ticket for the callback + CMDB nodes
-- ⬜ `validate.yml` — assert the new EDA objects + creds + JTs
-- ⬜ End-to-end test (incl. forced failure → Incident); `docs/demo-runbook.md` v2 section
+- ✅ Capture Red Hat shared SNow URL + access creds + `EDA_EVENT_STREAM_TOKEN` in `docs/dev-environment.sh` (`SN_*` + minted token present)
+- ⬜ ServiceNow catalog item: "Request Windows VM (Azure)" — variables `vm_size_tier` (dropdown), `justification`, `requestor`; pinned unique `short_description` *(operational — SNow UI)*
+- ⬜ ServiceNow Business Rule + Outbound REST Message → EDA event-stream URL (Bearer token) *(operational — SNow UI)*
+- ✅ EDA ingress (CaC) (**AB#81, PR #40**): `ansible.eda` in `aap_config/requirements.yml`; `DC1.Azure - EDA` project (this repo); `rulebooks/servicenow_events.yml`; `eda_credentials.yml` (event-stream + Controller + EDA SCM creds); `eda_event_streams.yml`; `eda_rulebook_activations.yml`. *(Reuses the platform's built-in Default Decision Environment — no `eda_decision_environments.yml` needed.)*
+- ✅ Callback / CMDB / incident (full Windows parity) (**AB#83, PR #42**) — `DC1.Azure - ServiceNow` ITSM credential + five JTs (Create CMDB CI, Create CMDB Relationship, Update RITM success/failure, Create Incident). *(Uses dc1.azure-owned guarded playbooks under `playbooks/servicenow/`, not the Windows project's — they no-op without `ticket_number` so non-SNow triggers stay green.)*
+- ✅ Wire workflow nodes (mirror DDW) (**AB#83 + AB#84, PR #42/#43**): CMDB CI branches off Provision VM success (parallel, early); Patching `always`→Update RITM (success); Provision VM failure→Create Incident→Update RITM (failure)
+- ✅ `provision_vm.yml` — `set_stats` FQDN/IP/admin/size/ticket for the callback + CMDB nodes (**AB#83, PR #42**)
+- ✅ `validate.yml` — assert the new EDA objects + creds + JTs (**AB#81/AB#83**)
+- ✅ `docs/demo-runbook.md` v2 section (runbook §7, ServiceNow-driven variant)
+- ⬜ **EE rebuild + push** — `servicenow.itsm` added to the EE (AB#83); the callback JTs need the rebuilt `DC1.Azure - EE`. *(Hardened image built locally + verified — AB#86; push held on the Quay.io write outage 2026-06-01.)*
+- ⬜ End-to-end test (incl. forced failure → Incident) — needs the SNow UI config + the pushed EE
 
 **Open questions — RESOLVED (see [`docs/servicenow-integration.md`](docs/servicenow-integration.md)):**
 - Inbound trigger → **EDA event stream** (Business Rule → Outbound REST → rulebook → `run_workflow_template`); SNow holds no workflow ID/launch token. *(Revised 2026-05-28 from the original direct-REST decision.)*
@@ -361,7 +363,8 @@ rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](doc
 
 **Progress:**
 - ✅ `docs/servicenow-integration.md` — design v1 written (AB#78), then **redesigned to event-driven Demo v2** (EDA event stream + full Windows parity); decisions above resolved.
-- 🔄 **Ready to implement** — SNow callback creds (`SN_*`) are in `docs/dev-environment.sh`; only `EDA_EVENT_STREAM_TOKEN` remains to mint. Build plan in the design doc.
+- ✅ **Implementation merged** — inbound EDA ingress (AB#81, PR #40), outbound callback/CMDB/incident (AB#83, PR #42), workflow layout mirroring DDW (AB#84, PR #43), and the self-managing CaC token (AB#85, PR #44) are all on `main`. `EDA_EVENT_STREAM_TOKEN` minted; `SN_*` creds in `docs/dev-environment.sh`.
+- 🔄 **Remaining (operational):** rebuild + push `DC1.Azure - EE` so the callback JTs run (`servicenow.itsm` added; image hardened + built locally — AB#86 — push held on the Quay.io outage 2026-06-01), then the **SNow UI** config (catalog item + Business Rule → Outbound REST) and the **end-to-end test** (incl. forced failure → Incident).
 
 **Exit criteria:** a user with zero prior context can request a Windows VM through the SNow self-service portal, receive a fulfilled RITM with the IP + admin credentials, and RDP into a working Windows machine.
 

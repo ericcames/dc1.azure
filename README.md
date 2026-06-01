@@ -50,6 +50,8 @@ dc1.azure/
 │   ├── INSTALL.md        ← manual install guide (Phase 7)
 │   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — AAP-driven flow)
 │   ├── servicenow-integration.md ← ServiceNow design + build spec (Phase 8)
+│   ├── ee-security-remediation.md ← EE security-scan remediation story (talking track + engineering record)
+│   ├── ado-conventions.md ← ADO operating model: Boards, branch policies, Library (Phase 0.5)
 │   └── images/
 ├── collections/requirements.yml
 ├── galaxy.yml
@@ -72,10 +74,13 @@ Two ways to do it:
   prerequisites, prompts for any missing values, runs the install, and reports
   each created object.
 
-Prerequisites in brief (full list in `docs/INSTALL.md`): an AAP instance + a
-personal API token, an RHDP Azure Service Principal + resource group, an Azure
-DevOps PAT, a Windows admin password, and an Automation Hub token for collection
-install (seed `~/.ansible.cfg` from [`ansible.cfg.example`](ansible.cfg.example)).
+Prerequisites in brief (full list in `docs/INSTALL.md`): an AAP instance with
+admin username/password (the install **mints its own short-lived token** and
+deletes it — no stored personal token needed; an SSO/MFA AAP uses a UI-minted
+`AAP_TOKEN` escape hatch instead), an RHDP Azure Service Principal + resource
+group, an Azure DevOps PAT, a Windows admin password, and an Automation Hub token
+for collection install (seed `~/.ansible.cfg` from
+[`ansible.cfg.example`](ansible.cfg.example)).
 
 > **End-to-end status:** validated end-to-end (workflow job 46, 2026-05-27) —
 > the provision→configure→teardown automation stands up a reachable Windows VM
