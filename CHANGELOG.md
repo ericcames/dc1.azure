@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **`docs/ee-security-remediation.md`** (AB#87, Epic AB#77) — the SE story of how
+  we inspected the `DC1.Azure - EE` Quay security scan (351 CVEs / 24 High,
+  inherited from a ~8-month-stale base), traced the High findings to base RPMs,
+  and remediated at build time (AB#86) — clearing `openssl`/`openssh`/`libnghttp2`
+  to el9_8 errata — while **deliberately deferring** the `pyOpenSSL`→`cryptography`
+  37→48 cascade and the 2.18.x ansible-core base bump (each its own work item).
+  One doc, two layers: a customer-facing talking track up top, the engineering
+  record below. Hooked from `docs/demo-runbook.md` (optional deeper talking track)
+  and the ROADMAP Decisions Log. *(Before/after scan table has placeholders for the
+  "after" counts pending the Quay rescan of the pushed hardened image.)*
 - **Phase 8 ServiceNow outbound callback** (AB#83, Epic AB#77) — when the
   *DC1.Azure - Provision and Configure* workflow runs from a ServiceNow request,
   AAP now calls ServiceNow back: updates the requested item (RITM), registers the

@@ -349,3 +349,9 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 
 See also: [`INSTALL.md`](INSTALL.md) (how to install the CaC),
 [`ROADMAP.md`](../ROADMAP.md) (phases + decisions), [`README.md`](../README.md).
+
+> **Optional deeper talking track — supply-chain / EE security.** For a
+> security-minded audience, [`ee-security-remediation.md`](ee-security-remediation.md)
+> tells how we inspected the EE's Quay security scan, remediated the inherited
+> base-image CVEs at build time, and *deliberately deferred* one risky fix — a
+> credible "we own our supply chain" story to layer on top of the provisioning demo.
