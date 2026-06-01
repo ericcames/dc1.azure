@@ -76,8 +76,9 @@ Self-Service Portal (Phase 9), and ADO (Phase 10) triggers all drive.
                                      ticket_sys_id = event.payload.sys_id     Patching ──────────────► VM live
                                      vm_size_tier  = event.payload.vm_size_tier
                                                                             5. NEW nodes (full parity):
-                                                                               success ► Create CMDB CI ► Relationship
-                                                                                        ► Update RITM (Fulfilled)
+                                                                               Provision VM success ► Create CMDB CI
+                                                                                        ► Relationship  (parallel, early)
+                                                                               Patching always ► Update RITM (Fulfilled)
                                                                                failure ► Create Incident
                                                                                         ► Update RITM (failed + incident #)
         ┌───────────────────────────────────────────────────────────────────────┘
@@ -282,10 +283,15 @@ All carry the `DC1.Azure - ServiceNow` credential. Inventory: `dc1-azure-control
 
 ### Workflow wiring — append to `DC1.Azure - Provision and Configure`
 Mirror the Windows graph (`controller_templates_workflow.yml`):
-- **Patching** `always_nodes` → **Create CMDB CI** → `success_nodes` →
-  **Create CMDB Relationship** → **Update RITM (success)**.
-- **Provision VM** (and any node that can fail) `failure_nodes` →
-  **Create Incident** → `always_nodes` → **Update RITM (failure)**.
+- **Provision VM** `success_nodes` → **Create CMDB CI** → `success_nodes` →
+  **Create CMDB Relationship** (parallel, early — runs alongside the configure
+  chain; mirrors DDW branching CMDB off Get Instance Info). Terminal at the
+  relationship node.
+- **Patching** `always_nodes` → **Update RITM (success)** (decoupled from CMDB,
+  mirrors DDW *Update request ticket - success* — fires whenever the workflow
+  reaches Patching).
+- **Provision VM** `failure_nodes` → **Create Incident** → `always_nodes` →
+  **Update RITM (failure)**.
 
 In `infra.aap_configuration` workflow nodes this is `success_nodes` /
 `failure_nodes` / `always_nodes` under each node's `related:`. Verify exact keys

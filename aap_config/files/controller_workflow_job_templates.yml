@@ -3,17 +3,28 @@
 # role. NOTE: the role's list variable is `controller_workflows`.
 #
 # This is the single core workflow all four triggers (AAP UI, Self-Service
-# Portal, ServiceNow, Azure DevOps) launch. Node shape retains the Windows
-# daily-demo configure chain; the Azure "Provision VM" node replaces the AWS
-# provisioning nodes.
+# Portal, ServiceNow, Azure DevOps) launch. Node shape mirrors the proven
+# Windows daily-demo (DDW) graph; the single Azure "Provision VM" Terraform node
+# stands in for DDW's Network Create → VM Create → Inventory Update → Get
+# Instance Info chain.
 #
-#   Provision VM ──► Powershell Improvement ──┬─► Website Setup ───┐
-#                                             └─► Provision Access ┴─► Patching
+#   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
+#                         │                           └─► Provision Access ─┴─► Patching
+#                         └─► Create CMDB CI ─► Create CMDB Relationship
 #
-# Phase 8 ServiceNow callback (append):
-#   Patching      ─always─► Create CMDB CI ─success─► Create CMDB Relationship
-#                                                     ─success─► Update RITM (success)
+# Phase 8 ServiceNow callback:
+#   Create CMDB CI runs EARLY, on a parallel branch off Provision VM (mirrors
+#   DDW branching CMDB off Get Instance Info) — it registers the CI alongside the
+#   configure chain instead of waiting for Patching. The set_stats emitted by
+#   provision_vm.yml (my_server/my_public_ip/my_instance_id/my_instance_type) are
+#   available the moment Provision VM finishes, so the early branch has its data.
+#
+#   Patching      ─always─► Update RITM (success)
 #   Provision VM  ─failure─► Create Incident ─always─► Update RITM (failure)
+#
+# Update RITM (success) hangs off Patching `always` (mirrors DDW "Update request
+# ticket - success") so it fires whenever the workflow reaches Patching, decoupled
+# from CMDB — a CMDB failure no longer blocks the request being marked fulfilled.
 # The callback JTs run THIS repo's guarded playbooks/servicenow/*, which no-op
 # when ticket_number is absent — so AAP-UI / Self-Service / ADO launches (no
 # ticket) stay green; only ServiceNow-triggered runs (ticket_number from EDA)
@@ -51,6 +62,7 @@ controller_workflows:
           related:
             success_nodes:
               - identifier: powershell-improvement
+              - identifier: create-cmdb-ci          # parallel early-CMDB branch (mirrors DDW)
             failure_nodes:
               - identifier: create-incident
 
@@ -93,9 +105,11 @@ controller_workflows:
               name: "{{ my_organization }}"
           related:
             always_nodes:
-              - identifier: create-cmdb-ci
+              - identifier: update-ritm-success     # decoupled from CMDB (mirrors DDW)
 
         # --- Phase 8 ServiceNow callback nodes (success path) ---------------
+        # CMDB CI/Relationship run on a parallel branch off Provision VM (see
+        # provision-vm.success_nodes above) — terminal at the relationship node.
         - identifier: create-cmdb-ci
           unified_job_template:
             name: "DC1.Azure - Create CMDB CI"
@@ -106,16 +120,15 @@ controller_workflows:
             success_nodes:
               - identifier: create-cmdb-relationship
 
-        - identifier: create-cmdb-relationship
+        - identifier: create-cmdb-relationship    # terminal leaf
           unified_job_template:
             name: "DC1.Azure - Create CMDB Relationship"
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          related:
-            success_nodes:
-              - identifier: update-ritm-success
 
+        # Update RITM (success) is reached from patching.always_nodes (above),
+        # decoupled from the CMDB branch.
         - identifier: update-ritm-success
           unified_job_template:
             name: "DC1.Azure - Update RITM (success)"

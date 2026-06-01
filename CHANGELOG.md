@@ -99,6 +99,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   project. Trade-off: the project no longer auto-syncs on job launch, so a manual
   project sync (`POST /api/controller/v2/projects/<id>/update/`) is required after
   merging playbook/role changes — already the established workflow.
+- **`DC1.Azure - Provision and Configure` workflow layout — mirror DDW** (AB#84,
+  Epic AB#77) — two node-graph changes to match the proven `aap.dailydemo.windows`
+  shape: (1) **Create CMDB CI now runs early, on a parallel branch off Provision
+  VM** (alongside Powershell Improvement) instead of being gated behind Patching,
+  so the CI is registered while the configure chain runs — the `set_stats` from
+  `provision_vm.yml` are available the moment Provision VM finishes; (2) **Update
+  RITM (success) now hangs off Patching `always`** (mirrors DDW *Update request
+  ticket - success*) instead of the tail of the CMDB chain, so a CMDB failure no
+  longer blocks the request being marked fulfilled. Create CMDB Relationship is
+  now a terminal leaf. No JT, credential, or playbook changes; `validate.yml`
+  unchanged (asserts JTs + workflow by name, not topology). Test: apply
+  `load.yml`, inspect the live workflow node graph — `provision-vm` success
+  fans out to `create-cmdb-ci`, `patching` always → `update-ritm-success`,
+  `create-cmdb-relationship` has no outgoing edge.
 
 ### Fixed
 - **`DC1.Azure - Teardown` deregistration self-block** (AB#73) — the Teardown JT

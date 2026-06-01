@@ -235,7 +235,8 @@ automation, with the ticket and CMDB updated automatically."* Full design:
 ServiceNow catalog request  →  Business Rule → Outbound REST Message
    →  AAP EDA event stream  →  rulebook (matches short_description)
    →  DC1.Azure - Provision and Configure  (the same v1 workflow)
-   →  success: Create CMDB CI → Relationship → Update RITM (Fulfilled, with FQDN/IP)
+   →  Provision VM success → Create CMDB CI → Relationship (parallel, early)
+      Patching always → Update RITM (Fulfilled, with FQDN/IP)
       failure: Create Incident → Update RITM (failed, cites the incident #)
 ```
 
@@ -333,7 +334,7 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 |-------|-------|
 | Workflow | `DC1.Azure - Provision and Configure` |
 | Nodes (in order) | Provision VM → Powershell Improvement → Website Setup → Provision Access → Patching |
-| ServiceNow nodes (Demo v2) | success: Patching→Create CMDB CI→Create CMDB Relationship→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
+| ServiceNow nodes (Demo v2) | CMDB (parallel, early): Provision VM→Create CMDB CI→Create CMDB Relationship; success: Patching `always`→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
 | ServiceNow match string | catalog item Short description = `DC1.Azure Windows VM on Azure` |
 | Survey variable | `vm_size_tier` ∈ {`small-2cpu-8gb`, `medium-4cpu-16gb`, `large-8cpu-32gb`} (default `medium`) |
 | Provision JT | `DC1.Azure - Provision VM` |
