@@ -113,6 +113,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `load.yml`, inspect the live workflow node graph — `provision-vm` success
   fans out to `create-cmdb-ci`, `patching` always → `update-ritm-success`,
   `create-cmdb-relationship` has no outgoing edge.
+- **Self-managing CaC token — `load.yml`/`validate.yml` mint→use→delete** (AB#85)
+  — the CaC path no longer depends on a stored `AAP_TOKEN` that expires and 401s.
+  `load.yml` now runs as a single play that mints a short-lived **write** token
+  from `AAP_CONTROLLER_USERNAME`/`PASSWORD`, applies the dispatch role + the
+  validation checks under it, and **deletes the token in an `always:` block** —
+  the same dance as `playbooks/provision_vm.yml`/`teardown.yml`/`bootstrap_aap.yml`.
+  Adds shared `aap_config/tasks/aap_token_acquire.yml` + `aap_token_release.yml`,
+  and splits the validation body into `aap_config/validate_tasks.yml` (imported
+  inline by `load.yml` and by the now-thin standalone `validate.yml`, which mints
+  its own **read** token). If `AAP_TOKEN` is exported (e.g. a UI-minted token for
+  an SSO/MFA AAP where username/password minting is blocked) it is used **as-is
+  and never deleted** — the escape hatch. `AAP_TOKEN` is now optional in
+  `dev-environment.sh.example` + INSTALL.md. Test: `source dev-environment.sh`
+  **without** exporting `AAP_TOKEN`, run `load.yml` → green; `GET /tokens/` shows
+  no leftover token afterward.
 
 ### Fixed
 - **`DC1.Azure - Teardown` deregistration self-block** (AB#73) — the Teardown JT

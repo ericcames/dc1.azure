@@ -6,27 +6,34 @@
 # data structures under files/ and applies them via the upstream
 # `infra.aap_configuration.dispatch` role, then verifies the result.
 #
+# AUTH — self-managing token dance (no stored token required):
+#   This play mints a short-lived WRITE token from AAP_CONTROLLER_USERNAME/
+#   PASSWORD, uses it for the whole apply + validate run, and deletes it in an
+#   always: block — mirroring playbooks/provision_vm.yml et al. A stored
+#   AAP_TOKEN can therefore never go stale and 401. If you DO export AAP_TOKEN
+#   (e.g. a UI-minted token for an SSO/MFA AAP where username/password minting
+#   is blocked), it is used as-is and left untouched. See tasks/aap_token_*.yml.
+#
 # Prerequisites (see README.md + Phase 7 install docs):
-#   - AAP reachable; a personal API token created in the AAP UI
+#   - AAP reachable
+#   - AAP_CONTROLLER_USERNAME / AAP_CONTROLLER_PASSWORD exported (mints the token)
 #   - Azure Service Principal, ADO PAT, Windows admin creds, vault password
 #     exported as env vars (see group_vars/all.yml)
 #   - collections installed:  ansible-galaxy collection install -r requirements.yml
 #
 # Run:
-#   export AAP_HOSTNAME=https://<aap-host>
-#   export AAP_TOKEN=<personal token from the AAP UI>
-#   export AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... \
-#          AZURE_CLIENT_ID=... AZURE_CLIENT_SECRET=...
-#   export ADO_PAT=... WINDOWS_ADMIN_PASSWORD=... DC1_AZURE_VAULT_PASSWORD=...
-#   ansible-playbook -i inventory/ load.yml
+#   source docs/dev-environment.sh && \
+#   ansible-playbook -i aap_config/inventory/ aap_config/load.yml
 #
 # Re-running is idempotent — every object is keyed by name.
 # ============================================================================
 
-- name: Apply dc1.azure AAP configuration
+- name: Apply + validate dc1.azure AAP configuration
   hosts: localhost
   gather_facts: false
   connection: local
+  vars:
+    cac_token_scope: write
   vars_files:
     - files/gateway_settings.yml
     - files/gateway_organizations.yml
@@ -45,8 +52,18 @@
     - files/controller_job_templates.yml
     - files/controller_workflow_job_templates.yml
     - files/controller_schedules.yml            # Nightly teardown schedule
-  roles:
-    - infra.aap_configuration.dispatch
+  tasks:
+    - name: Apply + validate under a managed CaC token
+      block:
+        - name: Acquire a write token (or adopt a supplied AAP_TOKEN)
+          ansible.builtin.import_tasks: tasks/aap_token_acquire.yml
 
-- name: Verify dc1.azure AAP objects exist
-  ansible.builtin.import_playbook: validate.yml
+        - name: Apply all dc1.azure AAP objects
+          ansible.builtin.include_role:
+            name: infra.aap_configuration.dispatch
+
+        - name: Verify dc1.azure AAP objects exist
+          ansible.builtin.import_tasks: validate_tasks.yml
+      always:
+        - name: Release the CaC token (only if we minted it)
+          ansible.builtin.import_tasks: tasks/aap_token_release.yml

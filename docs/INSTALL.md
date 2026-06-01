@@ -24,7 +24,7 @@ You need access to:
 | Thing | Why | Where it comes from |
 |-------|-----|---------------------|
 | An AAP instance | install target | the **Ansible Product Demo** RHDP catalog item (or any AAP 2.5) |
-| AAP personal API token | authenticates the CaC run | create via gateway API or AAP UI (scope: write) — see §4 |
+| AAP admin username/password | authenticates the CaC run (the run mints + deletes its own short-lived token) | exported as `AAP_CONTROLLER_USERNAME`/`PASSWORD` — see §4–5 |
 | Two Automation Hub Galaxy credentials on the Default org | `infra.aap_configuration` async workers need them to resolve credential types | create via API or AAP UI **before** running `load.yml` — see §2.5 |
 | Azure Service Principal | Azure RM credential + Terraform | RHDP Azure open environment (subscription, tenant, client id/secret) |
 | RHDP resource group | where the VM is created | the Azure open environment (e.g. `openenv-…`) |
@@ -155,26 +155,20 @@ Then export `AZURE_TF_STORAGE_ACCOUNT=<storage-account-name>` before running `lo
 ansible-galaxy collection install -r aap_config/requirements.yml
 ```
 
-## 4. Create an AAP personal token
+## 4. AAP API token — handled automatically
 
-**Option A — AAP UI:** your user → **Tokens → Create token**, scope **Write**.
+**You normally do nothing here.** `load.yml` and `validate.yml` mint a
+short-lived token from `AAP_CONTROLLER_USERNAME` / `AAP_CONTROLLER_PASSWORD` at
+the start of the run and **delete it in an `always:` block** when they finish
+(the same mint→use→delete dance as `playbooks/provision_vm.yml`). There is no
+stored token to create, rotate, or expire — set the admin username/password in
+§5 and that's it.
 
-**Option B — gateway API (scriptable, delete after install):**
-
-```bash
-# Create via the new AAP 2.5 gateway endpoint (not /api/v2/tokens/)
-TOKEN_VAL=$(curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
-  -d '{"description":"dc1.azure CaC install","scope":"write"}' \
-  "https://<your-aap>/api/gateway/v1/tokens/" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['id'],d['token'])")
-TOKEN_ID=$(echo $TOKEN_VAL | cut -d' ' -f1)
-TOKEN=$(echo $TOKEN_VAL | cut -d' ' -f2)
-
-# ... run load.yml (see §6) ...
-
-# Delete after install
-curl -sk -u admin:<pw> -X DELETE "https://<your-aap>/api/gateway/v1/tokens/$TOKEN_ID/"
-```
+**SSO / MFA escape hatch:** if your AAP account logs in via SSO or has MFA,
+username/password minting is blocked. In that case create a token in the AAP UI
+(your user → **Tokens → Create token**, scope **Write**) and export it as
+`AAP_TOKEN`. The playbooks then use it **as-is and do not delete it** — it's
+your token to manage.
 
 ## 5. Set environment variables
 
@@ -184,10 +178,10 @@ in the repo.
 | Variable | Required | Default | Used for |
 |----------|----------|---------|----------|
 | `AAP_HOSTNAME` | ✅ | — | AAP API base, e.g. `https://aap.example.com` |
-| `AAP_TOKEN` | ✅ | — | AAP API auth (the personal token from step 4) |
+| `AAP_TOKEN` | — | — | **Optional escape hatch only** (see §4). Leave unset on a username/password AAP — the run mints + deletes its own token. Set it to a UI-minted token only for an SSO/MFA AAP. |
 | `AAP_VALIDATE_CERTS` | — | `false` | set `true` for a trusted cert |
 | `CONTROLLER_HOST` | ✅ | — | **Same value as `AAP_HOSTNAME`.** Required separately — `ansible.controller.*` async workers read this env var directly and fall back to `127.0.0.1` if it is absent, regardless of the `aap_hostname` variable. |
-| `CONTROLLER_OAUTH_TOKEN` | ✅ | — | **Same value as `AAP_TOKEN`.** Required for the same async-worker reason. |
+| `CONTROLLER_OAUTH_TOKEN` | — | — | Mirrors `AAP_TOKEN` (`${AAP_TOKEN:-}`); only set when using the SSO escape hatch. |
 | `CONTROLLER_VERIFY_SSL` | — | `false` | Same as `AAP_VALIDATE_CERTS`; set both. |
 | `DC1_AZURE_VAULT_PASSWORD` | ✅ | — | the `DC1.Azure - Vault` credential — you choose this string; use it again to vault-encrypt `dc1_azure_windows_admin_password` at workflow launch |
 | `AZURE_SUBSCRIPTION_ID` | ✅ | — | `DC1.Azure - Azure RM` credential |
@@ -252,10 +246,11 @@ ansible-playbook -i aap_config/inventory/ aap_config/load.yml
 
 ```bash
 export AAP_HOSTNAME=https://<your-aap>
-export AAP_TOKEN=<personal token from step 4>
 export AAP_VALIDATE_CERTS=false
+# No AAP_TOKEN needed — load.yml mints + deletes its own from the admin creds
+# below. (SSO/MFA AAP only: export AAP_TOKEN=<UI-minted token>.)
 export CONTROLLER_HOST=$AAP_HOSTNAME
-export CONTROLLER_OAUTH_TOKEN=$AAP_TOKEN
+export CONTROLLER_OAUTH_TOKEN=${AAP_TOKEN:-}
 export CONTROLLER_VERIFY_SSL=false
 export DC1_AZURE_VAULT_PASSWORD='<vault password>'
 export AZURE_SUBSCRIPTION_ID=<sub>
@@ -303,7 +298,8 @@ provision the Azure VM and run the configure chain.
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| `401 Unauthorized` during `load.yml` | bad/expired `AAP_TOKEN` | recreate the personal token (step 4) |
+| `401 Unauthorized` during `load.yml` | wrong `AAP_CONTROLLER_USERNAME`/`PASSWORD` (token minting failed), or a stale `AAP_TOKEN` is exported and overriding the mint | fix the admin creds; `unset AAP_TOKEN CONTROLLER_OAUTH_TOKEN` unless you genuinely need the SSO escape hatch (§4) |
+| **Token mint fails (`401`/`403` on `.../gateway/v1/tokens/`) even though the admin username/password are correct** | the AAP is **SSO/MFA-backed** — the run mints its token via basic auth, which a federated/MFA account can't satisfy (there's no usable local password) | log in to the **AAP UI** (your SSO session satisfies the IdP), create a token under Users → Tokens (scope **Write**), and `export AAP_TOKEN=<that token>`. The run then uses it as-is and does **not** delete it (§4 escape hatch) |
 | `validate.yml` reports a MISSING object | dispatch skipped it (often a missing env var) | check the failed object's required env var; re-run |
 | Validate hits `/api/v2/` not found | older AAP API path | `export DC1_AZURE_API_BASE=/api/v2` and re-run |
 | `Connection refused` to `127.0.0.1` during credential creation | `CONTROLLER_HOST` / `CONTROLLER_OAUTH_TOKEN` not set, OR Hub Galaxy credentials missing from Default org | set both `CONTROLLER_*` vars **and** complete §2.5 before re-running |

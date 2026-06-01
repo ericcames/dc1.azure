@@ -9,10 +9,21 @@
 # ============================================================================
 
 # --- AAP API connection (consumed by infra.aap_configuration.dispatch) -------
-# The user creates a personal token in the AAP UI first, then exports AAP_TOKEN.
+# aap_token is normally NOT set from a stored value: load.yml/validate.yml mint
+# a short-lived token from AAP_CONTROLLER_USERNAME/PASSWORD and overwrite this
+# fact at runtime (tasks/aap_token_acquire.yml), then delete it in always:. The
+# env lookup here is only the SSO/manual escape hatch — export AAP_TOKEN (e.g. a
+# UI-minted token) and it is used as-is and left untouched.
 aap_hostname: "{{ lookup('ansible.builtin.env', 'AAP_HOSTNAME') }}"
-aap_token: "{{ lookup('ansible.builtin.env', 'AAP_TOKEN') }}"
+aap_token: "{{ lookup('ansible.builtin.env', 'AAP_TOKEN') | default('', true) }}"
 aap_validate_certs: "{{ lookup('ansible.builtin.env', 'AAP_VALIDATE_CERTS') | default('false', true) | bool }}"
+# The infra.aap_configuration HUB roles (hub_ee_registry/repository/sync) auth to
+# Automation Hub with BASIC auth (ah_username/ah_password ← aap_username/password)
+# — they don't take a token. Define these explicitly so Hub auth no longer relies
+# on an AAP_TOKEN env fallback happening to be set. Controller/gateway roles still
+# use the short-lived aap_token minted by tasks/aap_token_acquire.yml.
+aap_username: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_USERNAME') | default('admin', true) }}"
+aap_password: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_PASSWORD') }}"
 
 # --- Org + Execution Environment ---------------------------------------------
 my_organization: "IT Service Automation"

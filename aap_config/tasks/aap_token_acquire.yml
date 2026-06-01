@@ -1,0 +1,52 @@
+---
+# ============================================================================
+# Acquire an AAP API token for a CaC run (load.yml / validate.yml).
+# ============================================================================
+# Extends the repo's mint→use→delete token dance (see playbooks/provision_vm.yml,
+# teardown.yml, bootstrap_aap.yml) to the laptop-driven CaC path, so a stored
+# AAP_TOKEN can never go stale and trigger a 401.
+#
+# Behaviour:
+#   - If AAP_TOKEN is exported (e.g. a UI-minted token for an SSO/MFA AAP where
+#     username/password minting is not possible), use it AS-IS and do NOT manage
+#     its lifecycle — it is the caller's persistent token, never ours to delete.
+#   - Otherwise mint a short-lived token from AAP_CONTROLLER_USERNAME/PASSWORD.
+#     The caller MUST delete it via aap_token_release.yml in an always: block.
+#
+# Inputs  (vars):  cac_token_scope  — "write" (default). Must be "write": the
+#                  token deletes itself in aap_token_release.yml, and DELETE
+#                  needs write scope (a read token 403s on self-delete).
+# Requires:        aap_hostname, aap_validate_certs   (from group_vars/all.yml)
+# Sets    (facts): aap_token         — the bearer token string to use
+#                  cac_token_minted  — bool; true only when WE minted it
+#                  cac_token_obj      — full token object, for release (when minted)
+# ============================================================================
+
+- name: Detect a user-supplied AAP_TOKEN (SSO / manual escape hatch)
+  ansible.builtin.set_fact:
+    cac_token_env: "{{ lookup('ansible.builtin.env', 'AAP_TOKEN') | default('', true) }}"
+
+- name: Use the supplied AAP_TOKEN as-is (lifecycle not managed here)
+  ansible.builtin.set_fact:
+    aap_token: "{{ cac_token_env }}"
+    cac_token_minted: false
+  when: cac_token_env | length > 0
+
+- name: Mint a short-lived CaC token from username/password
+  ansible.platform.token:
+    aap_hostname: "{{ aap_hostname }}"
+    aap_username: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_USERNAME') | default('admin', true) }}"
+    aap_password: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_PASSWORD') }}"
+    aap_validate_certs: "{{ aap_validate_certs }}"
+    description: "dc1.azure CaC ({{ cac_token_scope | default('write') }}) — auto-managed, deleted in always"
+    scope: "{{ cac_token_scope | default('write') }}"
+    state: present
+  register: cac_token
+  when: cac_token_env | length == 0
+
+- name: Adopt the minted token (deleted by aap_token_release.yml)
+  ansible.builtin.set_fact:
+    aap_token: "{{ cac_token.ansible_facts.aap_token.token }}"
+    cac_token_minted: true
+    cac_token_obj: "{{ cac_token.ansible_facts.aap_token }}"
+  when: cac_token_env | length == 0

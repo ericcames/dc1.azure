@@ -1,0 +1,138 @@
+---
+# ============================================================================
+# Shared post-load validation TASKS — confirms every dc1.azure object the
+# dispatch run was supposed to create actually exists in AAP. Fails loudly if
+# any are missing, so load.yml can never exit green on a partial apply.
+# ============================================================================
+# Imported in two places, both under a managed CaC token:
+#   - load.yml          — inline, after the dispatch role (load.yml's write token)
+#   - validate.yml      — standalone wrapper (its own read token)
+#
+# Requires in scope: aap_hostname, aap_token, aap_validate_certs
+# (provided by group_vars/all.yml + tasks/aap_token_acquire.yml).
+#
+# Uses the AAP 2.5 controller API path (/api/controller/v2/). Override
+# DC1_AZURE_API_BASE for older (/api/v2/) deployments.
+# ============================================================================
+
+- name: Set validation API bases + expected object lists
+  ansible.builtin.set_fact:
+    api_base: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_API_BASE') | default('/api/controller/v2', true) }}"
+    # EDA objects (Phase 8) live under a separate API base.
+    eda_api_base: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EDA_API_BASE') | default('/api/eda/v1', true) }}"
+    eda_expected:
+      - endpoint: projects
+        names: ["{{ eda_project_name }}"]
+      - endpoint: eda-credentials
+        names:
+          - "{{ eda_controller_credential }}"
+          - "{{ eda_snow_event_stream_credential }}"
+          - "{{ eda_scm_credential }}"
+      - endpoint: event-streams
+        names: ["{{ eda_event_stream_name }}"]
+      - endpoint: activations
+        names: ["{{ eda_rulebook_activation_name }}"]
+    expected:
+      - endpoint: projects
+        names: ["{{ project_name }}", "{{ windows_project_name }}"]
+      - endpoint: inventories
+        names: ["{{ inventory_name }}", "{{ control_inventory_name }}"]
+      - endpoint: credentials
+        names:
+          - "{{ cred_vault }}"
+          - "{{ cred_azure_rm }}"
+          - "{{ cred_ado_scm }}"
+          - "{{ cred_windows }}"
+          - "{{ cred_controller }}"
+          - "{{ cred_hub_registry }}"
+          - "{{ cred_win_admin_password }}"
+          - "{{ cred_demo_account_password }}"
+          - "{{ cred_servicenow }}"
+      - endpoint: execution_environments
+        names: ["{{ ee_name }}"]
+      - endpoint: job_templates
+        names:
+          - "DC1.Azure - Provision VM"
+          - "DC1.Azure - Powershell Improvement"
+          - "DC1.Azure - Website Setup"
+          - "DC1.Azure - Provision Access"
+          - "DC1.Azure - Patching"
+          - "DC1.Azure - Teardown"
+          - "DC1.Azure - Create CMDB CI"
+          - "DC1.Azure - Create CMDB Relationship"
+          - "DC1.Azure - Update RITM (success)"
+          - "DC1.Azure - Update RITM (failure)"
+          - "DC1.Azure - Create Incident"
+      - endpoint: workflow_job_templates
+        names: ["{{ workflow_name }}"]
+      - endpoint: schedules
+        names: ["{{ teardown_schedule_name }}"]
+
+- name: Flatten the expected objects into (endpoint, name) pairs
+  ansible.builtin.set_fact:
+    checks: >-
+      {{ checks | default([]) +
+         [{'endpoint': item.0.endpoint, 'name': item.1}] }}
+  loop: "{{ expected | subelements('names') }}"
+  loop_control:
+    label: "{{ item.1 }}"
+
+- name: Query AAP for each expected object by name
+  ansible.builtin.uri:
+    url: "{{ aap_hostname }}{{ api_base }}/{{ item.endpoint }}/?name={{ item.name | urlencode }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ aap_token }}"
+    validate_certs: "{{ aap_validate_certs }}"
+    return_content: false
+  register: object_checks
+  loop: "{{ checks }}"
+  loop_control:
+    label: "{{ item.endpoint }} → {{ item.name }}"
+
+- name: Assert every expected object was found
+  ansible.builtin.assert:
+    that:
+      - result.json.count | int > 0
+    fail_msg: "MISSING in AAP: {{ result.item.endpoint }} → '{{ result.item.name }}'"
+    success_msg: "OK: {{ result.item.endpoint }} → '{{ result.item.name }}'"
+  loop: "{{ object_checks.results }}"
+  loop_control:
+    loop_var: result
+    label: "{{ result.item.endpoint }} → {{ result.item.name }}"
+
+# --- EDA objects (Phase 8) -------------------------------------------------
+- name: Flatten the expected EDA objects into (endpoint, name) pairs
+  ansible.builtin.set_fact:
+    eda_checks: >-
+      {{ eda_checks | default([]) +
+         [{'endpoint': item.0.endpoint, 'name': item.1}] }}
+  loop: "{{ eda_expected | subelements('names') }}"
+  loop_control:
+    label: "{{ item.1 }}"
+
+- name: Query EDA for each expected object by name
+  ansible.builtin.uri:
+    url: "{{ aap_hostname }}{{ eda_api_base }}/{{ item.endpoint }}/?name={{ item.name | urlencode }}&page_size=200"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ aap_token }}"
+    validate_certs: "{{ aap_validate_certs }}"
+    return_content: false
+  register: eda_object_checks
+  loop: "{{ eda_checks }}"
+  loop_control:
+    label: "{{ item.endpoint }} → {{ item.name }}"
+
+- name: Assert every expected EDA object was found
+  # Check the results list for an exact-name match rather than trusting the
+  # server-side filter — robust whether or not the EDA API honors ?name=.
+  ansible.builtin.assert:
+    that:
+      - (result.json.results | default([]) | selectattr('name', 'equalto', result.item.name) | list | length) > 0
+    fail_msg: "MISSING in AAP (EDA): {{ result.item.endpoint }} → '{{ result.item.name }}'"
+    success_msg: "OK (EDA): {{ result.item.endpoint }} → '{{ result.item.name }}'"
+  loop: "{{ eda_object_checks.results }}"
+  loop_control:
+    loop_var: result
+    label: "{{ result.item.endpoint }} → {{ result.item.name }}"

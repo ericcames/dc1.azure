@@ -1,0 +1,19 @@
+---
+# ============================================================================
+# Release (delete) the CaC token acquired by aap_token_acquire.yml.
+# ============================================================================
+# Safe to call unconditionally from an always: block. Deletes the token ONLY
+# when WE minted it (cac_token_minted) — a user-supplied AAP_TOKEN is left
+# untouched. Guarded so it never errors if acquisition failed before minting.
+# ============================================================================
+
+- name: Delete the short-lived CaC token
+  ansible.platform.token:
+    aap_hostname: "{{ aap_hostname }}"
+    aap_token: "{{ cac_token_obj.token }}"
+    aap_validate_certs: "{{ aap_validate_certs }}"
+    existing_token: "{{ cac_token_obj }}"
+    state: absent
+  when:
+    - cac_token_minted | default(false) | bool
+    - cac_token_obj is defined

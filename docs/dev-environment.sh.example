@@ -14,15 +14,21 @@
 
 # --- AAP -------------------------------------------------------------------
 export AAP_HOSTNAME=https://REPLACE_ME_AAP_HOSTNAME
-export AAP_TOKEN=REPLACE_ME_AAP_TOKEN          # create per docs/INSTALL.md §4; delete after load.yml
 export AAP_VALIDATE_CERTS=false                # set true for a trusted cert
+# load.yml / validate.yml mint a short-lived token from these and delete it
+# afterward — no stored token to expire (see docs/INSTALL.md §4).
 export AAP_CONTROLLER_USERNAME=admin
 export AAP_CONTROLLER_PASSWORD=REPLACE_ME_AAP_ADMIN_PASSWORD
+
+# OPTIONAL escape hatch — only needed for an SSO/MFA-backed AAP where minting
+# from username/password is blocked. Create a token in the AAP UI and export it;
+# load.yml will use it as-is and NOT delete it. Leave unset otherwise.
+# export AAP_TOKEN=REPLACE_ME_AAP_TOKEN
 
 # Required separately — ansible.controller.* async workers read these directly
 # and fall back to 127.0.0.1 if absent (see docs/INSTALL.md §5).
 export CONTROLLER_HOST=$AAP_HOSTNAME
-export CONTROLLER_OAUTH_TOKEN=$AAP_TOKEN
+export CONTROLLER_OAUTH_TOKEN=${AAP_TOKEN:-}
 export CONTROLLER_VERIFY_SSL=false
 
 # --- Secrets you choose (keep these in sync with each other) ---------------
