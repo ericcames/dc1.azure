@@ -92,6 +92,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checklist. Historical changelog entries referencing the old file are left intact.
 
 ### Changed
+- **Harden `DC1.Azure - EE`: apply OS errata at build time** (AB#86, Epic AB#77) —
+  added `microdnf upgrade` as the first `prepend_base` step in
+  `execution-environment.yml`, so every rebuild pulls all ubi9-available RHEL
+  errata onto the base layer. The base (`ee-minimal-rhel9:2.17.14`, verified ==
+  `2.17.14-4`, cut 2025-09-21) predated ~8 months of fixes; the Quay scan flagged
+  351 CVEs (24 High), mostly base RPMs. Verified the rebuilt image moves
+  `openssl-libs`/`openssh`/`libnghttp2` to el9_8 errata, clearing all three High
+  RPM CVEs. **Deferred (own work items):** `pyOpenSSL 22.0.0` (a pip dep
+  required-by `azure-cli-core`; bumping to ≥26 drags `cryptography` 37→48 under a
+  pinned `azure-cli-core`) and the 2.18.x base line (ansible-core minor bump).
+  Build-only change — no collection or base-image bump. Test: `rpm -q` the three
+  packages in the rebuilt image shows el9_8 versions; Quay rescan shows a lower
+  CVE count than the 351 baseline.
 - **`DC1.Azure` project `scm_update_on_launch` → `false`** (AB#74) — with
   update-on-launch enabled, every workflow node that uses the `DC1.Azure` project
   fired a blocking SCM sync before its job ran, adding minutes to each

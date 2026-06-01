@@ -44,6 +44,21 @@
 #     for the ServiceNow callback/CMDB/incident playbooks (playbooks/servicenow/*).
 #     This bumped the EE; rebuild + push and re-sync DC1.Azure - EE in AAP for the
 #     callback JTs to run. No Containerfile/base-image change — collections only.
+#   2026-06-01 (hardening) — added `microdnf upgrade` as the first prepend_base
+#     step to apply OS errata to the base layer at build time, cutting the Quay
+#     security-scan CVE count (most Highs — openssl/openssh/libnghttp2 — are base
+#     RPMs with fixes published after the 2025-09-21 base cut). Verified the base
+#     tag :2.17.14 already resolves to the newest 2.17 rebuild (== 2.17.14-4,
+#     digest sha256:4d64d06d…), so there was no fresher in-line base to repin to;
+#     the 2.18.x base line (ansible-core minor bump) is deliberately NOT taken
+#     here — that compatibility change belongs in its own work item, not a
+#     security-hygiene rebuild. No base-image or collection change in this entry.
+#     KNOWN RESIDUAL: pyOpenSSL 22.0.0 (a pip dep, NOT an RPM — microdnf can't
+#     touch it) remains flagged High. It is required-by azure-cli-core; bumping it
+#     to >=26 drags cryptography 37.0.2 -> 48.0.0 under a pinned azure-cli-core
+#     that was never tested against it, so it is deliberately NOT forced here. The
+#     correct fix is a coherent azure.azcollection bump (its dep tree brings newer
+#     pyOpenSSL/cryptography together) — tracked as its own work item.
 # ============================================================
 
 version: 3
@@ -74,6 +89,14 @@ additional_build_files:
 
 additional_build_steps:
   prepend_base:
+    # Apply all available OS errata to the base layer FIRST. The base image is a
+    # point-in-time build (2.17.14-4 == :2.17.14, cut 2025-09-21); RHEL/UBI errata
+    # published since then (openssl, openssh, libnghttp2, etc.) are not in it. This
+    # one step pulls every fix available in the ubi9 repos the base ships with —
+    # the single biggest lever on the Quay scan count. (A subset of fixes that live
+    # only in fully-entitled RHEL repos won't apply on an unsubscribed build host;
+    # those remain until the base line itself republishes.)
+    - RUN microdnf upgrade -y --nodocs --setopt=install_weak_deps=0 && microdnf clean all
     # Create /etc/ansible/ so the ADD step below lands correctly
     - RUN mkdir -p /etc/ansible/
     # Install unzip (needed to extract the Terraform archive)
