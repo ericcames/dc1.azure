@@ -102,6 +102,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checklist. Historical changelog entries referencing the old file are left intact.
 
 ### Changed
+- **Correct ROADMAP Sizing Tiers pricing to Windows PAYG rates** (AB#89) — the
+  `Approx $/hr` column (~$0.10/$0.19/$0.38) was the *Linux* base-compute rate;
+  these are Windows Server VMs, so the OS license ~doubles it. Updated to the
+  Windows PAYG figures (`eastus`, Azure Retail Prices API 2026-06-01): D2s_v5
+  ~$0.19, D4s_v5 ~$0.38, D8s_v5 ~$0.75, with a note that Azure Hybrid Benefit
+  reverts to the Linux rates and that the figures are compute-only. Docs-only.
 - **Docs accuracy sweep — Phase 8 status + token model** (AB#88, Epic AB#77) —
   caught the docs up to merged code. `ROADMAP.md` Phase 8: flipped the shipped
   checklist items to ✅ with AB# refs (EDA ingress AB#81, callback/CMDB/incident
