@@ -2,8 +2,7 @@
 
 Self-contained Configuration-as-Code for every dc1.azure AAP object, applied
 via the upstream [`infra.aap_configuration`](https://github.com/redhat-cop/infra.aap_configuration)
-collection (pinned **4.4.0**). This is the canonical install path — it replaces
-the deprecated `playbooks/bootstrap_aap.yml`.
+collection (pinned **4.4.0**). This is the canonical install path.
 
 ## Layout
 

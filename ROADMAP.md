@@ -51,8 +51,7 @@ re-implementing the entire DC1 layered platform.
   front of them.
 - **CaC for every AAP object** — credentials, projects, inventories, job
   templates, workflows defined under `aap_config/` and applied via
-  `infra.aap_configuration.dispatch`. (`playbooks/bootstrap_aap.yml` is a
-  deprecated stopgap pending the `aap_config/` path being verified.)
+  `infra.aap_configuration.dispatch`.
 - **Repo-based Claude skills, not marketplace** — setup/install skills live in
   `.claude/skills/` committed in this repo, so the demo carries its own
   tooling and doesn't depend on a marketplace plugin being installed.
@@ -278,7 +277,7 @@ file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 **Transition / deprecation:**
 
 - ✅ Deprecation banner added to `playbooks/bootstrap_aap.yml` (2026-05-21)
-- ⬜ Remove `playbooks/bootstrap_aap.yml` — deferred until Phase 4 live workflow run confirms `aap_config/load.yml` fully replaces it
+- ✅ Removed `playbooks/bootstrap_aap.yml` and its dedicated `inventories/dc1-azure/` bootstrap inventory (2026-06-02, AB#102) — `aap_config/load.yml` is the proven canonical path (run live via the `install-dc1-azure` skill)
 
 **Exit criteria:** ✅ Met 2026-05-26. `load.yml` run green against Ansible Product Demo AAP; all objects created; `validate.yml` passed; re-run is idempotent.
 

@@ -88,7 +88,7 @@ This repo lives in Azure DevOps, so issue tracking uses ADO Boards work items
 | `terraform/main.tf` | Azure infra: VNet, NSG, Win 2025 VM |
 | `terraform/locals.tf` | t-shirt-size → SKU map |
 | `collections/requirements.yml` | Pinned Ansible collection versions |
-| `playbooks/bootstrap_aap.yml` | (Phase 3) AAP CaC bootstrap |
+| `aap_config/load.yml` | (Phase 3) AAP Config-as-Code entry point — applies all objects |
 
 ## When in doubt
 

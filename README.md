@@ -42,8 +42,7 @@ dc1.azure/
 ├── execution-environment.yml ← custom EE (Terraform + collections) for the JTs (Phase 4)
 ├── terraform/            ← Azure infra (Phase 2)
 ├── aap_config/           ← AAP Config-as-Code — the canonical install path (Phase 3)
-├── playbooks/            ← provision + configure + teardown playbooks (Phase 4); deprecated bootstrap
-├── inventories/dc1-azure/
+├── playbooks/            ← provision + configure + teardown playbooks (Phase 4)
 ├── ansible.cfg.example   ← Hub galaxy_server template → ~/.ansible.cfg (Phase 7)
 ├── .claude/skills/       ← repo-based Claude skills (install-dc1-azure)
 ├── docs/

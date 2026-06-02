@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Removed
+- **Deprecated bootstrap path** (AB#102) — deleted `playbooks/bootstrap_aap.yml`
+  and its dedicated `inventories/dc1-azure/` bootstrap inventory. The
+  `aap_config/load.yml` Config-as-Code path is the proven canonical replacement
+  (run live via the `install-dc1-azure` skill), so the transitional bootstrap is
+  retired per ROADMAP's Transition/deprecation plan. No functional includes
+  referenced it (only doc/comment mentions, all scrubbed: `CLAUDE.md`,
+  `README.md`, `aap_config/README.md`, `ROADMAP.md`,
+  `aap_config/tasks/aap_token_acquire.yml`). The CaC path uses its own
+  `aap_config/inventory/`.
+
 ### Fixed
 - **Docs accuracy — ServiceNow playbook filenames** (AB#101) — `docs/servicenow-integration.md`
   referenced stale playbook names that don't exist in the repo; corrected to the

@@ -3,7 +3,7 @@
 # Acquire an AAP API token for a CaC run (load.yml / validate.yml).
 # ============================================================================
 # Extends the repo's mint→use→delete token dance (see playbooks/provision_vm.yml,
-# teardown.yml, bootstrap_aap.yml) to the laptop-driven CaC path, so a stored
+# teardown.yml) to the laptop-driven CaC path, so a stored
 # AAP_TOKEN can never go stale and trigger a 401.
 #
 # Behaviour:
