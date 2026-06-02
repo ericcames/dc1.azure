@@ -17,6 +17,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   would need a history rewrite, deferred (repo is private).
 
 ### Added
+- **ServiceNow catalog screenshot** (AB#99, Epic AB#77) — adds
+  `docs/images/demo-06-snow-catalog.png` (the *DC1.Azure Windows VM on Azure*
+  catalog item with its `vm_size_tier` choices) and embeds it in
+  `docs/demo-runbook.md` ahead of the RITM/CMDB shots (catalog → RITM → CMDB
+  order); Appendix B checklist ticked. Completes the demo-06/07/08 ServiceNow
+  screenshot set. No redaction needed (no browser chrome / identifiers in frame).
 - **ServiceNow demo screenshots** (AB#97, Epic AB#77) — captured from the live
   AB#93 validation run (RITM0011939) and wired into `docs/demo-runbook.md`:
   `demo-07-snow-ritm.png` (RITM auto-updated — *Configuration item* linked to the

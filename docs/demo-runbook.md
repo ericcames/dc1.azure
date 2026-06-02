@@ -286,6 +286,11 @@ shows the new job).
    request `large` against exhausted quota) and show the **Incident** opening
    automatically with the job ID + error, and the RITM citing the incident number.
 
+The **catalog item** the requester orders from — *DC1.Azure Windows VM on Azure*,
+with the `vm_size_tier` choice:
+
+![ServiceNow catalog item — DC1.Azure Windows VM on Azure with the vm_size_tier choices](images/demo-06-snow-catalog.png)
+
 The auto-updated **RITM** — its *Configuration item* now linked to the new CMDB
 CI (AB#93) and State *Closed Complete*, with the connection details posted as a
 work note:
@@ -296,9 +301,6 @@ The new **CMDB CI** (class *Windows Server*) with its *Uses → Ansible
 Demonstrations* business-application relationship:
 
 ![ServiceNow CMDB CI created by the workflow, related to its business application](images/demo-08-snow-cmdb-ci.png)
-
-> 📸 *Still to capture: the catalog item → `docs/images/demo-06-snow-catalog.png`
-> (see Appendix B).*
 
 > **Non-ServiceNow triggers stay green:** the callback JTs no-op when there's no
 > `ticket_number`, so launching the *same* workflow from the AAP UI (§3),
@@ -333,7 +335,7 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 - [ ] `demo-04-landing-page.png` — the live IIS landing page in a browser
 - [ ] `demo-05-teardown-success.png` — successful teardown + empty inventory
 - [ ] *(optional)* the ADO Boards Phase 6 epic/board, for the "how this was built" aside
-- [ ] `demo-06-snow-catalog.png` — the ServiceNow "Request Windows VM (Azure)" catalog item *(Demo v2, §7)*
+- [x] `demo-06-snow-catalog.png` — the ServiceNow "Request Windows VM (Azure)" catalog item *(Demo v2, §7)* — captured 2026-06-02 (no redaction needed)
 - [x] `demo-07-snow-ritm.png` — the RITM auto-filled with FQDN/IP + Fulfilled state *(Demo v2)* — captured 2026-06-02 (RITM0011939; URL bar + public IP redacted)
 - [x] `demo-08-snow-cmdb-ci.png` — the new CMDB CI with its business-app relationship *(Demo v2)* — captured 2026-06-02 (URL bar redacted)
 
