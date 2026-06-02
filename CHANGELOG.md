@@ -170,6 +170,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   no leftover token afterward.
 
 ### Fixed
+- **Inbound EDA-trigger CaC — three live-validation bugs** (AB#91, Epic AB#77) —
+  found while driving the ServiceNow→EDA→workflow path to a green end-to-end run
+  (workflow job 78). All three lived only on the running AAP after manual fixes; a
+  `load.yml` re-apply would have reverted them. (1) **`eda_rulebook_activations.yml`**
+  — the activation's `extra_vars` didn't pass `my_organization`, so the rulebook's
+  `run_workflow_template` action errored *"'my_organization' is undefined"* and no
+  workflow launched (added `my_organization` to `extra_vars`). (2)
+  **`controller_workflow_job_templates.yml`** — *DC1.Azure - Provision and Configure*
+  lacked `ask_variables_on_launch: true`, so the API launch was rejected `400`
+  *"Variables ticket_number, ticket_sys_id, ansible_eda are not allowed on launch"*
+  (added the flag). (3) **`controller_execution_environments.yml`** — *DC1.Azure - EE*
+  used `pull: missing`, so after an EE rebuild the execution node kept running the
+  stale cached `:latest` (changed to `pull: always`; revisit when the EE adopts
+  immutable version tags). Test: re-apply `load.yml`, fire a ServiceNow request →
+  the workflow launches and the callbacks (CMDB CI/relationship/RITM) run green.
 - **`DC1.Azure - Teardown` deregistration self-block** (AB#73) — the Teardown JT
   ran against the `dc1-azure` inventory, so AAP locked that inventory's hosts for
   the duration of the job and refused to let the job delete the very host it had

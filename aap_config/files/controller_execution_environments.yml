@@ -7,8 +7,11 @@
 #   Default: {{ ah_hostname }}/dc1_azure_ee:latest  ← the Private Automation Hub
 #   copy. PAH syncs it from quay.io (hub_ee_registries.yml + hub_ee_repositories.yml),
 #   and the cred_hub_registry credential lets Controller authenticate to the
-#   internal Hub registry to pull it. "Pull: missing" means Controller caches the
-#   image on first use and won't re-pull unless it's absent.
+#   internal Hub registry to pull it. "Pull: always" makes Controller re-pull on
+#   every run so a freshly-synced :latest (mutable tag) is actually used instead of
+#   a stale cached copy (AB#91, live-found — after an EE rebuild the node kept
+#   running the old cached :latest). Revisit if the EE moves to immutable version
+#   tags + digest pinning (then "missing" is cheaper and safe).
 #   For a Hub-less smoke test, override DC1_AZURE_EE_IMAGE with the public quay.io
 #   URL (quay.io/zigfreed/dc1-azure-ee:latest) — no registry credential needed.
 #
@@ -18,6 +21,6 @@
 controller_execution_environments:
   - name: "{{ ee_name }}"
     image: "{{ ee_image }}"
-    pull: missing
+    pull: always
     credential: "{{ cred_hub_registry }}"
     description: "DC1.Azure EE — Terraform 1.15.4, azure.azcollection, ansible.windows + community.windows"

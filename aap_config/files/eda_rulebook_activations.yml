@@ -10,7 +10,11 @@ eda_rulebook_activations:
     rulebook: servicenow_events.yml
     decision_environment: "{{ eda_decision_environment }}"
     # Injects the match string into the rulebook so the condition lives in CaC.
+    # my_organization is ALSO required: the rulebook's run_workflow_template action
+    # uses organization: "{{ my_organization }}" — without it the action errors
+    # "'my_organization' is undefined" and no workflow launches (AB#91, live-found).
     extra_vars:
+      my_organization: "{{ my_organization }}"
       my_azure_catalog_short_description: "{{ my_azure_catalog_short_description }}"
     # Bind the event stream to the rulebook's first (only) source. EDA names an
     # unnamed source __SOURCE_1; swap_single_source (default true) maps it.

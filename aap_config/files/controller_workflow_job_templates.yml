@@ -37,6 +37,10 @@ controller_workflows:
     organization: "{{ my_organization }}"
     inventory: "{{ inventory_name }}"
     survey_enabled: true
+    # Allow extra_vars at launch so the EDA rulebook can pass ticket_number /
+    # ticket_sys_id / ansible_eda; without this the API launch is rejected 400
+    # "Variables ... are not allowed on launch" (AB#91, live-found).
+    ask_variables_on_launch: true
     survey_spec:
       name: ""
       description: "Provision and configure a Windows Server 2025 VM on Azure"
