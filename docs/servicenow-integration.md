@@ -129,13 +129,18 @@ They serve three purposes:
 | `validate.yml` assertions (creds + JTs + EDA objects) | ⬜ extend | `aap_config/validate.yml` |
 | SNow secrets placeholders | ⬜ add | `docs/dev-environment.sh.example` |
 
-> **Playbook reuse:** the callback/CMDB/incident JTs point at the **already-synced
-> `aap.dailydemo.windows` project** (`windows_project_name`, pinned `v1.0.1`) and
-> its cloud-agnostic ServiceNow playbooks — `playbooks/servicenow/update_ritm.yml`
-> (role `update_requested_item`), `create_ci.yml` (`create_configuration_item`),
-> `create_cmdb_relationship.yml`, and `create_incident.yml` (`create_incident`).
-> No new playbooks in dc1.azure unless an Azure field needs threading the CMDB CI
-> doesn't already get from `set_stats` (see [Threading](#threading-provisioning-details-to-the-callback)).
+> **Playbook sourcing (as-built):** the ServiceNow callback JTs — *RITM Start
+> Notice, Create CMDB CI, Create CMDB Relationship, Update RITM (success/failure),
+> Create Incident* — run **dc1.azure-owned** playbooks under
+> `playbooks/servicenow/` (`notice_ritm_started.yml`, `create_ci.yml`,
+> `create_cmdb_relationship.yml`, `update_ritm.yml`, `create_incident.yml`) on the
+> **dc1.azure project** (`project_name`). They *model* the `aap.dailydemo.windows`
+> ServiceNow roles (same modules/fields) but are dc1.azure-owned and **guarded on
+> `ticket_number`** so non-ServiceNow launches (AAP UI / Self-Service / ADO) no-op
+> — see [Threading](#threading-provisioning-details-to-the-callback). Only the
+> OS-configure JTs (Powershell Improvement, Provision Access, Patching) reuse the
+> already-synced `aap.dailydemo.windows` project (`windows_project_name`, pinned
+> `v1.0.1`); the rest run dc1.azure's own project.
 
 ---
 
@@ -350,10 +355,10 @@ Of type `ServiceNow ITSM Credential` (already defined). Injects
 `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` from `docs/dev-environment.sh`
 (gitignored). Namespaced `DC1.Azure -`.
 
-### Job templates (point at the synced Windows project)
+### Job templates (dc1.azure-owned callback playbooks)
 - `DC1.Azure - Create CMDB CI` → `playbooks/servicenow/create_ci.yml`
-  (role `create_configuration_item`; CI class **`cmdb_ci_win_server`** as-is from
-  the role's `vars/main.yml`). The role's AWS-flavored fields —
+  (dc1.azure-owned; modeled on the upstream Windows `create_configuration_item`
+  role — CI class **`cmdb_ci_win_server`**, fields as in that role's `vars/main.yml`). The role's AWS-flavored fields —
   `serial_number` (`my_instance_id`), `asset_tag` (`my_ami_id`), `model_number`
   (`my_instance_type`) — need Azure equivalents threaded via `set_stats` (Azure
   VM ID, resource ID/omit, and `vm_size_tier`/SKU respectively). **AB#93:** after
@@ -367,8 +372,8 @@ Of type `ServiceNow ITSM Credential` (already defined). Injects
 - `DC1.Azure - Update RITM (success)` → `playbooks/servicenow/update_ritm.yml`
   (state Fulfilled, work note w/ FQDN + public IP + admin user)
 - `DC1.Azure - Update RITM (failure)` → same playbook, failure vars (state 4 +
-  the incident number + error message — the role's `defaults/main.yml` already
-  models this)
+  the incident number + error message — `update_ritm.yml` drives both outcomes
+  via the `ritm_outcome` extra-var)
 - `DC1.Azure - Create Incident` → `playbooks/servicenow/create_incident.yml`
 
 All carry the `DC1.Azure - ServiceNow` credential. Inventory: `dc1-azure-control`

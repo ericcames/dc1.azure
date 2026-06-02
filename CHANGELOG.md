@@ -17,6 +17,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `aap_config/inventory/`.
 
 ### Fixed
+- **Docs accuracy — ServiceNow callback narrative** (AB#103) — reconciled
+  `docs/servicenow-integration.md` with as-built: the design blockquote and the
+  "Job templates (point at the synced Windows project)" header wrongly stated the
+  ServiceNow callback JTs reuse the Windows project's playbooks with "no new
+  playbooks in dc1.azure." As-built (per `aap_config/files/controller_job_templates.yml`),
+  the callback JTs run **dc1.azure-owned** playbooks under `playbooks/servicenow/`
+  on `project_name`; only Powershell/Provision-Access/Patching reuse
+  `windows_project_name`. Reworded both, plus the Update-RITM-failure bullet
+  (`update_ritm.yml` drives both outcomes via `ritm_outcome`).
 - **Docs accuracy — ServiceNow playbook filenames** (AB#101) — `docs/servicenow-integration.md`
   referenced stale playbook names that don't exist in the repo; corrected to the
   as-built dc1.azure-owned files: `update_sn_req_itm.yml` → **`update_ritm.yml`**
