@@ -34,6 +34,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `playbooks/servicenow/update_ritm.yml` / `create_incident.yml`).
 
 ### Security
+- **ServiceNow EDA bearer token moved off the plaintext REST header** (AB#92) —
+  hardened the live ServiceNow inbound config and the committed source-of-truth.
+  The bearer token is now held in an **encrypted** system property
+  `dc1.eda_event_stream_token` (`password2`) and read at runtime by the Business
+  Rule via `gs.getProperty()`, which sets the `Authorization` header on the POST;
+  the static plaintext `Authorization` header was removed from the
+  `Ames - DC1.Azure EDA Event Stream` REST Message (only `Content-Type` remains).
+  Also deployed the hardened BR script (`clean()`/trim on every value + `gs.info`
+  HTTP-status logging + safe variables loop). Updated
+  `servicenow/business_rules/fire_eda_on_ritm.js` + `servicenow/README.md` to the
+  property-based auth and the as-built *before/Update on approval* trigger.
+  **Validated live 2026-06-02:** order RITM0011940 → BR logged `HTTP 200` (token
+  read from the encrypted property accepted) → workflow launched (job 120).
 - **Scrubbed leaked RHDP/Azure identifiers** (AB#98) — replaced live deployment
   values that had been committed in `CHANGELOG.md` and `ROADMAP.md` with grep-able
   placeholders, per the no-RHDP-URLs rule: the AAP cluster URL

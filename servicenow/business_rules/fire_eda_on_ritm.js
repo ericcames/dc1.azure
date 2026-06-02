@@ -3,10 +3,14 @@
  * ----------------------------------------------------------------------------------
  * WHERE THIS RUNS (ServiceNow side — paste into ServiceNow, NOT executed from this repo):
  *   System Definition -> Business Rules -> New
- *     Table:   Requested Item [sc_req_item]
+ *     Table:    Requested Item [sc_req_item]
  *     Advanced: true            (REQUIRED — the script tab is ignored without it)
- *     When:    after,  Insert: true
- *     Filter:  Catalog Item is <your "Request Windows VM (Azure)" item>
+ *     When:     before,  Update: true   (as-built: fire once the RITM is APPROVED,
+ *               not on raw insert — so the requester's choices are final)
+ *     Filter:   stage=request_approved AND state=2 (Work in Progress) for the demo
+ *               requester(s), AND sys_updated_by != service.ansible  — the last
+ *               clause stops AAP's own write-backs (RITM updates / CMDB) from
+ *               re-firing this rule.
  *     Script:  this file
  *
  * WHAT IT DOES:
@@ -15,11 +19,33 @@
  *   stream via the Outbound REST Message named below. EDA matches on short_description
  *   and launches "DC1.Azure - Provision and Configure".
  *
- * AUTH (matched pair — keep both sides identical):
- *   The bearer token is set as a STATIC header on the Outbound REST Message's POST
- *   method (Authorization: Bearer <token>), NOT in this script. That token must equal
- *   EDA_EVENT_STREAM_TOKEN (docs/dev-environment.sh) / the AAP "ServiceNow Event
- *   Stream" credential. A trailing newline on paste is the #1 cause of a 401.
+ * AUTH — encrypted token, set at runtime (hardened, AB#92):
+ *   The bearer token is NOT stored as a plaintext header on the REST Message.
+ *   It lives in an ENCRYPTED ServiceNow system property and this script reads it
+ *   at send time and sets the Authorization header itself:
+ *
+ *       Property:  dc1.eda_event_stream_token   (System Properties [sys_properties])
+ *       Type:      password2  (Encrypted)        — stored encrypted at rest; the
+ *                                                  raw token is never visible in the
+ *                                                  property list or the REST Message.
+ *       Value:     the AAP EDA event-stream bearer token, i.e. EDA_EVENT_STREAM_TOKEN
+ *                  in docs/dev-environment.sh == the AAP "ServiceNow Event Stream"
+ *                  credential token.  MATCHED PAIR: ServiceNow and AAP must hold the
+ *                  exact same token or the event stream returns 401.
+ *
+ *   How it is consumed (below):
+ *       r.setRequestHeader('Authorization',
+ *                          'Bearer ' + gs.getProperty('dc1.eda_event_stream_token'));
+ *   gs.getProperty() returns the DECRYPTED value server-side, so the cleartext token
+ *   exists only transiently in memory during the POST. The Outbound REST Message
+ *   therefore carries ONLY a Content-Type header — no Authorization header at all.
+ *
+ *   To set or rotate the token (do BOTH sides together):
+ *     1. ServiceNow: sys_properties.list -> dc1.eda_event_stream_token -> set Value
+ *        (paste the token; NO trailing newline — that is the #1 cause of a 401).
+ *     2. AAP: update the "ServiceNow Event Stream" credential to the same token.
+ *   If the property is missing/empty, gs.getProperty returns '' and the header
+ *   becomes "Bearer " -> the event stream 401s (watch the gs.info log line below).
  *
  * NOTES:
  *   - clean() trims every value — prevents the survey-validation failure we hit when a
@@ -56,6 +82,8 @@
     }
 
     var r = new sn_ws.RESTMessageV2(REST_MESSAGE_NAME, 'POST');
+    // Bearer token from the encrypted property (NOT a plaintext REST Message header) — AB#92.
+    r.setRequestHeader('Authorization', 'Bearer ' + gs.getProperty('dc1.eda_event_stream_token'));
     r.setRequestBody(JSON.stringify(json));
     r.setTimeout(10000);
     var resp = r.execute();

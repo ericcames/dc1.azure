@@ -25,22 +25,38 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
 2. **Variable `vm_size_tier`** — Multiple Choice; choices `small-2cpu-8gb` /
    `medium-4cpu-16gb` / `large-8cpu-32gb`; default `medium-4cpu-16gb`. (Optional monthly
    `Recurring price` per the ROADMAP Sizing Tiers.)
-3. **Encrypted token property** *(optional — only if you set the bearer via script
-   instead of a static header)* — `sys_properties` `dc1.eda_event_stream_token`,
-   type `password2 (Encrypted)`, value = `EDA_EVENT_STREAM_TOKEN`.
+3. **Encrypted token property** *(required — AB#92)* — the EDA bearer token is held
+   here, **not** as a plaintext header on the REST Message:
+   - **Name:** `dc1.eda_event_stream_token` (System Properties → `sys_properties`)
+   - **Type:** `password2 (Encrypted)` — stored encrypted at rest; the raw token is
+     never visible in the property list or the REST Message config.
+   - **Value:** the AAP EDA event-stream bearer token = `EDA_EVENT_STREAM_TOKEN`
+     (`docs/dev-environment.sh`) == the AAP *ServiceNow Event Stream* credential
+     token. **Matched pair** — ServiceNow and AAP must hold the *same* token.
+   - **Consumed by** the Business Rule (#5) at send time via
+     `gs.getProperty('dc1.eda_event_stream_token')` (returns the decrypted value
+     server-side), which sets the `Authorization: Bearer …` header on the POST.
+   - **Rotate:** update this property's Value *and* the AAP credential to the same
+     new token. No trailing newline on paste (the #1 cause of a 401). If the
+     property is missing/empty the header becomes `Bearer ` → 401.
 4. **Outbound REST Message** — `Ames - DC1.Azure EDA Event Stream`:
    - **Endpoint:** the AAP event-stream external URL (copy from *Automation Decisions →
      Event Streams → DC1.Azure - ServiceNow Event Stream → URL*); shape:
      `https://<aap-host>/eda-event-streams/api/eda/v1/external_event_stream/<stream-uuid>/post/`
-   - **POST** HTTP method named `POST`, with headers:
+   - **POST** HTTP method named `POST`, with a single header:
      - `Content-Type: application/json`
-     - `Authorization: Bearer <token>`  ← static header (matched pair with `EDA_EVENT_STREAM_TOKEN`)
+   - **No `Authorization` header here** — the bearer is set at runtime by the
+     Business Rule from the encrypted property (#3), so the token never sits in
+     plaintext in the REST Message config (AB#92).
    - **No Content/body template needed** — the Business Rule builds the JSON and sets it
      with `setRequestBody()`.
 5. **Business Rule** — [`business_rules/fire_eda_on_ritm.js`](business_rules/fire_eda_on_ritm.js):
-   table `sc_req_item`, **Advanced ✓**, *after / Insert*, filtered to the catalog item.
-   Builds the payload (number, sys_id, short_description, all catalog variables,
-   requester) and POSTs it via the REST Message above.
+   table `sc_req_item`, **Advanced ✓**, *before / Update*, filtered to fire once the
+   RITM is **approved** (`stage=request_approved ^ state=2`) for the demo
+   requester(s), with `sys_updated_by != service.ansible` so AAP's own write-backs
+   (RITM updates / CMDB) don't re-fire it. Reads the bearer from the encrypted
+   property (#3), then builds the payload (number, sys_id, short_description, all
+   catalog variables, requester) and POSTs it via the REST Message above.
 
 ## Verify
 
@@ -56,5 +72,6 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
 - **Business Rule "Advanced" must be checked** or the script tab is silently ignored.
 - **Trim variable values** (`clean()` in the script) — a trailing space on a Question
   Choice value (`"medium-4cpu-16gb "`) fails the workflow survey's exact-match check.
-- **Bearer token is a matched pair** — identical on the REST Message header and the AAP
-  `ServiceNow Event Stream` credential; a trailing newline on paste → 401.
+- **Bearer token is a matched pair** — identical in the encrypted property
+  `dc1.eda_event_stream_token` and the AAP `ServiceNow Event Stream` credential;
+  a trailing newline on paste → 401.
