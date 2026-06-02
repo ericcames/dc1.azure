@@ -131,9 +131,9 @@ They serve three purposes:
 
 > **Playbook reuse:** the callback/CMDB/incident JTs point at the **already-synced
 > `aap.dailydemo.windows` project** (`windows_project_name`, pinned `v1.0.1`) and
-> its cloud-agnostic ServiceNow playbooks — `playbooks/servicenow/update_sn_req_itm.yml`
+> its cloud-agnostic ServiceNow playbooks — `playbooks/servicenow/update_ritm.yml`
 > (role `update_requested_item`), `create_ci.yml` (`create_configuration_item`),
-> `create_cmdb_relationship.yml`, and `incident_create.yml` (`create_incident`).
+> `create_cmdb_relationship.yml`, and `create_incident.yml` (`create_incident`).
 > No new playbooks in dc1.azure unless an Azure field needs threading the CMDB CI
 > doesn't already get from `set_stats` (see [Threading](#threading-provisioning-details-to-the-callback)).
 
@@ -364,12 +364,12 @@ Of type `ServiceNow ITSM Credential` (already defined). Injects
   is only known on this branch (Create CMDB CI and Update RITM run on sibling
   branches, so a `set_stats` artifact would not reach Update RITM).
 - `DC1.Azure - Create CMDB Relationship` → `playbooks/servicenow/create_cmdb_relationship.yml`
-- `DC1.Azure - Update RITM (success)` → `playbooks/servicenow/update_sn_req_itm.yml`
+- `DC1.Azure - Update RITM (success)` → `playbooks/servicenow/update_ritm.yml`
   (state Fulfilled, work note w/ FQDN + public IP + admin user)
 - `DC1.Azure - Update RITM (failure)` → same playbook, failure vars (state 4 +
   the incident number + error message — the role's `defaults/main.yml` already
   models this)
-- `DC1.Azure - Create Incident` → `playbooks/servicenow/incident_create.yml`
+- `DC1.Azure - Create Incident` → `playbooks/servicenow/create_incident.yml`
 
 All carry the `DC1.Azure - ServiceNow` credential. Inventory: `dc1-azure-control`
 (localhost plays; same reasoning as the Teardown JT — keep them off `dc1-azure`).

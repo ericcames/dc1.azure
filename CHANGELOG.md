@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **Docs accuracy — ServiceNow playbook filenames** (AB#101) — `docs/servicenow-integration.md`
+  referenced stale playbook names that don't exist in the repo; corrected to the
+  as-built dc1.azure-owned files: `update_sn_req_itm.yml` → **`update_ritm.yml`**
+  and `incident_create.yml` → **`create_incident.yml`** (verified against
+  `aap_config/files/controller_job_templates.yml`, where the RITM/Incident JTs run
+  `playbooks/servicenow/update_ritm.yml` / `create_incident.yml`).
+
 ### Security
 - **Scrubbed leaked RHDP/Azure identifiers** (AB#98) — replaced live deployment
   values that had been committed in `CHANGELOG.md` and `ROADMAP.md` with grep-able
