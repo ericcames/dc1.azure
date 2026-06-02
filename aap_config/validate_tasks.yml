@@ -58,6 +58,7 @@
           - "DC1.Azure - Provision Access"
           - "DC1.Azure - Patching"
           - "DC1.Azure - Teardown"
+          - "DC1.Azure - RITM Start Notice"
           - "DC1.Azure - Create CMDB CI"
           - "DC1.Azure - Create CMDB Relationship"
           - "DC1.Azure - Update RITM (success)"

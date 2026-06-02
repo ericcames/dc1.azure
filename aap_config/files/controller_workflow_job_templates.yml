@@ -57,6 +57,16 @@ controller_workflows:
             - large-8cpu-32gb
     related:
       workflow_nodes:
+        # Start notice — root node (no parent), runs at launch in parallel with
+        # Provision VM. Posts "started" + the AAP workflow job ID/deep link back
+        # to the RITM. Terminal leaf. Guarded → no-op on non-ServiceNow runs.
+        - identifier: ritm-start-notice
+          unified_job_template:
+            name: "DC1.Azure - RITM Start Notice"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+
         - identifier: provision-vm
           unified_job_template:
             name: "DC1.Azure - Provision VM"

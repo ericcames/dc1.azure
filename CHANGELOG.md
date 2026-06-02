@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **RITM start-notice — two-way link at launch** (AB#94, Epic AB#77) — ties
+  ServiceNow and AAP together the moment provisioning starts (not just at the end).
+  New root workflow node **`DC1.Azure - RITM Start Notice`** (parallel to Provision
+  VM) runs **`playbooks/servicenow/notice_ritm_started.yml`** (guarded on
+  `ticket_number`), which writes back to the originating `sc_req_item`: a
+  customer-visible **comment** ("provisioning started") and a fulfiller **work
+  note** carrying the **AAP workflow job ID + a deep link** to the job output
+  (`awx_workflow_job_id`). It also publishes the **reverse link** (AAP job →
+  the RITM) via `set_stats` (`snow_ritm_url`/`snow_ritm_number`) — fully
+  bidirectional. New JT on `dc1-azure-control` with the `DC1.Azure - ServiceNow`
+  **and** `DC1.Azure - Controller` creds (the latter for `CONTROLLER_HOST`);
+  `validate.yml` asserts it. Uses the threaded `ticket_sys_id` (falls back to a
+  number lookup). Test: launch from ServiceNow → the RITM gets a start comment +
+  work-note link within seconds, and the AAP job carries a clickable `snow_ritm_url`.
 - **ServiceNow-side artifacts + as-built setup** (AB#90, Epic AB#77) — version-controls
   the ServiceNow side of the inbound trigger so it survives a PDI reset and is
   reproducible. New **`servicenow/`** folder: `business_rules/fire_eda_on_ritm.js`

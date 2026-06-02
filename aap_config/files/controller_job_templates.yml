@@ -88,6 +88,20 @@ controller_templates:
   # These run THIS repo's guarded playbooks/servicenow/* (not the Windows roles)
   # so non-ServiceNow launches no-op (guard on ticket_number). All run on the
   # control inventory (localhost plays) with the ServiceNow credential.
+  # Start notice — runs first (root node, parallel to Provision VM). Needs BOTH
+  # the ServiceNow cred (write the RITM) and the Controller cred (CONTROLLER_HOST
+  # for the workflow-job deep link). Guarded on ticket_number.
+  - name: "DC1.Azure - RITM Start Notice"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/servicenow/notice_ritm_started.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+      - "{{ cred_controller }}"
+
   - name: "DC1.Azure - Create CMDB CI"
     job_type: run
     organization: "{{ my_organization }}"
