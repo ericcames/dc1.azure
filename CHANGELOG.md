@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Security
+- **Scrubbed leaked RHDP/Azure identifiers** (AB#98) — replaced live deployment
+  values that had been committed in `CHANGELOG.md` and `ROADMAP.md` with grep-able
+  placeholders, per the no-RHDP-URLs rule: the AAP cluster URL
+  (`aap-aap.apps.<rhdp-cluster>.redhatworkshops.io`), RHDP resource group
+  (`<rhdp-resource-group>`), TF-state storage account
+  (`<tf-state-storage-account>`), Service-Principal appId (`<rhdp-sp-app-id>`),
+  and the smoke-test VM's public IP (`<vm-public-ip>`) + FQDN
+  (`dc1az-small-<suffix>.…`). Note: these remain in **git history** — a true purge
+  would need a history rewrite, deferred (repo is private).
+
 ### Added
 - **ServiceNow demo screenshots** (AB#97, Epic AB#77) — captured from the live
   AB#93 validation run (RITM0011939) and wired into `docs/demo-runbook.md`:
@@ -482,7 +493,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `ROADMAP.md` — Phase 4 live-run item updated to reflect EE blocker resolved;
   three 2026-05-27 entries added to Decisions Log (custom EE, quay.io hosting
   strategy, CaC EE registration).
-- Azure Storage Account `dc1aztfstate0526` bootstrapped in `openenv-blsvm-1`; SP granted `Storage Blob Data Contributor` for Azure AD auth (`use_azuread_auth = true`). Documented in `docs/dev-environment.md`.
+- Azure Storage Account `<tf-state-storage-account>` bootstrapped in `<rhdp-resource-group>`; SP granted `Storage Blob Data Contributor` for Azure AD auth (`use_azuread_auth = true`). Documented in `docs/dev-environment.md`.
 
 ### Changed
 - `playbooks/provision_vm.yml` — `terraform init` now passes `-backend-config` flags for `resource_group_name`, `storage_account_name`, `container_name`, and `key`. Backend values flow in via JT extra_vars; `dc1_azure_tf_container` and `dc1_azure_tf_key` default to `tfstate` / `dc1.azure.tfstate`.
@@ -552,8 +563,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - `CONTRIBUTING.md` — clarified step 4 (work-item reference) to point at the new `.azuredevops/pull_request_template.md` AB# field; clarified step 5 to note that direct-push blocking on `main` is a Phase 0.5 branch-policy item, not yet enforced; added a dedicated **`AB#<id>` autolink syntax** section explaining how ADO renders the shorthand and pointing at `docs/ado-conventions.md` for the full operating model. Satisfies Phase 0.5 ⬜ "Document AB# autolink syntax in CONTRIBUTING.md" item.
 - `ROADMAP.md` — marked four Phase 0.5 items ✅: PR template, CONTRIBUTING AB# documentation, CODEOWNERS, and the `docs/ado-conventions.md` reference. The remaining ⬜ items in Phase 0.5 require ADO web UI / `az devops` CLI work (Boards backfill, branch policies, Service Connections, Variable Group).
-- `ROADMAP.md` — Phase 0.5 advanced from ⬜ to 🔄. Chunk B (ADO UI / `az devops` CLI work) executed via the CLI: 10 Epics, 13 Features, 11 Stories backfilled with full Epic→Feature→Story parentage and `phase-N` + topic tags; iterations renamed `Sprint 1/2/3` with rolling 2-week date ranges starting 2026-05-21; Azure RM Service Connection `dc1-azure-rhdp-sp` created from RHDP SP (id `86d0df16-75b6-4197-9ddb-4cd097d14245`); Variable Group `dc1-azure-shared` (4 vars, authorized for all pipelines); project Wiki `dc1.azure.wiki` with `/Home` landing page; project description set on ADO landing page; four blocking branch policies on `main` (reviewers, work-item linking, comment resolution, squash-only merge — build validation policy deferred to Phase 5). Remaining ⬜ items intentionally deferred (GitHub SC → Phase 5, build validation → Phase 5, auto-include reviewers → when a teammate joins).
-- `ROADMAP.md` — **Phase 2 advanced from 🔄 to ✅.** Manual smoke test passed against RHDP env (`openenv-blsvm-1`, `eastus`) on 2026-05-21 with `vm_size_tier=small`. Three real Phase 2 design bugs found + fixed during the test (see `### Fixed` above). Apply produced a reachable Windows Server 2025 VM at `20.127.118.198`; WinRM-HTTPS port 5986 verified open + TLS handshake succeeds + WinRM listener responds with HTTP 405 to a GET on `/wsman`; `terraform destroy` cleaned all 9 resources. Storage-backend bootstrap remains as a separate follow-up (local state used for this smoke test per the documented escape hatch in `backend.tf`).
+- `ROADMAP.md` — Phase 0.5 advanced from ⬜ to 🔄. Chunk B (ADO UI / `az devops` CLI work) executed via the CLI: 10 Epics, 13 Features, 11 Stories backfilled with full Epic→Feature→Story parentage and `phase-N` + topic tags; iterations renamed `Sprint 1/2/3` with rolling 2-week date ranges starting 2026-05-21; Azure RM Service Connection `dc1-azure-rhdp-sp` created from RHDP SP (id `<rhdp-sp-app-id>`); Variable Group `dc1-azure-shared` (4 vars, authorized for all pipelines); project Wiki `dc1.azure.wiki` with `/Home` landing page; project description set on ADO landing page; four blocking branch policies on `main` (reviewers, work-item linking, comment resolution, squash-only merge — build validation policy deferred to Phase 5). Remaining ⬜ items intentionally deferred (GitHub SC → Phase 5, build validation → Phase 5, auto-include reviewers → when a teammate joins).
+- `ROADMAP.md` — **Phase 2 advanced from 🔄 to ✅.** Manual smoke test passed against RHDP env (`<rhdp-resource-group>`, `eastus`) on 2026-05-21 with `vm_size_tier=small`. Three real Phase 2 design bugs found + fixed during the test (see `### Fixed` above). Apply produced a reachable Windows Server 2025 VM at `<vm-public-ip>`; WinRM-HTTPS port 5986 verified open + TLS handshake succeeds + WinRM listener responds with HTTP 405 to a GET on `/wsman`; `terraform destroy` cleaned all 9 resources. Storage-backend bootstrap remains as a separate follow-up (local state used for this smoke test per the documented escape hatch in `backend.tf`).
 - `ROADMAP.md` — restructured **Phase 3** to adopt `url_checker`-style self-contained `aap_config/` directory pattern (chosen over `aap.as.code`'s `playbooks/files/config_as_code/` for new-user discoverability and parity with the upstream `infra.aap_configuration` recommended layout). Marks `playbooks/bootstrap_aap.yml` as transitional pending the `aap_config/load.yml` replacement.
 - `ROADMAP.md` — added **Phase 7** (Install Documentation) covering two install paths: `docs/INSTALL.md` for manual install, `.claude/skills/install-dc1-azure/` Claude Code skill for AI-driven install.
 - `ROADMAP.md` — added **Phase 8** (ServiceNow Integration) covering the v2 demo flow: SNow self-service catalog → AAP workflow → AAP→SNow RITM callback. Instance = Red Hat shared SNow dev (URL TBD).
@@ -571,7 +582,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Removed `playbooks/.gitkeep` and `inventories/dc1-azure/group_vars/.gitkeep` placeholders now that real files exist in those directories.
 
 ### Verified
-- `DC1.Azure - Vault` and `DC1.Azure - Azure RM` credentials created in live RHDP AAP (`aap-aap.apps.cluster-blsvm-2.dynamic2.redhatworkshops.io`) via `--skip-tags ado` partial run on 2026-05-21. Azure RM credential confirmed via API: subscription/tenant/client fields all correct; client_secret encrypted at rest.
+- `DC1.Azure - Vault` and `DC1.Azure - Azure RM` credentials created in live RHDP AAP (`aap-aap.apps.<rhdp-cluster>.redhatworkshops.io`) via `--skip-tags ado` partial run on 2026-05-21. Azure RM credential confirmed via API: subscription/tenant/client fields all correct; client_secret encrypted at rest.
 
 ## 0.1.0 — 2026-05-21
 

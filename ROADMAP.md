@@ -194,9 +194,9 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 - ✅ `CODEOWNERS` file mapping `/terraform/` → @ericcames, `/playbooks/` → @ericcames, `/aap_config/` → @ericcames + catch-all + governance docs (2026-05-21). Note: ADO doesn't natively parse `CODEOWNERS` — file works AS-IS on the GitHub mirror; ADO enforcement happens via the "Automatically include code reviewers" branch policy (see `docs/ado-conventions.md`).
 
 **Service Connections + Library (replace inline creds):**
-- ✅ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — id `86d0df16-75b6-4197-9ddb-4cd097d14245`, IsReady true (2026-05-21)
+- ✅ Create **Azure Resource Manager** service connection `dc1-azure-rhdp-sp` from the RHDP Service Principal — id `<rhdp-sp-app-id>`, IsReady true (2026-05-21)
 - ✅ Create **GitHub** service connection `github-ericcames` for the Phase 5 auto-mirror push — PAT created + service connection registered (AB#49, 2026-05-26)
-- ✅ Create **Variable Group** `dc1-azure-shared` in Library — id 1, 4 variables (`location=eastus`, `resource_group_name=openenv-blsvm-1`, `subscription_id`, `storage_account_name=REPLACE_ME_TF_STATE_SA`), authorized for all pipelines (2026-05-21)
+- ✅ Create **Variable Group** `dc1-azure-shared` in Library — id 1, 4 variables (`location=eastus`, `resource_group_name=<rhdp-resource-group>`, `subscription_id`, `storage_account_name=REPLACE_ME_TF_STATE_SA`), authorized for all pipelines (2026-05-21)
 - ✅ Document the Library / Service Connection inventory in `docs/ado-conventions.md` so a customer SE walking in sees the same shape an enterprise team would maintain (2026-05-21)
 
 **Wiki vs. in-repo docs:**
@@ -225,7 +225,7 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 **Exit criteria:** repo opens cleanly in VS Code, `ansible-galaxy collection install -r collections/requirements.yml` succeeds against Eric's `~/.ansible.cfg`.
 
 ### Phase 2 — Terraform: Azure Windows VM  ✅
-*Code complete 2026-05-21 (commit 2848f54); smoke test passed 2026-05-21 against RHDP env (`openenv-blsvm-1`, `eastus`). Three real design bugs discovered + fixed inline.*
+*Code complete 2026-05-21 (commit 2848f54); smoke test passed 2026-05-21 against RHDP env (`<rhdp-resource-group>`, `eastus`). Three real design bugs discovered + fixed inline.*
 
 - ✅ `providers.tf` — `azurerm` provider + `azurerm` remote state backend
 - ✅ `backend.tf` — Storage Account / container / key for state (uses partial backend config; storage account bootstrap is a separate follow-up — for the smoke test, local state was used per the documented escape hatch in `backend.tf`)
@@ -234,7 +234,7 @@ to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
 - ✅ `main.tf` — VNet, Subnet, NSG (5986 + 3389), Public IP, NIC, `azurerm_windows_virtual_machine` (image `MicrosoftWindowsServer:WindowsServer:2025-datacenter-azure-edition:latest`), `custom_data` (via `terraform/scripts/winrm_bootstrap.ps1`) deposits the script, `azurerm_virtual_machine_extension` (CustomScriptExtension) triggers execution, opens WinRM-HTTPS firewall on first boot
 - ✅ `outputs.tf` — `public_ip`, `fqdn`, `admin_username`, `vm_size_chosen`
 - ✅ `terraform.tfvars.example` documenting required inputs
-- ✅ Manual smoke test against RHDP env (2026-05-21): `terraform init && plan && apply` with `vm_size_tier=small` provisioned a reachable Windows Server 2025 VM (public IP `20.127.118.198`, FQDN `dc1az-small-uf29p.eastus.cloudapp.azure.com`); WinRM-HTTPS port 5986 verified open + TLS handshake succeeds + HTTP 405 confirms WinRM listener responding; `terraform destroy` cleaned all 9 resources
+- ✅ Manual smoke test against RHDP env (2026-05-21): `terraform init && plan && apply` with `vm_size_tier=small` provisioned a reachable Windows Server 2025 VM (public IP `<vm-public-ip>`, FQDN `dc1az-small-<suffix>.eastus.cloudapp.azure.com`); WinRM-HTTPS port 5986 verified open + TLS handshake succeeds + HTTP 405 confirms WinRM listener responding; `terraform destroy` cleaned all 9 resources
 
 **Bugs discovered + fixed during the smoke test:**
 - **`patch_mode` required for hotpatch-enabled images** — Windows Server 2025 Azure Edition is a hotpatch image; azurerm v4.x fails the VM create unless `patch_mode = "AutomaticByPlatform"` + `hotpatching_enabled = true` are set explicitly on the `azurerm_windows_virtual_machine` resource. Added to `main.tf`.
