@@ -74,8 +74,10 @@ demo-logic.
       of the story.)
 - [ ] **Decide your tier** up front so you're not hesitating on the survey.
 
-> 📸 *Screenshot to capture: the AAP Templates list with the DC1.Azure objects
-> visible → `docs/images/demo-00-templates.png`*
+The AAP **Automation Templates** list filtered to `DC1` — every DC1.Azure job
+template plus the *DC1.Azure - Provision and Configure* workflow:
+
+![AAP Automation Templates list filtered to the DC1.Azure objects](images/demo-00-templates.png)
 
 ---
 
@@ -108,8 +110,14 @@ Open the AAP UI. You should already be authenticated from pre-flight.
 Left nav → **Automation Execution → Templates**. Find
 **`DC1.Azure - Provision and Configure`** (type: *Workflow Job Template*).
 
-> 📸 *Screenshot: the workflow template in the Templates list →
-> `docs/images/demo-01-workflow-template.png`*
+The **Workflow Visualizer** for *DC1.Azure - Provision and Configure* (11 nodes).
+The graph is wide, so it's shown in panned sections, left → right:
+
+![Workflow topology (left) — Start fans out to provision-vm and the ritm-start-notice branch; Provision VM's Run-on-success / Run-on-fail edges drive the configure and incident paths](images/demo-01-workflow-template-1.png)
+
+![Workflow topology (middle) — powershell-improvement → website-setup / provision-access, the CMDB branch (create-cmdb-ci → relationship), and the failure path (create-incident → update-ritm-failure)](images/demo-01-workflow-template-2.png)
+
+![Workflow topology (right) — the configure branches converge on patching, then Run-always → update-ritm-success](images/demo-01-workflow-template-3.png)
 
 ### 3.3 Launch and answer the survey
 Click **Launch**. A single-question survey appears:
@@ -120,12 +128,15 @@ Click **Launch**. A single-question survey appears:
 
 Submit the survey to start the run.
 
-> 📸 *Screenshot: the survey dialog with the `vm_size_tier` dropdown open →
-> `docs/images/demo-02-survey.png`*
+The **`vm_size_tier` survey** — the three t-shirt tiers (small / medium / large,
+all Dsv5), with `medium-4cpu-16gb` as the default:
+
+![AAP vm_size_tier survey question — small/medium/large tiers, medium default](images/demo-02-survey.png)
 
 ### 3.4 Watch the workflow graph
-The workflow visualizer shows five nodes running left-to-right. Talk through
-each as it goes green:
+The workflow visualizer shows the run unfold left-to-right. Narrate these five
+**configure** nodes as they go green — on an AAP-UI launch the other (ServiceNow
+callback) nodes in the 11-node graph also run but no-op without a ticket (see §7):
 
 | # | Node | What to say |
 |---|------|-------------|
@@ -135,8 +146,12 @@ each as it goes green:
 | 4 | **Provision Access** | "Creating the demo user account — access provisioning is part of the same automated flow, not a separate ticket." |
 | 5 | **Patching** | "Applying Windows Updates. The VM is born already patched — no drift, no manual hardening step." |
 
-> 📸 *Screenshot: the workflow visualizer with all five nodes green →
-> `docs/images/demo-03-workflow-success.png`*
+The **Jobs list** after a clean run — the *DC1.Azure - Provision and Configure*
+workflow job and every child playbook (Provision VM, Powershell Improvement,
+Website Setup, Provision Access, Patching, the CMDB + RITM callbacks) all
+**Success**:
+
+![AAP Jobs list — the DC1.Azure workflow job and all child jobs Success](images/demo-03-workflow-success.png)
 
 ---
 
@@ -174,8 +189,16 @@ done by that one workflow, from one survey click."*
 > ServiceNow RITM number, which arrives with the Phase 8 ServiceNow integration.
 > That's expected; don't apologize for it.
 
-> 📸 *Screenshot: the live IIS landing page in a browser →
-> `docs/images/demo-04-landing-page.png`*
+The live **IIS landing page** the workflow stands up, served from the Windows VM
+itself (the address bar shows the VM's FQDN):
+
+![Live IIS landing page (top) — AAP Windows Demo banner, running on Windows Server 2025 on Azure](images/demo-04-landing-page-1.png)
+
+…and the **Provisioning Details** lower on the page. Note the **Request Number**
+is populated here (`RITM0011939`) because this run was triggered from ServiceNow
+(Phase 8) — a v1 AAP-UI launch shows `N/A` (see the note above):
+
+![Live IIS landing page (lower) — QR code, red.ht link, and Provisioning Details: RITM number, DNS name, region, VM size, auto-destruct notice](images/demo-04-landing-page-2.png)
 
 ### 4.3 (Optional) RDP in
 If the room wants to see a real desktop: RDP to the same FQDN as
@@ -203,8 +226,11 @@ This is a selling point, not an afterthought — say it out loud.
 > locking it as "in use" (AB#73). You don't need to mention this on stage — it's
 > just why teardown reliably goes green.
 
-> 📸 *Screenshot: a successful Teardown job + the empty dc1-azure inventory →
-> `docs/images/demo-05-teardown-success.png`*
+The **`dc1-azure` inventory empty** after the Teardown job — no leftover hosts,
+proving the self-cleaning story (the *DC1.Azure - Teardown* job itself reports
+*Success*):
+
+![dc1-azure inventory empty after teardown — no hosts remain](images/demo-05-teardown-success.png)
 
 ---
 
@@ -328,12 +354,12 @@ Capture these once on a clean run and commit them to `docs/images/` (committed,
 not gitignored — so they render on GitHub for everyone). Then replace the
 inline 📸 placeholders above with real `![alt](images/...)` embeds.
 
-- [ ] `demo-00-templates.png` — AAP Templates list showing the DC1.Azure objects
-- [ ] `demo-01-workflow-template.png` — the *Provision and Configure* workflow template
-- [ ] `demo-02-survey.png` — the `vm_size_tier` survey dialog
-- [ ] `demo-03-workflow-success.png` — workflow visualizer, all five nodes green
-- [ ] `demo-04-landing-page.png` — the live IIS landing page in a browser
-- [ ] `demo-05-teardown-success.png` — successful teardown + empty inventory
+- [x] `demo-00-templates.png` — AAP Templates list showing the DC1.Azure objects — captured 2026-06-02 (no redaction needed)
+- [x] `demo-01-workflow-template-{1,2,3}.png` — the *Provision and Configure* workflow visualizer (11-node graph, captured in three panned tiles) — 2026-06-02 (no redaction needed)
+- [x] `demo-02-survey.png` — the `vm_size_tier` survey dialog — captured 2026-06-02 (no redaction needed)
+- [x] `demo-03-workflow-success.png` — Jobs list, the workflow job + all child jobs Success — captured 2026-06-02 (no redaction needed)
+- [x] `demo-04-landing-page-{1,2}.png` — the live IIS landing page in a browser (top + Provisioning Details) — captured 2026-06-02 (no redaction needed)
+- [x] `demo-05-teardown-success.png` — successful teardown + empty inventory — captured 2026-06-02 (teardown job 119 Success; no redaction needed)
 - [ ] *(optional)* the ADO Boards Phase 6 epic/board, for the "how this was built" aside
 - [x] `demo-06-snow-catalog.png` — the ServiceNow "Request Windows VM (Azure)" catalog item *(Demo v2, §7)* — captured 2026-06-02 (no redaction needed)
 - [x] `demo-07-snow-ritm.png` — the RITM auto-filled with FQDN/IP + Fulfilled state *(Demo v2)* — captured 2026-06-02 (RITM0011939; URL bar + public IP redacted)

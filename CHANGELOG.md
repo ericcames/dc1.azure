@@ -36,6 +36,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   would need a history rewrite, deferred (repo is private).
 
 ### Added
+- **Demo-runbook screenshots demo-00 → demo-05** (AB#100, Epic AB#3 Phase 6) —
+  captured the core AAP-driven demo flow live and embedded it in
+  `docs/demo-runbook.md`, replacing the inline 📸 placeholders and ticking
+  Appendix B: `demo-00-templates` (Templates list), `demo-01-workflow-template-{1,2,3}`
+  (the 11-node visualizer in three panned tiles), `demo-02-survey` (`vm_size_tier`),
+  `demo-03-workflow-success` (Jobs list — workflow + all child jobs Success),
+  `demo-04-landing-page-{1,2}` (live IIS page + Provisioning Details),
+  `demo-05-teardown-success` (empty `dc1-azure` inventory after teardown job 119).
+  Also rewords the stale "five nodes" line (the graph is 11 nodes; callbacks no-op
+  on a UI launch). No redaction needed on these (no browser chrome / live
+  identifiers, except the ephemeral Azure FQDN already shown in demo-07/08).
 - **ServiceNow catalog screenshot** (AB#99, Epic AB#77) — adds
   `docs/images/demo-06-snow-catalog.png` (the *DC1.Azure Windows VM on Azure*
   catalog item with its `vm_size_tier` choices) and embeds it in
