@@ -14,6 +14,16 @@
 #   my_public_ip      public IP                    -> ip_address
 #   my_instance_id    Azure stand-in (vm_name)     -> serial_number (optional)
 #   my_instance_type  Azure SKU (vm_size_chosen)   -> other.model_number (optional)
+#
+# AB#93 — after registering the CI, link it back to the originating requested
+# item by setting sc_req_item.configuration_item = <CI sys_id>. We patch it HERE
+# (not in update_ritm.yml) because the CI sys_id is only known on this branch:
+# Create CMDB CI and Update RITM (success) run on SIBLING workflow branches, so a
+# set_stats artifact from this node never reaches Update RITM. The CI sys_id is
+# captured from the create step; the RITM is resolved from the threaded
+# ticket_sys_id (falls back to a number lookup) — same pattern as the start
+# notice. We still publish vm_ci_sys_id via set_stats for observability.
+#
 # Credential: DC1.Azure - ServiceNow (ServiceNow ITSM Credential → SN_* env).
 # ============================================================================
 
@@ -59,6 +69,46 @@
         - name: Show the CI result
           ansible.builtin.debug:
             var: server_info.record.sys_id
+
+        - name: Publish the new CI sys_id as a workflow artifact (observability)
+          ansible.builtin.set_stats:
+            data:
+              vm_ci_sys_id: "{{ server_info.record.sys_id }}"
+
+        # --- AB#93: relate the originating RITM to this CI -------------------
+        - name: Use the threaded RITM sys_id when present
+          ansible.builtin.set_fact:
+            ritm_sys_id: "{{ ticket_sys_id }}"
+          when:
+            - ticket_sys_id is defined
+            - ticket_sys_id | string | length > 0
+
+        - name: Resolve the RITM sys_id by number (fallback)
+          when: ritm_sys_id is not defined
+          block:
+            - name: Query sc_req_item by number
+              register: ritm_lookup
+              servicenow.itsm.api_info:
+                resource: sc_req_item
+                sysparm_query: "numberSTARTSWITH{{ ticket_number }}"
+
+            - name: Fail clearly if the RITM was not found
+              ansible.builtin.assert:
+                that:
+                  - ritm_lookup.record | length > 0
+                fail_msg: "No sc_req_item matched number '{{ ticket_number }}'."
+
+            - name: Set sys_id from the lookup
+              ansible.builtin.set_fact:
+                ritm_sys_id: "{{ ritm_lookup.record[0].sys_id }}"
+
+        - name: Link the RITM to the new CI (sc_req_item.configuration_item)
+          servicenow.itsm.api:
+            action: patch
+            resource: sc_req_item
+            sys_id: "{{ ritm_sys_id }}"
+            data:
+              configuration_item: "{{ server_info.record.sys_id }}"
 
     - name: Note skip on a non-ServiceNow run
       when: ticket_number is not defined or (ticket_number | string | length == 0)

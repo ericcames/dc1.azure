@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **RITM ↔ CMDB CI link** (AB#93, Epic AB#77) — closes the loop between the
+  requested item and the configuration item it produced. After registering the
+  CI, **`playbooks/servicenow/create_ci.yml`** now patches
+  `sc_req_item.configuration_item = <CI sys_id>` (the RITM's *Configuration item*
+  field), so the ticket and the CMDB record reference each other. The patch lives
+  in `create_ci.yml` (not `update_ritm.yml`) because the CI sys_id is only known
+  on the CMDB branch — Create CMDB CI and Update RITM run on sibling workflow
+  branches, so a `set_stats` artifact would never reach Update RITM. The RITM is
+  resolved from the threaded `ticket_sys_id` (falls back to a `numberSTARTSWITH`
+  lookup), mirroring the start-notice; the new CI sys_id is also published via
+  `set_stats` (`vm_ci_sys_id`) for observability. Guarded on `ticket_number`, so
+  non-ServiceNow launches (AAP UI / Self-Service / ADO) no-op and stay green.
+  Test: launch from ServiceNow → after provisioning, open the RITM → its
+  *Configuration item* field points at the new `cmdb_ci_win_server` CI.
 - **RITM start-notice — two-way link at launch** (AB#94, Epic AB#77) — ties
   ServiceNow and AAP together the moment provisioning starts (not just at the end).
   New root workflow node **`DC1.Azure - RITM Start Notice`** (parallel to Provision

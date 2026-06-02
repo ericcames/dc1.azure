@@ -356,7 +356,13 @@ Of type `ServiceNow ITSM Credential` (already defined). Injects
   the role's `vars/main.yml`). The role's AWS-flavored fields —
   `serial_number` (`my_instance_id`), `asset_tag` (`my_ami_id`), `model_number`
   (`my_instance_type`) — need Azure equivalents threaded via `set_stats` (Azure
-  VM ID, resource ID/omit, and `vm_size_tier`/SKU respectively).
+  VM ID, resource ID/omit, and `vm_size_tier`/SKU respectively). **AB#93:** after
+  registering the CI, the same playbook links it back to the originating request
+  by patching `sc_req_item.configuration_item = <CI sys_id>` (the RITM's
+  *Configuration item* field), so the ticket and the CMDB record reference each
+  other. The patch lives here — not in `update_ritm.yml` — because the CI sys_id
+  is only known on this branch (Create CMDB CI and Update RITM run on sibling
+  branches, so a `set_stats` artifact would not reach Update RITM).
 - `DC1.Azure - Create CMDB Relationship` → `playbooks/servicenow/create_cmdb_relationship.yml`
 - `DC1.Azure - Update RITM (success)` → `playbooks/servicenow/update_sn_req_itm.yml`
   (state Fulfilled, work note w/ FQDN + public IP + admin user)
