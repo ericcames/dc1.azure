@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **ServiceNow-side artifacts + as-built setup** (AB#90, Epic AB#77) — version-controls
+  the ServiceNow side of the inbound trigger so it survives a PDI reset and is
+  reproducible. New **`servicenow/`** folder: `business_rules/fire_eda_on_ritm.js`
+  (the hardened, **as-built** Business Rule — builds the payload from all catalog
+  variables, `clean()`-trims every value to avoid the `vm_size_tier` trailing-space
+  survey failure, logs HTTP status) + `README.md` (install order, REST Message +
+  catalog/variable config, gotchas). Distinct from `playbooks/servicenow/` (the
+  AAP-side callbacks). Adds a concrete "ServiceNow UI setup (as built)" section to
+  `docs/servicenow-integration.md` — catalog item (exact `DC1.Azure Windows VM on
+  Azure` match string), `vm_size_tier` Multiple Choice variable + monthly recurring
+  prices, the `Ames - DC1.Azure EDA Event Stream` Outbound REST Message (static
+  `Authorization` header, body via `setRequestBody()` — no `${...}` template), and
+  the `sc_req_item` Business Rule referencing the script file (single source of
+  truth). Instance URL, AAP event-stream URL/UUID, and the bearer token are
+  placeholdered (RHDP/secret values never committed).
 - **`docs/ee-security-remediation.md`** (AB#87, Epic AB#77) — the SE story of how
   we inspected the `DC1.Azure - EE` Quay security scan (351 CVEs / 24 High,
   inherited from a ~8-month-stale base), traced the High findings to base RPMs,

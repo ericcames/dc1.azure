@@ -256,6 +256,93 @@ the activation — AAP exposes the external URL and enforces the bearer token.
 
 ---
 
+## ServiceNow UI setup — click-by-click (as built)
+
+The inbound trigger, exactly as configured on the ServiceNow side. The
+copy-paste artifacts (Business Rule script) are version-controlled under
+[`servicenow/`](../servicenow/) — see [`servicenow/README.md`](../servicenow/README.md)
+for the same steps in install order. **Placeholders:** `<your-snow-instance>`, the
+AAP event-stream URL/UUID, and the bearer token are deployment-/secret-specific —
+never commit the live values. The token lives only in `docs/dev-environment.sh` as
+`EDA_EVENT_STREAM_TOKEN`; copy the event-stream URL from AAP at run time.
+
+### 1. Catalog item
+*Service Catalog → Catalog Definitions → Maintain Items → New*
+- **Name:** any friendly label (e.g. `Request Windows VM (Azure)`)
+- **Short description:** `DC1.Azure Windows VM on Azure` — **the exact match string**
+  the rulebook keys on (`my_azure_catalog_short_description`). The RITM inherits
+  this field, so it must match byte-for-byte (no trailing space).
+- Catalog: Service Catalog · Category: your choice · Active: ✓
+
+### 2. Variable — `vm_size_tier`
+On the item, add a variable:
+- **Type:** Multiple Choice
+- **Name:** `vm_size_tier` (matches the REST body field **and** `event.payload.vm_size_tier`)
+- **Default value:** `medium-4cpu-16gb` (mirrors the AAP survey default)
+- **Question Choices** (Text = Value), optional monthly `Recurring price` (Windows
+  PAYG, `eastus`, ~730 h/mo — see ROADMAP Sizing Tiers):
+
+  | Text / Value | Recurring price |
+  |---|---|
+  | `small-2cpu-8gb` | 137.24 |
+  | `medium-4cpu-16gb` | 274.48 |
+  | `large-8cpu-32gb` | 548.96 |
+
+### 3. Outbound REST Message
+*System Web Services → Outbound → REST Message → New*
+- **Name:** `Ames - DC1.Azure EDA Event Stream`
+- **Endpoint:** the AAP event-stream external URL — copy from *Automation Decisions →
+  Event Streams → `DC1.Azure - ServiceNow Event Stream` → URL*. Shape:
+  ```
+  https://<aap-host>/eda-event-streams/api/eda/v1/external_event_stream/<stream-uuid>/post/
+  ```
+
+HTTP Method (the **HTTP Methods** related list → New):
+- **HTTP method:** POST · **Name:** `POST`
+- **HTTP Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>` — **static header**; matched pair with
+    `EDA_EVENT_STREAM_TOKEN` (no trailing newline → the #1 cause of a 401)
+- **No Content/body template** — the Business Rule builds the JSON and sets it with
+  `setRequestBody()`, so there are **no** `${...}` parameters to define here.
+
+### 4. Business Rule — fire the REST message
+*System Definition → Business Rules → New*
+- **Table:** Requested Item [`sc_req_item`] · **Advanced:** ✓ *(required — the script
+  tab is silently ignored without it)*
+- **When:** after · **Insert:** ✓
+- **Filter:** Catalog Item *is* your item (so only this request type POSTs to EDA)
+- **Script:** paste [`servicenow/business_rules/fire_eda_on_ritm.js`](../servicenow/business_rules/fire_eda_on_ritm.js)
+  verbatim — kept as a file so it's the single source of truth, not duplicated here.
+  It builds the payload (number, sys_id, short_description, **all** catalog variables,
+  requester), **trims every value** via a `clean()` helper (prevents the
+  `vm_size_tier "medium-4cpu-16gb "` trailing-space survey-validation failure), POSTs
+  via the REST Message, and logs the HTTP status to *System Logs → All*.
+
+> **Token handling — two options.** As-built uses the **static `Authorization`
+> header** in step 3 (simplest; the token sits readable in the REST Message record).
+> To keep it out of that record, instead store it as an encrypted system property
+> (`sys_properties` → `dc1.eda_event_stream_token`, type `password2 (Encrypted)`,
+> value = `EDA_EVENT_STREAM_TOKEN`) and inject it in the script with
+> `r.setRequestHeader('Authorization', 'Bearer ' + gs.getProperty('dc1.eda_event_stream_token'))`.
+> Either way it's a matched pair with the AAP `ServiceNow Event Stream` credential.
+
+### Verify
+- **ServiceNow:** *System Logs → All* → look for `DC1.Azure EDA trigger [RITM...] -> HTTP 200`.
+- **AAP:** the event stream's *events received* count increments and the
+  `DC1.Azure - Catch ServiceNow Events` activation launches
+  `DC1.Azure - Provision and Configure`.
+- **401?** The property value drifted from `EDA_EVENT_STREAM_TOKEN` (usually a
+  trailing newline). They are a matched pair — same value on both sides.
+- **Workflow launches but no RITM/CMDB update?** That's the **outbound** half
+  (below) — it needs the rebuilt `DC1.Azure - EE` carrying `servicenow.itsm`.
+
+> **Pre-flight without ServiceNow.** You can prove the AAP side independently by
+> POSTing the same 4-field JSON (with the bearer header) to the event-stream URL
+> via `curl` — if the workflow launches, any remaining issue is ServiceNow-side.
+
+---
+
 ## Outbound: AAP → ServiceNow (callback, CMDB, incident)
 
 ### Credential instance — `DC1.Azure - ServiceNow`
