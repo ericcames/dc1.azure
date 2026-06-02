@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **ServiceNow demo screenshots** (AB#97, Epic AB#77) — captured from the live
+  AB#93 validation run (RITM0011939) and wired into `docs/demo-runbook.md`:
+  `demo-07-snow-ritm.png` (RITM auto-updated — *Configuration item* linked to the
+  new CMDB CI, *Closed Complete*) and `demo-08-snow-cmdb-ci.png` (the new *Windows
+  Server* CI with its *Uses → Ansible Demonstrations* relationship). Inline 📸
+  placeholder replaced with real `![](images/…)` embeds; Appendix B checklist
+  ticked. Live identifiers **redacted** before commit (browser URL bar / ServiceNow
+  instance, public IP) per the no-RHDP-URLs rule. `demo-06-snow-catalog.png` still
+  pending (no live run needed).
 - **RITM ↔ CMDB CI link** (AB#93, Epic AB#77) — closes the loop between the
   requested item and the configuration item it produced. After registering the
   CI, **`playbooks/servicenow/create_ci.yml`** now patches
