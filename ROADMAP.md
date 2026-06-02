@@ -335,7 +335,7 @@ interactively.
 
 **Exit criteria:** ✅ Met 2026-05-26. First-time install completed via the Claude Code skill without consulting source code beyond what the skill prompted.
 
-### Phase 8 — ServiceNow Integration (Demo v2)  🔄
+### Phase 8 — ServiceNow Integration (Demo v2)  ✅
 
 End-state demo flow: business user goes to ServiceNow self-service catalog,
 requests a Windows VM (Azure), picks size, submits. SNow triggers the
@@ -350,16 +350,18 @@ Business Rule → Outbound REST Message → AAP EDA event stream → dc1.azure-o
 rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](docs/servicenow-integration.md).
 
 - ✅ Capture Red Hat shared SNow URL + access creds + `EDA_EVENT_STREAM_TOKEN` in `docs/dev-environment.sh` (`SN_*` + minted token present)
-- ⬜ ServiceNow catalog item: "Request Windows VM (Azure)" — variables `vm_size_tier` (dropdown), `justification`, `requestor`; pinned unique `short_description` *(operational — SNow UI)*
-- ⬜ ServiceNow Business Rule + Outbound REST Message → EDA event-stream URL (Bearer token) *(operational — SNow UI)*
+- ✅ ServiceNow catalog item: "Request Windows VM (Azure)" — `vm_size_tier` Multiple Choice + recurring prices; pinned `short_description` = `DC1.Azure Windows VM on Azure` *(built in SNow UI; as-built captured in `servicenow/` + `docs/servicenow-integration.md`)*
+- ✅ ServiceNow Business Rule + Outbound REST Message → EDA event-stream URL (Bearer token) *(built; hardened script in [`servicenow/business_rules/fire_eda_on_ritm.js`](servicenow/business_rules/fire_eda_on_ritm.js))*
 - ✅ EDA ingress (CaC) (**AB#81, PR #40**): `ansible.eda` in `aap_config/requirements.yml`; `DC1.Azure - EDA` project (this repo); `rulebooks/servicenow_events.yml`; `eda_credentials.yml` (event-stream + Controller + EDA SCM creds); `eda_event_streams.yml`; `eda_rulebook_activations.yml`. *(Reuses the platform's built-in Default Decision Environment — no `eda_decision_environments.yml` needed.)*
 - ✅ Callback / CMDB / incident (full Windows parity) (**AB#83, PR #42**) — `DC1.Azure - ServiceNow` ITSM credential + five JTs (Create CMDB CI, Create CMDB Relationship, Update RITM success/failure, Create Incident). *(Uses dc1.azure-owned guarded playbooks under `playbooks/servicenow/`, not the Windows project's — they no-op without `ticket_number` so non-SNow triggers stay green.)*
 - ✅ Wire workflow nodes (mirror DDW) (**AB#83 + AB#84, PR #42/#43**): CMDB CI branches off Provision VM success (parallel, early); Patching `always`→Update RITM (success); Provision VM failure→Create Incident→Update RITM (failure)
 - ✅ `provision_vm.yml` — `set_stats` FQDN/IP/admin/size/ticket for the callback + CMDB nodes (**AB#83, PR #42**)
 - ✅ `validate.yml` — assert the new EDA objects + creds + JTs (**AB#81/AB#83**)
 - ✅ `docs/demo-runbook.md` v2 section (runbook §7, ServiceNow-driven variant)
-- ⬜ **EE rebuild + push** — `servicenow.itsm` added to the EE (AB#83); the callback JTs need the rebuilt `DC1.Azure - EE`. *(Hardened image built locally + verified — AB#86; push held on the Quay.io write outage 2026-06-01.)*
-- ⬜ End-to-end test (incl. forced failure → Incident) — needs the SNow UI config + the pushed EE
+- ✅ **EE rebuild + push** — hardened EE (AB#86, errata + `servicenow.itsm`) pushed `quay.io/zigfreed/dc1-azure-ee@sha256:4423a10…`, PAH-synced, Controller EE pull policy set; the callback JTs run on it (2026-06-02)
+- ✅ **Start-notice — two-way link at launch** (AB#94, PR #51) — root node writes the AAP workflow job ID + deep link back to the RITM (comment + work note) and the reverse `snow_ritm_url` onto the AAP job
+- ✅ **Inbound-trigger CaC live-fixes** (AB#91, PR #49) — `my_organization` in the activation extra_vars, `ask_variables_on_launch` on the workflow, EE pull policy
+- ✅ **End-to-end validated live (2026-06-02)** — **success:** ServiceNow order → workflow green → CMDB CI + relationship → RITM **Closed Complete** with IP/FQDN/admin (RITM0011938). **Failure:** forced Provision VM failure → **INC0011350** opened → RITM **Closed Incomplete** (RITM0011931). Request-state mappings confirmed (`3`=Closed Complete, `4`=Closed Incomplete)
 
 **Open questions — RESOLVED (see [`docs/servicenow-integration.md`](docs/servicenow-integration.md)):**
 - Inbound trigger → **EDA event stream** (Business Rule → Outbound REST → rulebook → `run_workflow_template`); SNow holds no workflow ID/launch token. *(Revised 2026-05-28 from the original direct-REST decision.)*
@@ -372,9 +374,11 @@ rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](doc
 **Progress:**
 - ✅ `docs/servicenow-integration.md` — design v1 written (AB#78), then **redesigned to event-driven Demo v2** (EDA event stream + full Windows parity); decisions above resolved.
 - ✅ **Implementation merged** — inbound EDA ingress (AB#81, PR #40), outbound callback/CMDB/incident (AB#83, PR #42), workflow layout mirroring DDW (AB#84, PR #43), and the self-managing CaC token (AB#85, PR #44) are all on `main`. `EDA_EVENT_STREAM_TOKEN` minted; `SN_*` creds in `docs/dev-environment.sh`.
-- 🔄 **Remaining (operational):** rebuild + push `DC1.Azure - EE` so the callback JTs run (`servicenow.itsm` added; image hardened + built locally — AB#86 — push held on the Quay.io outage 2026-06-01), then the **SNow UI** config (catalog item + Business Rule → Outbound REST) and the **end-to-end test** (incl. forced failure → Incident).
+- ✅ **Operational steps done (2026-06-02):** EE hardened + pushed + PAH-synced; SNow catalog item + Business Rule + Outbound REST Message built (as-built in `servicenow/`); start-notice two-way link added (AB#94); inbound-trigger CaC live-fixes captured (AB#91).
+- ✅ **Validated end-to-end live (2026-06-02)** — success + failure paths both proven (see checklist above).
+- ⬜ **Follow-ups (captured):** AB#92 harden live SNow config (deploy hardened Business Rule + remove plaintext bearer); AB#93 relate the CMDB CI to the RITM via the `configuration_item` field; AB#95 EE deliberate-update model (pull:missing + version tags + pin — replaces the AB#91 `pull:always` placeholder, blocked on the tag-scheme pick). Quay security-scan before/after still pending Quay scanning's return.
 
-**Exit criteria:** a user with zero prior context can request a Windows VM through the SNow self-service portal, receive a fulfilled RITM with the IP + admin credentials, and RDP into a working Windows machine.
+**Exit criteria:** ✅ Met 2026-06-02. A user requests a Windows VM through the ServiceNow catalog, the workflow provisions + configures it, and the RITM is auto-fulfilled with IP/FQDN/admin (RDP-ready); a failed provision opens an Incident and marks the RITM Closed Incomplete.
 
 ### Phase 9 — AAP Self-Service Portal Trigger  ⬜
 
@@ -463,6 +467,9 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-06-01 | **Workflow layout mirrors DDW** (AB#84) — Create CMDB CI branches off **Provision VM success** (parallel, early — alongside the configure chain) instead of being gated behind Patching; **Update RITM (success)** hangs off **Patching `always`** instead of the tail of the CMDB chain | Matches the proven `aap.dailydemo.windows` graph: the CI is registered while the demo runs (better story, CMDB visible sooner) and the "Fulfilled" RITM update is decoupled from CMDB so a CMDB hiccup no longer blocks the request being marked fulfilled. RITM-success fires on Patching `always` (mirrors DDW) so it lands whenever the workflow reaches Patching. Layout-only — no JT/credential/playbook changes |
 | 2026-06-01 | **EE hardened with build-time OS errata** (AB#86) + **the remediation is a documented demo story** (AB#87, `docs/ee-security-remediation.md`) | The Quay scan flagged 351 CVEs (24 High) on `DC1.Azure - EE`, almost all inherited from the `ee-minimal-rhel9:2.17.14` base (cut 2025-09-21; verified already the newest in-line rebuild == `2.17.14-4`). A `microdnf upgrade` step in `prepend_base` pulls ubi9 errata at build time, clearing the High RPM findings (openssl/openssh/libnghttp2 → el9_8). **Deliberately deferred** (each its own work item): `pyOpenSSL`≥26 (drags `cryptography` 37→48 under a pinned `azure-cli-core`) and the 2.18.x base (ansible-core minor bump). Captured as an SE talking track because "we own/patch our EE supply chain, and we change-manage the risky fixes" is a stronger customer story than a green scan badge |
 | 2026-06-01 | **CaC auth = self-managing token dance** (AB#85) — `load.yml`/`validate.yml` mint a short-lived token from `AAP_CONTROLLER_USERNAME`/`PASSWORD` and delete it in `always:`, instead of authenticating with a stored `AAP_TOKEN`. `AAP_TOKEN` kept only as an SSO/MFA escape hatch (used as-is, not deleted) | A stored token expires and 401s (the "mint a new one" failure class). Minting fresh from username/password each run removes that class entirely and leaves nothing behind — consistent with the in-job dance already in `provision_vm`/`teardown`/`bootstrap` and with the "always delete tokens" rule. Basic auth was the alternative but introduces a second auth style and sends the password on every call; the dance keeps one pattern + a scoped, revocable, audited token |
+| 2026-06-02 | **RITM start-notice — two-way link at launch** (AB#94) — a root workflow node writes the AAP workflow job ID + deep link back to the RITM (comment + work note) at launch, and publishes the reverse `snow_ritm_url` onto the AAP job | A "fire and forget" launch leaves the requester staring at an unchanged ticket for ~10 min. Posting at launch (root node, parallel to Provision VM, `awx_workflow_job_id` for the link) gives immediate feedback and lets a fulfiller click straight from the ticket into the live AAP job; the reverse link makes it genuinely bidirectional. Guarded on `ticket_number` so non-ServiceNow triggers stay green |
+| 2026-06-02 | **Phase 8 validated end-to-end live; three inbound-trigger fixes were live-only** (AB#91) — captured `my_organization` (activation extra_vars), `ask_variables_on_launch` (workflow), and EE `pull` policy in CaC | Lint/build never exercise a live launch; all three only surfaced driving a real ServiceNow→workflow run (job 78→97). Capturing them in CaC keeps a `load.yml` re-apply from reverting the working demo. Confirmed the instance's request-state ints (`3`=Closed Complete, `4`=Closed Incomplete) so the `update_ritm.yml` defaults are correct as-is |
+| 2026-06-02 | **EE update model = deliberate, not auto-pull** (AB#95, direction set; impl deferred) — replace `pull: always` (AB#91 placeholder) with `pull: missing` + immutable version tags + pinning the Controller EE to a tag | `pull: always` re-pulls the 521 MB EE every run (throughput cost, visibly queued concurrent jobs) and is the wrong model — Eric prefers updating the EE deliberately when needed. The safe replacement needs the *reference* to change on a deliberate update (immutable tag + repoint), which is the same immutable-tagging/backout work; blocked on the tag-scheme decision. `pull: always` stays until the replacement lands (additive-only) |
 
 ---
 

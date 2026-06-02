@@ -18,10 +18,10 @@
 #   failure: create_incident_ticket / vm_my_job_id / vm_my_error (incident + rescue)
 # Credential: DC1.Azure - ServiceNow.
 #
-# NOTE: ServiceNow request_state integers vary by instance. The failure state
-# mirrors the Windows role (4). servicenow_ritm_success_state defaults to 3
-# (commonly "Closed Complete") — CONFIRM the live instance's value and override
-# via the JT/extra_vars if different.
+# NOTE: ServiceNow request_state integers vary by instance. Defaults here are
+# CONFIRMED against the demo instance (validated live 2026-06-02): success "3"
+# = Closed Complete (RITM0011938), failure "4" = Closed Incomplete (RITM0011931).
+# Override via the JT/extra_vars if a different instance uses other integers.
 # ============================================================================
 
 - name: Update the ServiceNow requested item with the demo outcome

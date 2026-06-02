@@ -131,6 +131,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checklist. Historical changelog entries referencing the old file are left intact.
 
 ### Changed
+- **Phase 8 marked validated end-to-end** (AB#96, Epic AB#77) — ROADMAP Phase 8 →
+  ✅: flipped the remaining checklist items (catalog item, Business Rule/REST,
+  EE rebuild+push, end-to-end test) to done, recorded the live validation
+  (2026-06-02 — success: RITM → Closed Complete w/ IP/FQDN; failure: forced
+  Provision VM fail → INC0011350 + RITM → Closed Incomplete), and added
+  decisions-log entries (AB#94 start-notice, AB#91 live CaC fixes, AB#95 EE
+  deliberate-update direction). Dropped the "CONFIRM the live value" caveat from
+  `update_ritm.yml` — request-state `3`=Closed Complete / `4`=Closed Incomplete
+  are confirmed for the instance.
 - **Correct ROADMAP Sizing Tiers pricing to Windows PAYG rates** (AB#89) — the
   `Approx $/hr` column (~$0.10/$0.19/$0.38) was the *Linux* base-compute rate;
   these are Windows Server VMs, so the OS license ~doubles it. Updated to the
