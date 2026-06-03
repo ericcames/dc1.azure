@@ -406,6 +406,33 @@ workflow on demand.
 
 **Exit criteria:** running the launch pipeline in ADO (picking a size) provisions a Windows VM via the same AAP workflow, with run status observable from ADO.
 
+### Phase 11 — Fact Caching & Inventory Visibility  🔄
+
+A value/demo-story phase (distinct from the Phases 9/10 *triggers*): show
+customers and sellers the Ansible facts AAP collects about a host — both
+**persisted in the AAP database** (queryable per-host inventory data that
+re-stamps every run, so you can narrate drift) and **printed to the job log**
+(a curated, narratable summary). Fact storage is one of AAP's strongest
+"show, don't tell" capabilities and is rarely known by non-admins.
+
+- ✅ **v1 (now): standalone JT** — `DC1.Azure - Gather and Display Facts`
+  (`use_fact_cache: true`) running this repo's `playbooks/gather_facts.yml`
+  against the provisioned Windows VM. Prints a curated summary (OS, CPU, memory,
+  IPs, domain, last boot); a `show_full_facts` survey toggle dumps the complete
+  set. Full facts land in the AAP DB (Infrastructure → Hosts → Facts).
+- ⬜ **v2: wire into the provision workflow** — add the fact-gather as a final
+  node on `DC1.Azure - Provision and Configure` so facts auto-populate right
+  after a VM is built (additive; the standalone JT stays).
+- ⬜ **v3: CMDB enrichment** — feed the curated facts into the Phase 8
+  ServiceNow CMDB CI created on provision (closes the loop: AAP-discovered truth
+  enriching the system of record).
+- ⬜ `docs/demo-runbook.md` — Facts section (job-log summary + the per-host
+  Facts tab in the UI).
+
+**Exit criteria (v1):** launching `DC1.Azure - Gather and Display Facts` against
+the VM prints the curated summary to the job log AND the host's Facts tab in the
+AAP UI shows the timestamped, persisted fact set.
+
 ---
 
 ## Naming Conventions

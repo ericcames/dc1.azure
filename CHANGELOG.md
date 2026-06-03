@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **Fact caching & inventory visibility — v1 standalone JT** (Phase 11) — new
+  `DC1.Azure - Gather and Display Facts` job template (`use_fact_cache: true`)
+  running this repo's new `playbooks/gather_facts.yml` against the provisioned
+  Windows VM (`windemo` group, WinRM via `DC1.Azure - Windows Machine`). Surfaces
+  facts two ways: the full set is **persisted in the AAP database** (per-host
+  Facts tab, re-stamped each run) and a **curated summary** (OS, CPU, memory,
+  IPs, domain, last boot) prints to the job log. A `show_full_facts` survey
+  toggle (default `false`) optionally dumps the complete `ansible_facts` dict.
+  Workflow-node wiring (v2) and ServiceNow CMDB enrichment (v3) are tracked
+  under Phase 11 in `ROADMAP.md`.
+
 ### Removed
 - **Deprecated bootstrap path** (AB#102) — deleted `playbooks/bootstrap_aap.yml`
   and its dedicated `inventories/dc1-azure/` bootstrap inventory. The

@@ -1,0 +1,78 @@
+---
+# ============================================================================
+# playbooks/gather_facts.yml — Phase 11 (Fact Caching & Inventory Visibility)
+# ============================================================================
+# Standalone demo playbook: gathers Ansible facts from the provisioned Windows
+# VM(s) and surfaces them two ways, the dual "show, don't tell" story for
+# customers and sellers:
+#
+#   1. STORED IN THE AAP DATABASE — the "DC1.Azure - Gather and Display Facts"
+#      job template sets `use_fact_cache: true`, so AAP persists the full
+#      `ansible_facts` for each host after this run. View them in the UI under
+#      Infrastructure → Hosts → <host> → Facts (timestamped JSON, re-stamped on
+#      every run so you can narrate drift over time). Nothing in THIS playbook
+#      writes the cache — `gather_facts: true` + the JT toggle is all it takes.
+#
+#   2. PRINTED TO THE JOB LOG — a curated, narratable summary (OS, CPU, memory,
+#      disks, IPs, domain, last boot) prints in the colored job output. The full
+#      fact set is intentionally NOT dumped by default (on Windows it is huge and
+#      unreadable on screen); flip the `show_full_facts` survey toggle to also
+#      print the complete `ansible_facts` dict when someone wants to see it all.
+#
+# Target: the `windemo` group of the dc1-azure inventory (the VM registered by
+# playbooks/provision_vm.yml), reached over WinRM with the
+# "DC1.Azure - Windows Machine" credential.
+#
+# Required job-template credential:
+#   - DC1.Azure - Windows Machine  → WinRM connection to the VM
+#
+# Optional input (survey / extra_var):
+#   - show_full_facts  (bool, default false) — also print the raw ansible_facts
+# ============================================================================
+
+- name: Gather and display Ansible facts from the DC1.Azure Windows VM
+  hosts: windemo
+  gather_facts: true
+
+  vars:
+    # Survey toggle; default to the curated summary only.
+    show_full_facts: false
+
+  tasks:
+    - name: Build a curated, narratable fact summary
+      # Keys come from the `ansible_facts` dict (no `ansible_` prefix). Every
+      # lookup is defaulted so a missing key degrades gracefully to 'n/a' rather
+      # than failing the play on an unexpected image.
+      ansible.builtin.set_fact:
+        dc1_fact_summary:
+          hostname: "{{ ansible_facts['hostname'] | default('n/a') }}"
+          fqdn: "{{ ansible_facts['fqdn'] | default('n/a') }}"
+          os: >-
+            {{ ansible_facts['distribution'] | default('n/a') }}
+            {{ ansible_facts['distribution_version'] | default('') }}
+          os_kernel_build: "{{ ansible_facts['kernel'] | default('n/a') }}"
+          architecture: "{{ ansible_facts['architecture'] | default('n/a') }}"
+          cpu_cores: "{{ ansible_facts['processor_cores'] | default('n/a') }}"
+          cpu_count: "{{ ansible_facts['processor_count'] | default('n/a') }}"
+          memory_mb: "{{ ansible_facts['memtotal_mb'] | default('n/a') }}"
+          ip_addresses: "{{ ansible_facts['ip_addresses'] | default([]) }}"
+          domain: "{{ ansible_facts['windows_domain'] | default(ansible_facts['domain'] | default('n/a')) }}"
+          last_boot: "{{ ansible_facts['lastboot'] | default('n/a') }}"
+          product: "{{ ansible_facts['product_name'] | default('n/a') }}"
+          vendor: "{{ ansible_facts['system_vendor'] | default('n/a') }}"
+
+    - name: Print the curated fact summary to the job log
+      ansible.builtin.debug:
+        var: dc1_fact_summary
+
+    - name: Print the complete fact set (only when show_full_facts is true)
+      ansible.builtin.debug:
+        var: ansible_facts
+      when: show_full_facts | bool
+
+    - name: Note where the full facts are persisted
+      ansible.builtin.debug:
+        msg: >-
+          Full facts for {{ inventory_hostname }} are cached in the AAP database
+          (this JT uses fact storage). View them in the UI:
+          Infrastructure → Hosts → {{ inventory_hostname }} → Facts.

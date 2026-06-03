@@ -84,6 +84,38 @@ controller_templates:
     credentials:
       - "{{ cred_windows }}"
 
+  # --- Phase 11: Fact caching & inventory visibility -------------------------
+  # Standalone demo JT. `use_fact_cache: true` persists the gathered facts to the
+  # AAP database (viewable per-host under Infrastructure → Hosts → Facts); the
+  # playbook also prints a curated summary to the job log. Runs this repo's own
+  # playbooks/gather_facts.yml against the provisioned Windows VM over WinRM.
+  - name: "DC1.Azure - Gather and Display Facts"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/gather_facts.yml
+    execution_environment: "{{ my_execution_environment }}"
+    use_fact_cache: true
+    credentials:
+      - "{{ cred_windows }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Optionally dump the complete fact set to the job log"
+      spec:
+        - question_name: Show full facts
+          question_description: >-
+            Also print the entire ansible_facts dict to the job log (large on
+            Windows). The full set is stored in the AAP DB regardless.
+          variable: show_full_facts
+          type: multiplechoice
+          required: false
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+
   # --- Phase 8: ServiceNow callback JTs --------------------------------------
   # These run THIS repo's guarded playbooks/servicenow/* (not the Windows roles)
   # so non-ServiceNow launches no-op (guard on ticket_number). All run on the
