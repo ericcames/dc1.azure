@@ -1,0 +1,106 @@
+# ============================================================================
+# azure-pipelines-launch.yml — dc1.azure ADO trigger (Phase 10)
+# ============================================================================
+# The FOURTH trigger for the one-core-workflow demo. Distinct from
+# azure-pipelines.yml (Phase 5), which uses ADO Pipelines only for lint/validate
+# CI + the GitHub mirror. THIS pipeline *launches* the AAP workflow on demand:
+# an SE (or a customer) clicks "Run pipeline", picks a VM size, and the same
+# "DC1.Azure - Provision and Configure" workflow the AAP UI / Self-Service /
+# ServiceNow triggers use provisions a Windows Server 2025 VM on Azure. No
+# parallel workflow definition — this is a thin adapter that POSTs to the AAP
+# launch endpoint.
+#
+# Manual-run only: trigger/pr are 'none', so committing to the repo never fires
+# a provision. You launch it from ADO → Pipelines → (this pipeline) → Run.
+#
+# AAP auth (no inline creds — mirrors the Phase 0.5 rule):
+#   Variable Group `dc1-azure-aap` (Pipelines → Library) supplies
+#     AAP_HOSTNAME — base URL, e.g. https://<gateway>.rhdp.net  (NOT secret)
+#     AAP_TOKEN    — a UI-minted AAP API token                  (mark SECRET)
+#   The token is UI-minted because this AAP authenticates via SSO and cannot
+#   basic-auth-mint a token; a manually-minted token still works for direct API
+#   calls. Rotate by editing the Library variable — never paste it in YAML.
+#
+# Workflow is resolved BY NAME, not by a hardcoded id: the numeric
+# workflow_job_template id is env-specific (changes when RHDP re-provisions AAP),
+# so the pipeline looks it up from the canonical name below.
+# ============================================================================
+---
+name: "launch-${{ parameters.vm_size_tier }}-$(Date:yyyyMMdd)$(Rev:.r)"
+
+trigger: none
+pr: none
+
+parameters:
+  - name: vm_size_tier
+    displayName: VM size tier
+    type: string
+    default: medium-4cpu-16gb
+    values:
+      - small-2cpu-8gb
+      - medium-4cpu-16gb
+      - large-8cpu-32gb
+
+variables:
+  - group: dc1-azure-aap # AAP_HOSTNAME + secret AAP_TOKEN
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - script: |
+      set -euo pipefail
+
+      HOST="${AAP_HOSTNAME%/}"
+      API="${HOST}/api/v2"
+
+      echo "==> Resolving workflow job template: ${WF_NAME}"
+      ENC_NAME=$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ['WF_NAME']))")
+      WJT_ID=$(curl -sk --fail-with-body \
+        -H "Authorization: Bearer ${AAP_TOKEN}" \
+        "${API}/workflow_job_templates/?name=${ENC_NAME}" \
+        | python3 -c "import sys,json; r=json.load(sys.stdin)['results']; print(r[0]['id'] if r else '')")
+
+      if [ -z "${WJT_ID}" ]; then
+        echo "ERROR: no workflow job template named '${WF_NAME}' on ${HOST}." >&2
+        echo "       Has aap_config/load.yml been applied to this AAP, and is AAP_TOKEN valid?" >&2
+        exit 1
+      fi
+      echo "    workflow_job_template id = ${WJT_ID}"
+
+      echo "==> Launching with vm_size_tier=${VM_SIZE_TIER}"
+      JOB_ID=$(curl -sk --fail-with-body \
+        -H "Authorization: Bearer ${AAP_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -X POST \
+        -d "{\"extra_vars\": {\"vm_size_tier\": \"${VM_SIZE_TIER}\"}}" \
+        "${API}/workflow_job_templates/${WJT_ID}/launch/" \
+        | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+
+      if [ -z "${JOB_ID}" ]; then
+        echo "ERROR: launch did not return a workflow job id (check token scope/perms)." >&2
+        exit 1
+      fi
+
+      LINK="${HOST}/execution/jobs/workflow/${JOB_ID}/output"
+      echo ""
+      echo "==================================================================="
+      echo " Launched '${WF_NAME}'"
+      echo "   size:         ${VM_SIZE_TIER}"
+      echo "   workflow job: ${JOB_ID}"
+      echo "   watch:        ${LINK}"
+      echo "==================================================================="
+
+      # Surface a clickable link on the ADO run summary page.
+      SUMMARY="${AGENT_TEMPDIRECTORY}/workflow-link.md"
+      printf '## AAP workflow launched\n\n- **Size:** %s\n- **Workflow job:** %s\n- [Watch the workflow job in AAP](%s)\n' \
+        "${VM_SIZE_TIER}" "${JOB_ID}" "${LINK}" > "${SUMMARY}"
+      echo "##vso[task.uploadsummary]${SUMMARY}"
+    displayName: Launch AAP provisioning workflow
+    env:
+      # Predefined ADO vars (AAP_HOSTNAME) are auto-exposed; the SECRET AAP_TOKEN
+      # must be mapped explicitly or it is not present in the script environment.
+      AAP_HOSTNAME: $(AAP_HOSTNAME)
+      AAP_TOKEN: $(AAP_TOKEN)
+      WF_NAME: DC1.Azure - Provision and Configure
+      VM_SIZE_TIER: ${{ parameters.vm_size_tier }}

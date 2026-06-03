@@ -137,6 +137,15 @@ Lives under: *Pipelines → Library*
 | Variable Group        | Variables                                                                                    | Linked to                                |
 |-----------------------|----------------------------------------------------------------------------------------------|------------------------------------------|
 | `dc1-azure-shared`    | `location`, `resource_group_name`, `subscription_id` (secret), `storage_account_name`        | `azure-pipelines.yml` (Phase 5)          |
+| `dc1-azure-aap`       | `AAP_HOSTNAME`, `AAP_TOKEN` (secret)                                                          | `azure-pipelines-launch.yml` (Phase 10)  |
+
+`dc1-azure-aap` holds the AAP API connection the **launch** pipeline (Phase 10)
+uses to fire the provisioning workflow. `AAP_HOSTNAME` is the gateway base URL
+(e.g. `https://<gateway>.rhdp.net`); `AAP_TOKEN` is a **UI-minted** AAP API
+token marked **secret** (this AAP authenticates via SSO and cannot basic-auth-mint
+a token — a manually-minted token still works for direct API calls). Rotate by
+editing the Library variable; it is never pasted in YAML and is masked in logs.
+No new Service Connection is needed — token auth goes straight to the AAP API.
 
 Shared values that multiple pipeline stages need go in the Variable Group
 so they are configurable without editing YAML. Mark anything sensitive as

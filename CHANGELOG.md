@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 10 — Azure DevOps trigger (launch pipeline)** (AB#110) — the fourth
+  and final trigger. New `azure-pipelines-launch.yml`: a manual-run pipeline
+  (`trigger:`/`pr: none`) with a `vm_size_tier` queue-time parameter
+  (small/medium/large dropdown) that **launches** the existing
+  `DC1.Azure - Provision and Configure` workflow on demand — no parallel
+  definition. Distinct from `azure-pipelines.yml` (Phase 5 CI lint/mirror), which
+  never provisions. The step resolves the workflow **by name**
+  (`GET …/workflow_job_templates/?name=…`, not a hardcoded env-specific id),
+  POSTs `extra_vars: {vm_size_tier}` to the launch endpoint, then prints the
+  workflow-job deep link and uploads it to the ADO run summary
+  (`task.uploadsummary`) — fire-and-forget (mirrors the Phase 9 launcher's
+  `wait: false`). AAP auth via the new ADO **Variable Group** `dc1-azure-aap`
+  (`AAP_HOSTNAME` + secret `AAP_TOKEN`, UI-minted; SSO AAP can't basic-auth-mint),
+  referenced with `variables: - group:` and the secret mapped to the script env —
+  no inline creds (Phase 0.5 rule). Docs: `docs/demo-runbook.md` §9 (ADO variant),
+  `docs/ado-conventions.md` §7 (Variable Group entry), ROADMAP Phase 10.
+  **Remaining (operational, ADO UI):** create the Variable Group, register the
+  pipeline, run once to validate live.
 - **Phase 9 — Self-Service Portal trigger (RBAC + launcher JT)** (AB#107) —
   Config-as-Code for the Self-Service Portal trigger. **Finding:** the AAP
   Self-Service Portal (RHDH) surfaces **job templates only, not workflows**

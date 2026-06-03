@@ -416,6 +416,76 @@ log and the full set is cached in the AAP database (Infrastructure → Hosts →
 
 ---
 
+## 9. The Azure DevOps variant (Phase 10)
+
+The **fourth and final trigger**. Same Windows VM, same `DC1.Azure - Provision
+and Configure` workflow — this time fired from an **Azure DevOps pipeline**. For
+a customer whose change process already lives in ADO, "kick off provisioning
+from a pipeline run" is the natural entry point; AAP stays the orchestrator.
+
+```
+SE / requester clicks "Run pipeline" in ADO  →  picks a VM size (parameter)
+   →  azure-pipelines-launch.yml POSTs to the AAP launch endpoint
+   →  AAP runs DC1.Azure - Provision and Configure   (the same v1 workflow)
+   →  the pipeline prints the workflow-job deep link and exits green
+```
+
+> **Phase 5 vs Phase 10 — two different pipelines.** `azure-pipelines.yml`
+> (Phase 5) is CI: it lints/validates every PR and mirrors `main` to GitHub. It
+> never provisions anything. `azure-pipelines-launch.yml` (Phase 10) is the
+> *trigger*: manual-run only (`trigger:`/`pr: none`), it launches the AAP
+> workflow on demand. Committing to the repo never fires a provision.
+
+### 9.1 One-time setup (operator)
+
+1. **Variable Group** — in *Pipelines → Library*, create `dc1-azure-aap` with:
+   - `AAP_HOSTNAME` — the gateway base URL, e.g. `https://<gateway>.rhdp.net`
+   - `AAP_TOKEN` — a **UI-minted** AAP API token, marked **secret** (this AAP is
+     SSO and can't basic-auth-mint; a manually-minted token works for API calls).
+2. **Register the pipeline** — *Pipelines → New pipeline → Azure Repos Git →
+   dc1.azure → Existing YAML → `/azure-pipelines-launch.yml`*. Name it something
+   like *DC1.Azure — Launch Windows VM*.
+
+See [`ado-conventions.md`](ado-conventions.md) §7 for the Library entry.
+
+### 9.2 Run it (the demo motion)
+
+1. *Pipelines →* **DC1.Azure — Launch Windows VM** *→ Run pipeline*.
+2. Pick **VM size tier** from the dropdown (`small` / `medium` / `large`) and
+   click **Run**.
+3. The single `Launch AAP provisioning workflow` step resolves the workflow by
+   name, POSTs the launch, and prints:
+
+   ```
+   ===================================================================
+    Launched 'DC1.Azure - Provision and Configure'
+      size:         medium-4cpu-16gb
+      workflow job: 161
+      watch:        https://<gateway>/execution/jobs/workflow/161/output
+   ===================================================================
+   ```
+
+   The same link is attached to the **run summary** page (Extensions tab), so
+   one click jumps from the ADO run straight to the live AAP workflow graph.
+
+> **Fire-and-forget, by design.** The pipeline exits green the moment the
+> workflow is launched — it does **not** wait for the VM to finish. You watch
+> the actual provisioning in AAP via the printed link, exactly as with the other
+> three triggers (the Self-Service launcher JT uses `wait: false` too). This
+> keeps the ADO run short on stage and avoids tying the pipeline up for the full
+> provision-and-patch cycle.
+
+📸 _Screenshot to capture during live validation: the ADO "Run pipeline" dialog
+showing the `vm_size_tier` dropdown, and the completed run with the workflow-job
+link on the summary page._
+
+> **Same workflow, four front doors.** AAP UI (§3), ServiceNow (§7),
+> Self-Service Portal (§8), and ADO (§9) all launch the *identical*
+> `DC1.Azure - Provision and Configure` workflow — no parallel definitions. The
+> trigger is a thin adapter; the automation is one workflow.
+
+---
+
 ## Appendix A — Failure modes & recovery
 
 | Symptom | Likely cause | Fix |
