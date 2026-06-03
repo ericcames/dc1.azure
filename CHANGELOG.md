@@ -22,8 +22,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   referenced with `variables: - group:` and the secret mapped to the script env —
   no inline creds (Phase 0.5 rule). Docs: `docs/demo-runbook.md` §9 (ADO variant),
   `docs/ado-conventions.md` §7 (Variable Group entry), ROADMAP Phase 10.
-  **Remaining (operational, ADO UI):** create the Variable Group, register the
-  pipeline, run once to validate live.
+  **Validated live 2026-06-03** (AB#109): ADO run *DC1.Azure — Launch Windows VM*
+  (`large-8cpu-32gb`) → AAP launch API → workflow job 163
+  (`DC1.Azure - Provision and Configure`, id 28 — the same workflow the other
+  three triggers use); all nodes green, guarded ServiceNow nodes no-op'd on the
+  ticket-less ADO launch. This completes the **one-workflow / four-triggers**
+  pattern (AAP UI · ServiceNow · Self-Service · ADO).
 - **Phase 9 — Self-Service Portal trigger (RBAC + launcher JT)** (AB#107) —
   Config-as-Code for the Self-Service Portal trigger. **Finding:** the AAP
   Self-Service Portal (RHDH) surfaces **job templates only, not workflows**

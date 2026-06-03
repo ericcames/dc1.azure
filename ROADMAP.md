@@ -420,7 +420,9 @@ browse templates; AAP enforces Execute at launch, so RBAC is the control point.
 workflow from the Self-Service Portal (via the launcher JT) and gets an identical
 result to the AAP-UI path.
 
-### Phase 10 — Azure DevOps Trigger  🔄
+### Phase 10 — Azure DevOps Trigger  ✅
+
+*Validated live 2026-06-03. The fourth and final trigger is proven end-to-end.*
 
 The fourth trigger. Distinct from Phase 5 (which uses ADO Pipelines for
 lint/validate CI + GitHub mirror): here an ADO pipeline *launches* the AAP
@@ -431,9 +433,10 @@ workflow on demand.
 - ✅ Same workflow as the other three triggers — the pipeline launches `DC1.Azure - Provision and Configure` by name; no parallel definition.
 - ✅ `docs/demo-runbook.md` — ADO-trigger section (§9).
 
-**Remaining (operational, in ADO UI):** create the `dc1-azure-aap` Variable Group in the Library, register `azure-pipelines-launch.yml` as a pipeline, and run it once to validate live.
+- ✅ **Operational setup done (2026-06-03):** `dc1-azure-aap` Variable Group created in the Library (`AAP_HOSTNAME` + secret UI-minted `AAP_TOKEN`); pipeline registered as *DC1.Azure — Launch Windows VM*; the pipeline→variable-group authorization granted on first run.
+- ✅ **Live-found fix (AB#111):** the launch step initially 404'd because it used the legacy `/api/v2` Controller base; corrected to `/api/controller/v2` (the AAP 2.5 gateway path) — the path used everywhere else in this repo.
 
-**Exit criteria:** running the launch pipeline in ADO (picking a size) provisions a Windows VM via the same AAP workflow, with run status observable from ADO.
+**Exit criteria:** ✅ **Met 2026-06-03.** ADO run *DC1.Azure — Launch Windows VM* (`large-8cpu-32gb`) → AAP launch API → **workflow job 163** (`DC1.Azure - Provision and Configure`, id 28 — the *same* workflow the other three triggers use). All nodes succeeded; the guarded ServiceNow nodes correctly no-op'd on this ticket-less ADO launch. Run status observable from ADO via the workflow-job deep link uploaded to the run summary.
 
 ### Phase 11 — Fact Caching & Inventory Visibility  🔄
 
