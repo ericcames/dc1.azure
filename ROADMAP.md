@@ -124,6 +124,10 @@ re-implementing the entire DC1 layered platform.
 Each trigger is a thin adapter that launches the same survey-driven,
 API-launchable workflow — no parallel re-implementations.
 
+> **All four triggers are live and validated** (AAP UI — Phase 6 ✅; ServiceNow —
+> Phase 8 ✅; Self-Service Portal — Phase 9 ✅; Azure DevOps — Phase 10 ✅), each
+> launching the one `DC1.Azure - Provision and Configure` workflow.
+
 ---
 
 ## Sizing Tiers
@@ -311,13 +315,13 @@ file is named after the **role it feeds**. Collection pinned to **4.4.0**.
 
 **Exit criteria:** ✅ Met 2026-05-26. PRs trigger the Lint gate; merging to `main` mirrors to GitHub within ~1 minute; no manual `git push github main` needed.
 
-### Phase 6 — Demo Runbook (v1 — AAP-driven)  🔄
-- ✅ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow (AB#76)
+### Phase 6 — Demo Runbook (v1 — AAP-driven)  ✅
+- ✅ `docs/demo-runbook.md` — SE-facing live-demo script for the AAP-driven flow (AB#76); has since grown to cover all four triggers (§7 ServiceNow, §8 Self-Service, §9 ADO)
 - ✅ Persona framing, click-by-click flow through AAP UI, talking points, expected timings (from live runs: provision ~10 min, teardown ~7 min)
 - ✅ Failure-mode appendix (Azure quota, WinRM not up, project sync, expired token, teardown)
-- ⬜ `docs/images/` — screenshots of the AAP survey, the IIS landing page, the ADO Boards epic (capture checklist in Appendix B of the runbook; inline 📸 placeholders to be replaced with real embeds)
+- ✅ `docs/images/` — full demo-00..08 screenshot set captured (2026-06-02) and embedded; live identifiers redacted per policy (capture checklist in Appendix B of the runbook)
 
-**Exit criteria:** Eric runs the AAP-driven demo cold off the runbook end-to-end without consulting the source code. *(Runbook written; pending screenshot capture + a cold dry-run to confirm.)*
+**Exit criteria:** ✅ Met. The runbook drives the demo end-to-end from the AAP UI; screenshots captured and embedded. *(A cold dry-run off the runbook is still a nice-to-have but the script is complete and live-proven.)*
 
 ### Phase 7 — Install Documentation (manual + Claude Code skill)  ✅
 *Completed 2026-05-26. Docs + skill written (PR #6); acceptance test passed via first live `load.yml` run using the `/install-dc1-azure` skill (2026-05-26). Lessons from the live run captured in a follow-up PR (PR #9, AB#50).*
@@ -375,11 +379,14 @@ rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](doc
 - ✅ **Implementation merged** — inbound EDA ingress (AB#81, PR #40), outbound callback/CMDB/incident (AB#83, PR #42), workflow layout mirroring DDW (AB#84, PR #43), and the self-managing CaC token (AB#85, PR #44) are all on `main`. `EDA_EVENT_STREAM_TOKEN` minted; `SN_*` creds in `docs/dev-environment.sh`.
 - ✅ **Operational steps done (2026-06-02):** EE hardened + pushed + PAH-synced; SNow catalog item + Business Rule + Outbound REST Message built (as-built in `servicenow/`); start-notice two-way link added (AB#94); inbound-trigger CaC live-fixes captured (AB#91).
 - ✅ **Validated end-to-end live (2026-06-02)** — success + failure paths both proven (see checklist above).
-- ⬜ **Follow-ups (captured):** AB#92 harden live SNow config (deploy hardened Business Rule + remove plaintext bearer); AB#93 relate the CMDB CI to the RITM via the `configuration_item` field; AB#95 EE deliberate-update model (pull:missing + version tags + pin — replaces the AB#91 `pull:always` placeholder, blocked on the tag-scheme pick). Quay security-scan before/after still pending Quay scanning's return.
+- ✅ **Follow-ups — all shipped:** AB#92 hardened the live SNow config (hardened Business Rule deployed + plaintext bearer moved to an encrypted `sys_property`, PR #61); AB#93 related the CMDB CI to the RITM via `configuration_item` (PR #53, live-validated RITM0011939); AB#95 EE deliberate-update model (`pull: missing` + immutable semver tags, PR #63, replacing the AB#91 `pull: always` placeholder).
+- ⬜ **Only remaining (external blocker):** the Quay security-scan before/after table in `ee-security-remediation.md` awaits Quay's Clair scanning coming back online (down since 2026-06-01) — not a code item.
 
 **Exit criteria:** ✅ Met 2026-06-02. A user requests a Windows VM through the ServiceNow catalog, the workflow provisions + configures it, and the RITM is auto-fulfilled with IP/FQDN/admin (RDP-ready); a failed provision opens an Incident and marks the RITM Closed Incomplete.
 
-### Phase 9 — AAP Self-Service Portal Trigger  🔄
+### Phase 9 — AAP Self-Service Portal Trigger  ✅
+
+*Validated live 2026-06-03 — `jr-dev` self-served a VM from the portal (launcher job 151 → workflow job 152).*
 
 The second of the four triggers (AAP UI = Phase 6, ServiceNow = Phase 8). The
 AAP platform Self-Service Portal (Red Hat Developer Hub) surfaces the existing
@@ -408,17 +415,19 @@ browse templates; AAP enforces Execute at launch, so RBAC is the control point.
   `dev-lead` (Organization Admin) + `jr-dev` (least-privilege); team holds Execute
   via membership. Validated live: `jr-dev` can Start only what it's granted, can't
   edit; `dev-lead` is full admin.
-- 🔄 **Launcher JT** — `DC1.Azure - Request Windows VM` (job template, `vm_size_tier`
-  survey) runs a small playbook (`ansible.controller.workflow_launch`) that fires
-  the existing `DC1.Azure - Provision and Configure` workflow with the tier passed
-  through. Surfaces in the portal; team gets Execute on it. No parallel workflow.
-- ⬜ End-to-end: `jr-dev` Starts the launcher JT **from the portal UI** → the
-  workflow runs and provisions the VM.
-- ⬜ `docs/demo-runbook.md` — Self-Service Portal section (portal-launch screenshots).
+- ✅ **Launcher JT** — `DC1.Azure - Request Windows VM` (job template, `vm_size_tier`
+  survey) runs `playbooks/launch_workflow.yml` (`ansible.controller.workflow_launch`)
+  that fires the existing `DC1.Azure - Provision and Configure` workflow with the tier
+  passed through. Surfaces in the portal; team gets Execute on it. No parallel workflow.
+- ✅ End-to-end (2026-06-03): `jr-dev` Started the launcher JT **from the portal UI** →
+  launcher job 151 fired workflow job 152 → VM provisioned. Least-privilege proven
+  (jr-dev sees only the launcher + facts JTs).
+- ✅ `docs/demo-runbook.md` — Self-Service Portal section (§8) with portal-launch
+  screenshots (demo-09..12).
 
-**Exit criteria:** a non-admin user (`jr-dev`) triggers the same Windows-VM
-workflow from the Self-Service Portal (via the launcher JT) and gets an identical
-result to the AAP-UI path.
+**Exit criteria:** ✅ Met 2026-06-03. A non-admin user (`jr-dev`) triggers the same
+Windows-VM workflow from the Self-Service Portal (via the launcher JT) and gets an
+identical result to the AAP-UI path.
 
 ### Phase 10 — Azure DevOps Trigger  ✅
 

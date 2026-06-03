@@ -22,6 +22,12 @@ decisions log.
 4. Lands on a Windows Server 2025 VM with PowerShell 7, a demo account, an
    IIS landing page, and Windows Update applied — reachable via RDP and HTTP
 
+**One workflow, four front doors.** The same `DC1.Azure - Provision and Configure`
+workflow is launched from **four** triggers — the AAP web UI, the AAP Self-Service
+Portal, a ServiceNow catalog request, and an Azure DevOps pipeline — each a thin
+adapter, no parallel re-implementations. All four are live and validated. See the
+[demo runbook](docs/demo-runbook.md) for the click-by-click of each.
+
 ## Sizing tiers
 
 | Tier (survey choice) | Azure SKU         | vCPU | RAM   |
@@ -39,6 +45,7 @@ dc1.azure/
 ├── CLAUDE.md             ← Claude Code working guidelines for this repo
 ├── CONTRIBUTING.md       ← workflow, branch naming, ADO Boards conventions
 ├── azure-pipelines.yml   ← ADO Pipeline: lint + validate + GitHub mirror (Phase 5)
+├── azure-pipelines-launch.yml ← ADO trigger: launches the AAP workflow on demand (Phase 10)
 ├── execution-environment.yml ← custom EE (Terraform + collections) for the JTs (Phase 4)
 ├── terraform/            ← Azure infra (Phase 2)
 ├── aap_config/           ← AAP Config-as-Code — the canonical install path (Phase 3)
@@ -50,6 +57,8 @@ dc1.azure/
 │   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — AAP-driven flow)
 │   ├── servicenow-integration.md ← ServiceNow design + build spec (Phase 8)
 │   ├── ee-security-remediation.md ← EE security-scan remediation story (talking track + engineering record)
+│   ├── ee-why-custom-ee.md  ← rationale for shipping a purpose-built EE (Phase 8)
+│   ├── ee-versioning.md     ← EE deliberate-update model + bump runbook (AB#95)
 │   ├── ado-conventions.md ← ADO operating model: Boards, branch policies, Library (Phase 0.5)
 │   └── images/
 ├── collections/requirements.yml
@@ -81,12 +90,14 @@ group, an Azure DevOps PAT, a Windows admin password, and an Automation Hub toke
 for collection install (seed `~/.ansible.cfg` from
 [`ansible.cfg.example`](ansible.cfg.example)).
 
-> **End-to-end status:** validated end-to-end (workflow job 46, 2026-05-27) —
-> the provision→configure→teardown automation stands up a reachable Windows VM
+> **End-to-end status:** all four triggers are live and validated (2026-06-03).
+> The provision→configure→teardown automation stands up a reachable Windows VM
 > serving an IIS page, with the demo accounts, PowerShell 7, and Windows Update
-> applied. `load.yml` now creates the execution environment via CaC, so a fresh
-> AAP needs only the credentials/env vars in `docs/INSTALL.md`. See
-> [`ROADMAP.md`](ROADMAP.md) Phase 4.
+> applied — launchable from the AAP UI, the Self-Service Portal, ServiceNow, or an
+> Azure DevOps pipeline. ServiceNow runs additionally auto-fulfil the RITM and
+> create the CMDB CI. `load.yml` creates the execution environment via CaC, so a
+> fresh AAP needs only the credentials/env vars in `docs/INSTALL.md`. See
+> [`ROADMAP.md`](ROADMAP.md) for the per-phase detail.
 
 ### Mirror to GitHub (automatic — Phase 5)
 

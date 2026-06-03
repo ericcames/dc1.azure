@@ -475,9 +475,13 @@ See [`ado-conventions.md`](ado-conventions.md) §7 for the Library entry.
 > keeps the ADO run short on stage and avoids tying the pipeline up for the full
 > provision-and-patch cycle.
 
-📸 _Screenshot to capture during live validation: the ADO "Run pipeline" dialog
-showing the `vm_size_tier` dropdown, and the completed run with the workflow-job
-link on the summary page._
+> **Validated live 2026-06-03:** an ADO run (`large-8cpu-32gb`) launched workflow
+> job 163 — the same `DC1.Azure - Provision and Configure` workflow, all nodes
+> green, the guarded ServiceNow nodes no-op'd on the ticket-less launch.
+
+📸 _Screenshot still to capture: the ADO "Run pipeline" dialog showing the
+`vm_size_tier` dropdown, and the completed run with the workflow-job link on the
+summary page (see Appendix B)._
 
 > **Same workflow, four front doors.** AAP UI (§3), ServiceNow (§7),
 > Self-Service Portal (§8), and ADO (§9) all launch the *identical*
@@ -516,6 +520,7 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 - [x] `demo-06-snow-catalog.png` — the ServiceNow "Request Windows VM (Azure)" catalog item *(Demo v2, §7)* — captured 2026-06-02 (no redaction needed)
 - [x] `demo-07-snow-ritm.png` — the RITM auto-filled with FQDN/IP + Fulfilled state *(Demo v2)* — captured 2026-06-02 (RITM0011939; URL bar + public IP redacted)
 - [x] `demo-08-snow-cmdb-ci.png` — the new CMDB CI with its business-app relationship *(Demo v2)* — captured 2026-06-02 (URL bar redacted)
+- [ ] `demo-13-ado-launch.png` — the ADO *Run pipeline* dialog with the `vm_size_tier` dropdown, and/or the completed run with the workflow-job link on the summary page *(Phase 10, §9)* — redact the org/gateway URL bar if visible
 
 ---
 

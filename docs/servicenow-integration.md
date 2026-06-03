@@ -1,11 +1,11 @@
 # ServiceNow Integration — Design (Phase 8, Demo v2)
 
-**Status:** Design v2 (event-driven) — 2026-05-28. Supersedes the v1
-direct-REST design. **Ready to implement:** the ServiceNow callback creds
-(`SN_HOST`/`SN_USERNAME`/`SN_PASSWORD`) are already in `docs/dev-environment.sh`;
-the only secret still to mint is `EDA_EVENT_STREAM_TOKEN` (a value we generate,
-shared between the AAP event-stream credential and the ServiceNow Outbound REST
-Message). This document is the build spec — follow the build plan below.
+**Status:** ✅ **Built and live-validated end-to-end (Phase 8 complete,
+2026-06-02)** — design v2 (event-driven), superseding the v1 direct-REST design.
+This document is both the design rationale and the as-built record; the
+component inventory below reflects the shipped state. Secrets
+(`SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` + the shared `EDA_EVENT_STREAM_TOKEN`) live
+in the gitignored `docs/dev-environment.sh`.
 
 > **What changed from v1:** the inbound trigger is no longer ServiceNow Flow
 > Designer doing a direct REST `launch/` of the workflow. Instead a ServiceNow
@@ -103,31 +103,36 @@ They serve three purposes:
 
 ## Component inventory
 
+> **✅ As-built — everything below is implemented, merged, and live-validated
+> (Phase 8 complete, 2026-06-02).** This inventory was the original build plan;
+> the Status column now reflects the shipped state. See `CHANGELOG.md` and
+> `ROADMAP.md` Phase 8 for the per-component PRs.
+
 ### Inbound — EDA ingress (new)
 
 | Component | Status | Where |
 |-----------|--------|-------|
-| `ansible.eda` collection | ⬜ add | `aap_config/requirements.yml` |
-| dc1.azure EDA project (this repo, hosting the rulebook) | ⬜ add | `aap_config/files/eda_projects.yml` (already has `event.driven.ansible`; add a `DC1.Azure - EDA` entry → this repo) |
-| `rulebooks/servicenow_events.yml` (Azure-owned rulebook) | ⬜ write | new `rulebooks/` dir in this repo |
-| `ServiceNow Event Stream` credential (built-in type; token auth) | ⬜ add | `aap_config/files/eda_credentials.yml` |
-| `Controller Credential` (so EDA can launch the workflow) | ⬜ add | `aap_config/files/eda_credentials.yml` |
-| Decision Environment | ⬜ add | `aap_config/files/eda_decision_environments.yml` |
-| Event Stream (`event_stream_type: snow`, `forward_events: true`) | ⬜ add | `aap_config/files/eda_event_streams.yml` |
-| Rulebook Activation (binds event stream → source `__SOURCE_1`) | ⬜ add | `aap_config/files/eda_rulebook_activations.yml` |
+| `ansible.eda` collection | ✅ done | `aap_config/requirements.yml` |
+| dc1.azure EDA project (this repo, hosting the rulebook) | ✅ done | `aap_config/files/eda_projects.yml` (already has `event.driven.ansible`; add a `DC1.Azure - EDA` entry → this repo) |
+| `rulebooks/servicenow_events.yml` (Azure-owned rulebook) | ✅ done | new `rulebooks/` dir in this repo |
+| `ServiceNow Event Stream` credential (built-in type; token auth) | ✅ done | `aap_config/files/eda_credentials.yml` |
+| `Controller Credential` (so EDA can launch the workflow) | ✅ done | `aap_config/files/eda_credentials.yml` |
+| Decision Environment | ✅ done | `aap_config/files/eda_decision_environments.yml` |
+| Event Stream (`event_stream_type: snow`, `forward_events: true`) | ✅ done | `aap_config/files/eda_event_streams.yml` |
+| Rulebook Activation (binds event stream → source `__SOURCE_1`) | ✅ done | `aap_config/files/eda_rulebook_activations.yml` |
 
 ### Outbound — callback / CMDB / incident (full parity)
 
 | Component | Status | Where |
 |-----------|--------|-------|
-| `servicenow.itsm` collection | ⬜ add | `aap_config/requirements.yml` + EE rebuild |
+| `servicenow.itsm` collection | ✅ done | `aap_config/requirements.yml` + EE rebuild |
 | `ServiceNow ITSM Credential` **type** | ✅ exists | `aap_config/files/controller_credential_types.yml` |
-| `DC1.Azure - ServiceNow` credential **instance** | ⬜ add | `aap_config/files/controller_credentials.yml` |
-| `Update RITM (success)` / `Update RITM (failure)` JTs | ⬜ add | `aap_config/files/controller_job_templates.yml` |
-| `Create CMDB CI` / `Create CMDB Relationship` / `Create Incident` JTs | ⬜ add | `aap_config/files/controller_job_templates.yml` |
-| Workflow nodes (success → CMDB → RITM; failure → Incident → RITM) | ⬜ wire | `aap_config/files/controller_workflow_job_templates.yml` |
-| `validate.yml` assertions (creds + JTs + EDA objects) | ⬜ extend | `aap_config/validate.yml` |
-| SNow secrets placeholders | ⬜ add | `docs/dev-environment.sh.example` |
+| `DC1.Azure - ServiceNow` credential **instance** | ✅ done | `aap_config/files/controller_credentials.yml` |
+| `Update RITM (success)` / `Update RITM (failure)` JTs | ✅ done | `aap_config/files/controller_job_templates.yml` |
+| `Create CMDB CI` / `Create CMDB Relationship` / `Create Incident` JTs | ✅ done | `aap_config/files/controller_job_templates.yml` |
+| Workflow nodes (success → CMDB → RITM; failure → Incident → RITM) | ✅ done | `aap_config/files/controller_workflow_job_templates.yml` |
+| `validate.yml` assertions (creds + JTs + EDA objects) | ✅ done | `aap_config/validate.yml` |
+| SNow secrets placeholders | ✅ done | `docs/dev-environment.sh.example` |
 
 > **Playbook sourcing (as-built):** the ServiceNow callback JTs — *RITM Start
 > Notice, Create CMDB CI, Create CMDB Relationship, Update RITM (success/failure),
