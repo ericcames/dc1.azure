@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 13 SNow-driver spike resolved (AB#125)** — chose **`servicenow.itsm.api`**
+  (the collection's generic Table API module, already in the EE + already used for the
+  Phase 8 CMDB CI patch) over raw `ansible.builtin.uri` for updating the ServiceNow
+  Outbound REST Message. The "servicenow.itsm can't reach `sys_rest_message`" concern
+  was a false dichotomy — the `api` module *is* the Table API. Live read-only PoC
+  confirmed the shared-instance `SN_*` user has the **admin** role (write access to
+  `sys_rest_message` / `sys_rest_message_fn` / the `dc1.eda_event_stream_token`
+  `password2` property) and the existing `Ames - DC1.Azure EDA Event Stream` record is
+  reachable (the endpoint lives on the `_fn` function record). Blast-radius caveat: 33
+  other-SE REST Messages share the instance → writes must be `sys_id`-scoped + `Ames -`
+  namespaced. Updated ROADMAP Phase 13 (driver ✅) + Risks (resolved) + Decisions Log;
+  CHANGELOG. No code yet.
 - **Phase 12 ADO-driver spike resolved (AB#121)** — chose the **ADO REST API via
   `ansible.builtin.uri`** over the `az devops` CLI for the Phase 12 trigger
   automation. Rationale (Decisions Log 2026-06-03): the pipeline→variable-group
