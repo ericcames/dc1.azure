@@ -1,0 +1,29 @@
+---
+# Consumed by the infra.aap_configuration.gateway_role_user_assignments role.
+# Phase 9 (AB#107) — gateway-level (shared) role grants. These resolve the target
+# org/team BY NAME via object_ids (portable across envs — unlike the controller
+# workflow grant, which needs a numeric id; see controller_role_team_assignments.yml).
+#
+#   - dev-lead  → Organization Admin on my_organization (the admin persona)
+#   - dev-lead  → Team Member of DC1.Azure - Developers
+#   - jr-dev    → Team Member of DC1.Azure - Developers (his ONLY grant — Execute
+#                 comes from the team, giving least-privilege access to exactly the
+#                 one workflow and nothing else)
+#
+# Role-definition names are the AAP built-ins (verified live on this instance):
+# "Organization Admin" (shared.organization), "Team Member" (shared.team).
+gateway_role_user_assignments:
+  - role_definition: "Organization Admin"
+    user: "{{ user_dev_lead }}"
+    object_ids:
+      - "{{ my_organization }}"
+
+  - role_definition: "Team Member"
+    user: "{{ user_dev_lead }}"
+    object_ids:
+      - "{{ team_developers }}"
+
+  - role_definition: "Team Member"
+    user: "{{ user_jr_dev }}"
+    object_ids:
+      - "{{ team_developers }}"

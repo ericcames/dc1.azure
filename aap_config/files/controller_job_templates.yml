@@ -89,7 +89,7 @@ controller_templates:
   # AAP database (viewable per-host under Infrastructure → Hosts → Facts); the
   # playbook also prints a curated summary to the job log. Runs this repo's own
   # playbooks/gather_facts.yml against the provisioned Windows VM over WinRM.
-  - name: "DC1.Azure - Gather and Display Facts"
+  - name: "{{ facts_template }}"
     job_type: run
     organization: "{{ my_organization }}"
     inventory: "{{ inventory_name }}"
@@ -115,6 +115,38 @@ controller_templates:
           choices:
             - "false"
             - "true"
+
+  # --- Phase 9: Self-Service Portal launcher ---------------------------------
+  # The portal surfaces JOB templates only (not workflows), so this thin JT is the
+  # Self-Service entry point: it fires the DC1.Azure - Provision and Configure
+  # workflow with the chosen size (playbooks/launch_workflow.yml). The Developers
+  # team gets Execute on it (controller_role_team_assignments.yml) so jr-dev can
+  # Start it from the portal. Runs on the control inventory (localhost launch play);
+  # the DC1.Azure - Controller credential injects CONTROLLER_* for the launch call.
+  - name: "{{ launcher_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/launch_workflow.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_controller }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Pick a VM size tier"
+      spec:
+        - question_name: VM size tier
+          question_description: Azure VM t-shirt size — all Dsv5 family.
+          variable: vm_size_tier
+          type: multiplechoice
+          required: true
+          default: medium-4cpu-16gb
+          choices:
+            - small-2cpu-8gb
+            - medium-4cpu-16gb
+            - large-8cpu-32gb
 
   # --- Phase 8: ServiceNow callback JTs --------------------------------------
   # These run THIS repo's guarded playbooks/servicenow/* (not the Windows roles)

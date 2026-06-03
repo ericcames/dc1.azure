@@ -18,3 +18,10 @@ aap_teams:
     description: IT Operations
     organization: "{{ my_organization }}"
     state: present
+  # Phase 9 (AB#107): persona container for the Self-Service Portal demo. Holds
+  # WorkflowJobTemplate Execute on DC1.Azure - Provision and Configure; demo users
+  # inherit it via membership (see gateway_users.yml + the role-assignment files).
+  - name: "{{ team_developers }}"
+    description: Developer self-service personas (DC1.Azure Phase 9)
+    organization: "{{ my_organization }}"
+    state: present

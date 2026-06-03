@@ -67,6 +67,13 @@ export ADO_PAT=REPLACE_ME_ADO_PAT
 #   openssl rand -hex 32
 # export EDA_EVENT_STREAM_TOKEN=REPLACE_ME_EVENT_STREAM_TOKEN
 
+# --- Self-Service Portal demo users (Phase 9) --------------------------------
+# Passwords for the two Self-Service Portal demo personas created by load.yml
+# (gateway_users.yml): dev-lead (admin) and jr-dev (least-privilege). They log
+# into the portal with these. Choose your own values.
+export DC1_AZURE_DEV_ADMIN_PASSWORD=REPLACE_ME_DEV_LEAD_PASSWORD
+export DC1_AZURE_JR_DEV_PASSWORD=REPLACE_ME_JR_DEV_PASSWORD
+
 # --- Optional overrides (safe to leave commented out) ----------------------
 # export AH_HOSTNAME=$AAP_HOSTNAME           # Hub hostname; defaults to AAP gateway host (correct for AAP 2.5)
 # export DC1_AZURE_EE='DC1.Azure - EE'       # EE name; load.yml creates this automatically

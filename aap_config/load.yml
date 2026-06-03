@@ -38,6 +38,8 @@
     - files/gateway_settings.yml
     - files/gateway_organizations.yml
     - files/gateway_teams.yml
+    - files/gateway_users.yml                    # Phase 9: Self-Service Portal demo users
+    - files/gateway_role_user_assignments.yml    # Phase 9: org-admin + team membership
     - files/eda_projects.yml
     - files/eda_credentials.yml                  # Phase 8: EDA inbound creds
     - files/eda_event_streams.yml                # Phase 8: ServiceNow event stream
@@ -51,6 +53,7 @@
     - files/controller_execution_environments.yml  # Controller EE registration
     - files/controller_job_templates.yml
     - files/controller_workflow_job_templates.yml
+    - files/controller_role_team_assignments.yml   # Phase 9: team Execute on the workflow
     - files/controller_schedules.yml            # Nightly teardown schedule
   tasks:
     - name: Apply + validate under a managed CaC token
@@ -61,6 +64,32 @@
         - name: Apply all dc1.azure AAP objects
           ansible.builtin.include_role:
             name: infra.aap_configuration.dispatch
+
+        # Phase 9 (AB#107): grant the Developers team Execute on the self-service
+        # JOB templates jr-dev may run from the portal (launcher + facts). Done here
+        # (not via dispatch — the dispatcher omits the controller_* role assignment
+        # roles) and AFTER dispatch so the JTs exist even on a fresh env. Their ids
+        # are env-specific, so resolve them at runtime.
+        - name: Resolve the Phase 9 self-service JT ids (team Execute grants)
+          ansible.builtin.uri:
+            url: "{{ aap_hostname }}/api/controller/v2/job_templates/?name={{ item | urlencode }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ aap_token }}"
+            validate_certs: "{{ aap_validate_certs }}"
+          loop:
+            - "{{ launcher_template }}"
+            - "{{ facts_template }}"
+          register: dc1_ss_jt_lookups
+
+        - name: Set the JT id facts (empty for any JT that does not exist yet)
+          ansible.builtin.set_fact:
+            dc1_launcher_jt_id: "{{ dc1_ss_jt_lookups.results[0].json.results[0].id if (dc1_ss_jt_lookups.results[0].json.results | length > 0) else '' }}"
+            dc1_facts_jt_id: "{{ dc1_ss_jt_lookups.results[1].json.results[0].id if (dc1_ss_jt_lookups.results[1].json.results | length > 0) else '' }}"
+
+        - name: Grant the Developers team Execute on the self-service JTs (Phase 9)
+          ansible.builtin.include_role:
+            name: infra.aap_configuration.controller_role_team_assignments
 
         - name: Verify dc1.azure AAP objects exist
           ansible.builtin.import_tasks: validate_tasks.yml

@@ -1,0 +1,59 @@
+---
+# ============================================================================
+# playbooks/launch_workflow.yml — Phase 9 (Self-Service Portal launcher)
+# ============================================================================
+# The AAP Self-Service Portal (RHDH) surfaces JOB templates only — it does NOT
+# sync/launch WORKFLOW job templates (confirmed live + Red Hat 2.6 docs). So this
+# thin launcher JOB template is the Self-Service entry point: it fires the existing
+# "DC1.Azure - Provision and Configure" WORKFLOW with the requested VM size,
+# preserving the "one core workflow, four triggers" principle (no parallel impl).
+#
+# The portal-surfaced JT "DC1.Azure - Request Windows VM" runs this playbook. The
+# Developers team has Execute on that JT (controller_role_team_assignments.yml), so
+# jr-dev can Start it from the portal. The workflow then runs under the attached
+# DC1.Azure - Controller credential (service identity) — jr-dev needs no direct
+# workflow permission.
+#
+# Required job-template credential:
+#   - DC1.Azure - Controller  → injects CONTROLLER_* for the launch API call
+# Required input (survey):
+#   - vm_size_tier  small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb
+# ============================================================================
+
+- name: Launch the DC1.Azure provisioning workflow (Self-Service launcher)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # The workflow to fire. Overridable, but defaults to the canonical name so the
+    # JT needs no extra_vars (group_vars/all.yml isn't loaded at JT runtime).
+    dc1_workflow_name: "{{ workflow_name | default('DC1.Azure - Provision and Configure') }}"
+
+  tasks:
+    - name: Assert a valid VM size tier was provided
+      ansible.builtin.assert:
+        that:
+          - vm_size_tier | default('') in ['small-2cpu-8gb', 'medium-4cpu-16gb', 'large-8cpu-32gb']
+        fail_msg: >-
+          Pick a vm_size_tier (small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb).
+
+    - name: Fire the provisioning workflow with the requested size
+      # CONTROLLER_* come from the attached DC1.Azure - Controller credential.
+      # wait: false — fire-and-forget; the requester watches the workflow job.
+      ansible.controller.workflow_launch:
+        workflow_template: "{{ dc1_workflow_name }}"
+        controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+        controller_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') }}"
+        controller_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') }}"
+        validate_certs: false
+        extra_vars:
+          vm_size_tier: "{{ vm_size_tier }}"
+        wait: false
+      register: wf_launch
+
+    - name: Report the launched workflow job
+      ansible.builtin.debug:
+        msg: >-
+          Launched '{{ dc1_workflow_name }}' (size {{ vm_size_tier }}) —
+          workflow job id {{ wf_launch.id | default('n/a') }}.

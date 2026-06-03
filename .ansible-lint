@@ -17,6 +17,7 @@ mock_modules:
   - ansible.controller.group
   - ansible.controller.credential
   - ansible.controller.project
+  - ansible.controller.workflow_launch   # Phase 9 launcher (playbooks/launch_workflow.yml)
   - ansible.platform.token
   # ansible.windows — used by website_setup_azure role; not installed in CI
   - ansible.windows.win_service
@@ -33,3 +34,4 @@ mock_modules:
 
 mock_roles:
   - infra.aap_configuration.dispatch
+  - infra.aap_configuration.controller_role_team_assignments   # Phase 9 (load.yml explicit include_role)

@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **Phase 9 — Self-Service Portal trigger (RBAC + launcher JT)** (AB#107) —
+  Config-as-Code for the Self-Service Portal trigger. **Finding:** the AAP
+  Self-Service Portal (RHDH) surfaces **job templates only, not workflows**
+  (proven live + Red Hat 2.6 docs), so a thin **launcher job template**
+  `DC1.Azure - Request Windows VM` (`vm_size_tier` survey) runs new
+  `playbooks/launch_workflow.yml` (`ansible.controller.workflow_launch`) to fire
+  the existing `DC1.Azure - Provision and Configure` workflow — no parallel
+  implementation. RBAC: new `DC1.Azure - Developers` team (`gateway_teams.yml`) +
+  two demo users (`gateway_users.yml`) `dev-lead` (Organization Admin) and
+  `jr-dev` (least-privilege); `gateway_role_user_assignments.yml` grants org-admin
+  + team membership; `controller_role_team_assignments.yml` grants the team
+  **JobTemplate Execute** on the launcher JT **and** the `Gather and Display Facts`
+  JT (so jr-dev can self-serve both from the portal). `load.yml` resolves the
+  env-specific JT ids at runtime and runs the controller role-team-assignment
+  explicitly (the dispatcher omits controller_* assignment roles). Passwords from
+  env (`DC1_AZURE_DEV_ADMIN_PASSWORD` / `DC1_AZURE_JR_DEV_PASSWORD`; `.example`
+  updated). The portal itself (RHDH on OpenShift) stays in the `aap.selfservice`
+  repo — referenced, not vendored (see that repo's issue on the workflow limitation).
+
 ### Changed
 - **EE deliberate-update model — immutable semver tags + `pull: missing`**
   (AB#95) — replaced the floating `:latest` + `pull: always` workaround (AB#91)

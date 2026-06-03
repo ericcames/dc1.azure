@@ -182,3 +182,27 @@ eda_event_stream_token: "{{ lookup('ansible.builtin.env', 'EDA_EVENT_STREAM_TOKE
 servicenow_instance: "{{ lookup('ansible.builtin.env', 'SN_HOST') }}"
 servicenow_username: "{{ lookup('ansible.builtin.env', 'SN_USERNAME') }}"
 servicenow_password: "{{ lookup('ansible.builtin.env', 'SN_PASSWORD') }}"
+
+# --- Phase 9: Self-Service Portal RBAC + launcher (AB#107) -------------------
+# The portal (RHDH, deployed by the aap.selfservice repo) surfaces JOB templates
+# only — NOT workflows (proven live + RH 2.6 docs). So the Self-Service entry point
+# is a thin LAUNCHER job template that fires the existing Provision and Configure
+# workflow; the Developers team gets Execute on the launcher, and demo users inherit
+# it via membership. Names namespaced per convention. Passwords from env (never
+# committed) — see docs/dev-environment.sh(.example).
+team_developers: "DC1.Azure - Developers"
+user_dev_lead: "dev-lead"          # admin persona — Organization Admin
+user_jr_dev: "jr-dev"              # least-privilege persona — Execute on the launcher JT via team
+dev_admin_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_DEV_ADMIN_PASSWORD') }}"
+jr_dev_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_JR_DEV_PASSWORD') }}"
+# Self-Service launcher job template — the portal-surfaced entry point that fires
+# the workflow. Runs playbooks/launch_workflow.yml.
+launcher_template: "DC1.Azure - Request Windows VM"
+# Phase 11 facts JT (already defined in controller_job_templates.yml) — the
+# Developers team also gets Execute on it so jr-dev can self-serve fact-gathering.
+facts_template: "DC1.Azure - Gather and Display Facts"
+# Resolved at runtime by load.yml (JT ids are env-specific; never hardcode).
+# Defaulted empty so controller_role_team_assignments degrades to [] for any JT
+# that doesn't exist yet (fresh env, first pass).
+dc1_launcher_jt_id: ""
+dc1_facts_jt_id: ""

@@ -379,19 +379,46 @@ rulebook → `run_workflow_template`. See [`docs/servicenow-integration.md`](doc
 
 **Exit criteria:** ✅ Met 2026-06-02. A user requests a Windows VM through the ServiceNow catalog, the workflow provisions + configures it, and the RITM is auto-fulfilled with IP/FQDN/admin (RDP-ready); a failed provision opens an Incident and marks the RITM Closed Incomplete.
 
-### Phase 9 — AAP Self-Service Portal Trigger  ⬜
+### Phase 9 — AAP Self-Service Portal Trigger  🔄
 
 The second of the four triggers (AAP UI = Phase 6, ServiceNow = Phase 8). The
-AAP platform Self-Service Portal surfaces the existing "DC1.Azure - Provision
-and Configure" workflow to non-admin end users — same survey, simplified UX, no
-new workflow.
+AAP platform Self-Service Portal (Red Hat Developer Hub) surfaces the existing
+"DC1.Azure - Provision and Configure" workflow to non-admin end users — same
+survey, simplified UX, no new workflow.
 
-- ⬜ Expose the DC1.Azure workflow in the Self-Service Portal (publish/surface the existing workflow + survey; no re-implementation)
-- ⬜ Confirm a non-admin user with only Self-Service access can launch it and see status
-- ⬜ Verify the survey (vm_size_tier) renders and passes through to the same workflow the other triggers use
-- ⬜ `docs/demo-runbook.md` — Self-Service Portal section (screenshots of the portal launch + result)
+**Scope split:** the portal itself (RHDH `redhat-rhaap-portal` Helm chart on
+OpenShift) is the **`aap.selfservice`** repo's job — dc1.azure **references** it
+(pinned), it is not vendored here. dc1.azure owns only the **AAP RBAC** + a thin
+launcher JT (see the finding below): the portal lets all authenticated users
+browse templates; AAP enforces Execute at launch, so RBAC is the control point.
 
-**Exit criteria:** a non-admin user launches the same Windows-VM workflow from the Self-Service Portal and gets an identical result to the AAP-UI path.
+> **KEY FINDING (2026-06-03): the portal surfaces JOB templates only — NOT
+> workflow JTs.** Proven live (with an identical team-level grant, a team-granted
+> *job* template surfaced for `jr-dev` while the team-granted *workflow* did not;
+> the backend provider is `AAPJobTemplateProvider`) and confirmed in Red Hat's
+> **2.6** docs ("job templates … are synced … fetches updates for auto-generated
+> self-service templates only"). This is a product-design choice — newer charts
+> (2.2.0) do **not** add workflow support. So the workflow can't be launched from
+> the portal directly; Phase 9 bridges it with a **launcher job template**.
+
+- ✅ **Verify-first** — found the portal surfaces **job** templates only, not
+  workflows (see finding above). The earlier "workflow surfaces" read was a false
+  positive (those were the job templates).
+- ✅ **RBAC as Config-as-Code** (AB#107) — `DC1.Azure - Developers` team; users
+  `dev-lead` (Organization Admin) + `jr-dev` (least-privilege); team holds Execute
+  via membership. Validated live: `jr-dev` can Start only what it's granted, can't
+  edit; `dev-lead` is full admin.
+- 🔄 **Launcher JT** — `DC1.Azure - Request Windows VM` (job template, `vm_size_tier`
+  survey) runs a small playbook (`ansible.controller.workflow_launch`) that fires
+  the existing `DC1.Azure - Provision and Configure` workflow with the tier passed
+  through. Surfaces in the portal; team gets Execute on it. No parallel workflow.
+- ⬜ End-to-end: `jr-dev` Starts the launcher JT **from the portal UI** → the
+  workflow runs and provisions the VM.
+- ⬜ `docs/demo-runbook.md` — Self-Service Portal section (portal-launch screenshots).
+
+**Exit criteria:** a non-admin user (`jr-dev`) triggers the same Windows-VM
+workflow from the Self-Service Portal (via the launcher JT) and gets an identical
+result to the AAP-UI path.
 
 ### Phase 10 — Azure DevOps Trigger  ⬜
 
@@ -497,6 +524,7 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-06-02 | **Phase 8 validated end-to-end live; three inbound-trigger fixes were live-only** (AB#91) — captured `my_organization` (activation extra_vars), `ask_variables_on_launch` (workflow), and EE `pull` policy in CaC | Lint/build never exercise a live launch; all three only surfaced driving a real ServiceNow→workflow run (job 78→97). Capturing them in CaC keeps a `load.yml` re-apply from reverting the working demo. Confirmed the instance's request-state ints (`3`=Closed Complete, `4`=Closed Incomplete) so the `update_ritm.yml` defaults are correct as-is |
 | 2026-06-02 | **EE update model = deliberate, not auto-pull** (AB#95, direction set; impl deferred) — replace `pull: always` (AB#91 placeholder) with `pull: missing` + immutable version tags + pinning the Controller EE to a tag | `pull: always` re-pulls the 521 MB EE every run (throughput cost, visibly queued concurrent jobs) and is the wrong model — Eric prefers updating the EE deliberately when needed. The safe replacement needs the *reference* to change on a deliberate update (immutable tag + repoint), which is the same immutable-tagging/backout work; blocked on the tag-scheme decision. `pull: always` stays until the replacement lands (additive-only) |
 | 2026-06-03 | **EE tag scheme = semver `vX.Y.Z`** (AB#95 implemented) — Controller EE pins to `ee_version` (default `v1.0.0`) with `pull: missing`; `hub_ee_repositories.yml` `include_tags` templates off `ee_version`; `latest` retained as the smoke-test escape hatch. `v1.0.0` minted from the existing 2026-06-01 hardened digest (`sha256:4423a10…`) via `skopeo copy` — no rebuild. Runbook in `docs/ee-versioning.md`; rationale for the custom EE itself in `docs/ee-why-custom-ee.md` | Semver gives the cleanest platform-engineering demo narrative ("the EE is versioned like a product; we promote deliberately") and the most readable CaC diff on a bump. Bump rule resolves the errata-rebuild ambiguity: CVE-only → patch, +collection → minor, new base → major. Chosen over date / git-SHA / date+sha after two deferrals |
+| 2026-06-03 | **Phase 9: Self-Service Portal surfaces JOB templates only, not workflows → bridge with a launcher JT** (AB#107) | Proven live (identical team-level grant: a job template surfaced for `jr-dev`, the workflow did not; backend provider `AAPJobTemplateProvider`) and confirmed in RH 2.6 docs — a product-design choice, not a version gap (chart 2.2.0 doesn't add it). A thin launcher JT (`DC1.Azure - Request Windows VM`, `vm_size_tier` survey → `ansible.controller.workflow_launch`) fires the existing workflow, preserving "one core workflow, four triggers" and keeping everything in dc1.azure's scope (vs a portal-side custom Backstage template). NB: the portal catalog only refreshes per-user access on a `sync_portal_orgs.yml` run (it restarts the portal); the in-UI "Sync now" button does not |
 
 ---
 

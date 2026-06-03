@@ -1,0 +1,31 @@
+---
+# Consumed by the infra.aap_configuration.gateway_users role (var: aap_user_accounts).
+# Phase 9 (AB#107) — two demo personas for the Self-Service Portal story:
+#   - dev-lead : the admin persona (granted Organization Admin in
+#                gateway_role_user_assignments.yml)
+#   - jr-dev   : the least-privilege persona — gets NOTHING except membership in
+#                DC1.Azure - Developers, which holds Execute on the one workflow.
+# Both are org members of my_organization so they can log into the portal (whose
+# allowed-org list includes it). Neither is a superuser. Passwords come from env
+# vars (docs/dev-environment.sh) — never committed. update_secrets: false keeps
+# re-applies idempotent (password set on create, not churned every run).
+aap_user_accounts:
+  - username: "{{ user_dev_lead }}"
+    first_name: Dana
+    last_name: Lee
+    email: dev-lead@dc1.azure.example
+    password: "{{ dev_admin_password }}"
+    is_superuser: false
+    update_secrets: false
+    organizations:
+      - "{{ my_organization }}"
+
+  - username: "{{ user_jr_dev }}"
+    first_name: Jordan
+    last_name: Reyes
+    email: jr-dev@dc1.azure.example
+    password: "{{ jr_dev_password }}"
+    is_superuser: false
+    update_secrets: false
+    organizations:
+      - "{{ my_organization }}"
