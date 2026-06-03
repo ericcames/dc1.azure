@@ -88,6 +88,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `aap_config/inventory/`.
 
 ### Fixed
+- **Phase 10 launch pipeline — wrong Controller API base** (AB#111) — found in
+  live validation: `azure-pipelines-launch.yml` hardcoded the legacy
+  standalone-Controller path `/api/v2`, which **404s (HTML)** on the AAP 2.5
+  unified gateway, so the workflow-resolve `curl` returned non-JSON and the launch
+  step died with a `JSONDecodeError`. Switched to **`/api/controller/v2`** — the
+  path used everywhere else in this repo (group_vars/all.yml, demo-runbook).
 - **Docs accuracy — ServiceNow callback narrative** (AB#103) — reconciled
   `docs/servicenow-integration.md` with as-built: the design blockquote and the
   "Job templates (point at the synced Windows project)" header wrongly stated the

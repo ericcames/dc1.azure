@@ -52,7 +52,10 @@ steps:
       set -euo pipefail
 
       HOST="${AAP_HOSTNAME%/}"
-      API="${HOST}/api/v2"
+      # AAP 2.5 unified gateway serves the Controller API under /api/controller/v2
+      # (NOT the legacy standalone-Controller /api/v2, which 404s on the gateway).
+      # Matches the path used throughout this repo (see group_vars/all.yml).
+      API="${HOST}/api/controller/v2"
 
       echo "==> Resolving workflow job template: ${WF_NAME}"
       ENC_NAME=$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ['WF_NAME']))")
