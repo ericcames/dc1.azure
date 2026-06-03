@@ -15,11 +15,17 @@
 #     NOTE: the file must be a real file, not a symlink — ansible-builder's
 #     COPY/ADD does not follow symlinks. Fix: cp ~/.ansible/ansible.cfg ~/.ansible.cfg
 #
-# PUSH + REGISTER IN AAP:
-#   podman push dc1-azure-ee:latest <registry-host>/dc1-azure-ee:latest
-#   # In AAP: Settings → Execution Environments → Add → paste image URL
-#   # Name it "DC1.Azure - EE" (follows DC1.Azure - namespace convention)
-#   # Then set DC1_AZURE_EE="DC1.Azure - EE" in the load.yml env vars
+# PUSH (deliberate-update model, AB#95 — see docs/ee-versioning.md):
+#   Tag with the NEXT immutable semver tag AND move latest, then push both:
+#     podman tag dc1-azure-ee:latest quay.io/zigfreed/dc1-azure-ee:vX.Y.Z
+#     podman tag dc1-azure-ee:latest quay.io/zigfreed/dc1-azure-ee:latest
+#     podman push quay.io/zigfreed/dc1-azure-ee:vX.Y.Z
+#     podman push quay.io/zigfreed/dc1-azure-ee:latest
+#   Bump rule: CVE-only rebuild → patch · +collection → minor · new base → major.
+#   Then bump `ee_version` in aap_config/group_vars/all.yml and re-apply load.yml;
+#   PAH re-syncs the new tag and Controller pulls it once (pull: missing).
+#   AAP registration is Config-as-Code (controller_execution_environments.yml) —
+#   no manual UI Add needed.
 #
 # TERRAFORM VERSION:
 #   Pinned to 1.15.4 (latest available as of 2026-05).
@@ -59,6 +65,13 @@
 #     that was never tested against it, so it is deliberately NOT forced here. The
 #     correct fix is a coherent azure.azcollection bump (its dep tree brings newer
 #     pyOpenSSL/cryptography together) — tracked as its own work item.
+#   2026-06-03 (AB#95) — adopted the deliberate-update model: images now carry an
+#     IMMUTABLE semver tag (vX.Y.Z) and the Controller EE pins to `ee_version`
+#     (group_vars/all.yml) with pull: missing instead of the floating :latest +
+#     pull: always. v1.0.0 = THIS 2026-06-01 hardened image (quay digest
+#     sha256:4423a10…), minted from the existing digest via `skopeo copy` — NO
+#     rebuild, identical bits. Versioning/process change only; no image content
+#     change. To ship the next version see docs/ee-versioning.md.
 # ============================================================
 
 version: 3

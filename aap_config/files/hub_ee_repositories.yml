@@ -35,8 +35,14 @@ hub_ee_repositories:
     description: "DC1.Azure EE — Terraform 1.15.4 + azure.azcollection + ansible.windows"
     registry: quay_io     # must match hub_ee_registries[].name
     upstream_name: zigfreed/dc1-azure-ee
+    # AB#95: mirror the pinned IMMUTABLE version tag (ee_version) into Hub — this is
+    # the tag the Controller EE pins to with pull: missing. `latest` is also synced
+    # purely as the Hub-side smoke-test convenience; Controller never references it.
+    # Templating off ee_version means a version bump auto-includes the new tag here,
+    # so the PAH sync keeps pace with the pin (per the two-gate sync rule above).
     include_tags:
       - latest
+      - "{{ ee_version }}"
     # ROLE GATE (2b): pull the image into Hub during bootstrap. `wait: true`
     # blocks until the sync completes before dispatch moves on to
     # controller_execution_environments (which needs the image to exist in Hub).

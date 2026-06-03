@@ -164,6 +164,8 @@ a defensible, tested image is.**
 ## References
 
 - [`execution-environment.yml`](../execution-environment.yml) — the EE definition + build-provenance log
+- [`ee-why-custom-ee.md`](ee-why-custom-ee.md) — why a custom EE over a run-time `requirements.yml`
+- [`ee-versioning.md`](ee-versioning.md) — immutable semver tags + the deliberate-update model (AB#95)
 - [`ROADMAP.md`](../ROADMAP.md) — phases, decisions log
 - Quay repository: `quay.io/zigfreed/dc1-azure-ee` (public; Clair scan under the *Security* tab)
 </content>

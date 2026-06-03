@@ -5,7 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **EE deliberate-update model — immutable semver tags + `pull: missing`**
+  (AB#95) — replaced the floating `:latest` + `pull: always` workaround (AB#91)
+  with a deliberate-promotion model. The Controller EE now pins to an immutable
+  semver tag via the new `ee_version` var (`aap_config/group_vars/all.yml`,
+  default **`v1.0.0`**) and uses **`pull: missing`** — pulled once, then the
+  cached layer is reused instead of re-pulling ~521 MB on every job run. Safe
+  because the tag is immutable. `hub_ee_repositories.yml` `include_tags` now
+  templates off `ee_version` (`[latest, "{{ ee_version }}"]`) so a bump
+  auto-syncs the new tag to PAH; `latest` is retained only as the Hub-less
+  smoke-test escape hatch. `v1.0.0` is the 2026-06-01 hardened image (quay digest
+  `sha256:4423a10…`), minted from the existing digest via `skopeo copy` (no
+  rebuild). New runbook `docs/ee-versioning.md` documents the bump rule
+  (CVE-only → patch · +collection → minor · new base → major) and the
+  build→push→bump→re-apply loop; provenance recorded in `execution-environment.yml`.
+
 ### Added
+- **Custom EE rationale doc** (AB#95) — `docs/ee-why-custom-ee.md` explains why
+  DC1.Azure ships a purpose-built execution environment (Terraform binary on
+  PATH, baked + version-pinned collections/Python deps, OS-errata hardening,
+  air-gapped PAH delivery, reproducibility) rather than relying on a bare
+  `collections/requirements.yml` against a stock EE at run time.
 - **Fact caching & inventory visibility — v1 standalone JT** (Phase 11) — new
   `DC1.Azure - Gather and Display Facts` job template (`use_fact_cache: true`)
   running this repo's new `playbooks/gather_facts.yml` against the provisioned

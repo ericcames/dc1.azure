@@ -4,14 +4,20 @@
 # reference it by name.
 #
 # Image source (set DC1_AZURE_EE_IMAGE to override):
-#   Default: {{ ah_hostname }}/dc1_azure_ee:latest  ← the Private Automation Hub
-#   copy. PAH syncs it from quay.io (hub_ee_registries.yml + hub_ee_repositories.yml),
-#   and the cred_hub_registry credential lets Controller authenticate to the
-#   internal Hub registry to pull it. "Pull: always" makes Controller re-pull on
-#   every run so a freshly-synced :latest (mutable tag) is actually used instead of
-#   a stale cached copy (AB#91, live-found — after an EE rebuild the node kept
-#   running the old cached :latest). Revisit if the EE moves to immutable version
-#   tags + digest pinning (then "missing" is cheaper and safe).
+#   Default: {{ ah_hostname }}/dc1_azure_ee:{{ ee_version }}  ← the Private
+#   Automation Hub copy at the pinned IMMUTABLE semver tag (ee_version in
+#   group_vars/all.yml). PAH syncs it from quay.io (hub_ee_registries.yml +
+#   hub_ee_repositories.yml), and the cred_hub_registry credential lets Controller
+#   authenticate to the internal Hub registry to pull it.
+#
+# "pull: missing" (AB#95 — the deliberate-update model): pull the image once, then
+# reuse the cached layer on every subsequent run. This is SAFE *because* the tag is
+# immutable — a given vX.Y.Z never changes, so a cached copy is never stale. It
+# replaces the old "pull: always" (AB#91 workaround), which re-pulled ~521 MB on
+# every run because the floating :latest tag could change underneath a cached copy.
+# Shipping an update is now deliberate: build a new vX.Y.Z → push → re-sync PAH →
+# bump ee_version → re-apply load.yml (the new tag isn't present locally, so
+# "missing" pulls it exactly once). See docs/ee-versioning.md.
 #   For a Hub-less smoke test, override DC1_AZURE_EE_IMAGE with the public quay.io
 #   URL (quay.io/zigfreed/dc1-azure-ee:latest) — no registry credential needed.
 #
@@ -21,6 +27,15 @@
 controller_execution_environments:
   - name: "{{ ee_name }}"
     image: "{{ ee_image }}"
-    pull: always
+    pull: missing
     credential: "{{ cred_hub_registry }}"
-    description: "DC1.Azure EE — Terraform 1.15.4, azure.azcollection, ansible.windows + community.windows"
+    # EE DESCRIPTION CONVENTION (Eric, 2026-06-03): enumerate the version-pinned
+    # contents — base image · binaries · key collections — so the description IS a
+    # manifest of what's inside (reinforces the reproducibility story in
+    # docs/ee-why-custom-ee.md). KEEP IN SYNC on every EE bump with the base image
+    # in execution-environment.yml and the pins in collections/requirements.yml.
+    description: >-
+      DC1.Azure EE {{ ee_version }} (base ee-minimal-rhel9:2.17.14) —
+      Terraform 1.15.4 · azure.azcollection 3.0.0 · ansible.windows 3.0.0 ·
+      community.windows 3.0.0 · servicenow.itsm 2.13.0 ·
+      infra.aap_configuration 4.4.0

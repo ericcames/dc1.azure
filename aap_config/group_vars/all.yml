@@ -37,14 +37,28 @@ ah_hostname: "{{ lookup('ansible.builtin.env', 'AH_HOSTNAME') | default(aap_host
 # and in controller_job_templates.yml (reference). Keep them in sync.
 ee_name: "DC1.Azure - EE"
 
-# EE image URL: defaults to the Private Automation Hub copy of the image. PAH
-# syncs it from quay.io (see hub_ee_registries.yml / hub_ee_repositories.yml),
-# and Controller pulls it from PAH using the cred_hub_registry credential — the
-# image never leaves the platform at job-run time. The Hub image name is the
-# hub_ee_repositories[].name (dc1_azure_ee), served at the gateway host.
-# Override with the public quay.io image only for a Hub-less smoke test:
+# EE version tag (AB#95) — the deliberate-update model. The EE is pinned to an
+# IMMUTABLE semver tag (vMAJOR.MINOR.PATCH), never the floating `latest`, so the
+# Controller EE can use `pull: missing` (pull once, then reuse the cached layer)
+# instead of re-pulling ~521 MB every run. Shipping an update is deliberate: build
+# a new tag → push → re-sync PAH → bump this string → re-apply load.yml. Bump rule:
+#   CVE-only security rebuild  → patch (v1.0.1)
+#   add/upgrade a collection   → minor (v1.1.0)
+#   new base image / breaking  → major (v2.0.0)
+# See docs/ee-versioning.md for the full runbook. v1.0.0 = the 2026-06-01 hardened
+# baseline (quay digest sha256:4423a10…).
+ee_version: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE_VERSION') | default('v1.0.0', true) }}"
+
+# EE image URL: defaults to the Private Automation Hub copy of the image at the
+# pinned version tag. PAH syncs it from quay.io (see hub_ee_registries.yml /
+# hub_ee_repositories.yml), and Controller pulls it from PAH using the
+# cred_hub_registry credential — the image never leaves the platform at job-run
+# time. The Hub image name is the hub_ee_repositories[].name (dc1_azure_ee),
+# served at the gateway host.
+# Override with the public quay.io image only for a Hub-less smoke test (the
+# floating `latest` tag is retained on quay for exactly this):
 #   export DC1_AZURE_EE_IMAGE=quay.io/zigfreed/dc1-azure-ee:latest
-ee_image: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE_IMAGE') | default(ah_hostname ~ '/dc1_azure_ee:latest', true) }}"
+ee_image: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EE_IMAGE') | default(ah_hostname ~ '/dc1_azure_ee:' ~ ee_version, true) }}"
 
 # JT-level EE reference — defaults to ee_name so load.yml and the JTs stay in
 # sync without extra env vars. Override DC1_AZURE_EE only to point a specific
