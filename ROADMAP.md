@@ -474,6 +474,126 @@ re-stamps every run, so you can narrate drift) and **printed to the job log**
 the VM prints the curated summary to the job log AND the host's Facts tab in the
 AAP UI shows the timestamped, persisted fact set.
 
+### Phase 12 — Automate the ADO Trigger Setup (AAP-driven)  ⬜
+
+*Post-demo addition (2026-06-03). Phase 10 proved the ADO launch trigger, but its
+wiring was hand-built in the ADO UI: the `dc1-azure-aap` Variable Group
+(`AAP_HOSTNAME` + secret `AAP_TOKEN`), the registered* DC1.Azure — Launch Windows VM
+*pipeline, and the pipeline→variable-group authorization. Each fresh Ansible
+Product Demo env changes the AAP hostname + token, so today those values are
+re-entered by hand. This phase makes the ADO side **Config-as-Code driven from
+AAP** — a playbook/role that creates the pipeline + variable group on a clean ADO
+project (the "new" path) and idempotently re-points them when the env changes (the
+"update" path).*
+
+- ⬜ `playbooks/ado/` role(s) that, given `ADO_ORG` / `ADO_PROJECT` / `ADO_PAT` and
+  the current `AAP_HOSTNAME` / `AAP_TOKEN`: create-or-update the `dc1-azure-aap`
+  Variable Group (secret `AAP_TOKEN`), register/update the
+  *DC1.Azure — Launch Windows VM* pipeline pointing at `azure-pipelines-launch.yml`,
+  and grant the pipeline→variable-group authorization. Both the **new** (fresh
+  project) and **update** (re-point existing) paths idempotent.
+- ⬜ `DC1.Azure - Configure ADO Trigger` JT wrapping the role, run during env
+  bring-up. ADO PAT supplied via a custom credential type (mirrors the
+  `DC1.Azure - Windows Admin Password` pattern), not a survey.
+- ⬜ **Open question — ADO driver:** `az devops` CLI vs the ADO REST API via
+  `ansible.builtin.uri`. Affects EE contents (azure-cli weight is already partly
+  present) and auth shape. Resolve at implementation; capture in the Decisions Log.
+- ⬜ Keep the manual UI steps documented in `docs/ado-conventions.md` as the
+  no-AAP fallback (additive-only).
+- ⬜ A check (in `validate.yml` or the JT) asserts the Variable Group + pipeline
+  exist and point at the live AAP.
+- ⬜ `docs/demo-runbook.md` / `docs/ado-conventions.md` updated.
+
+**Exit criteria:** on a fresh ADO project (or after an env swap), one JT run
+produces a working *DC1.Azure — Launch Windows VM* pipeline whose Variable Group
+points at the current AAP, and a manual pipeline run launches the workflow — with
+zero ADO-UI clicks.
+
+### Phase 13 — Automate the ServiceNow Outbound REST Message (AAP-driven)  ⬜
+
+*Post-demo addition (2026-06-03). Phase 8's inbound trigger relies on a SNow
+Business Rule → Outbound REST Message whose endpoint is the AAP **EDA event-stream
+URL** and whose auth is a **bearer token** (now in an encrypted `sys_property`,
+AB#92). Both are per-env: a fresh install mints a new event stream + token, so today
+the REST Message is hand-edited in the SNow UI. This phase makes AAP update SNow —
+a playbook/role that sets the `sys_rest_message` endpoint + the encrypted token
+property to match the freshly-installed EDA activation.*
+
+- ⬜ `playbooks/servicenow/configure_outbound_rest.yml` + role: given `SN_*` creds,
+  the current EDA event-stream URL, and `EDA_EVENT_STREAM_TOKEN`, create-or-update
+  the Outbound REST Message record (`sys_rest_message` / `sys_rest_message_fn`)
+  endpoint and the encrypted bearer `sys_property`; optionally ensure the Business
+  Rule exists (its JS already lives in
+  [`servicenow/business_rules/fire_eda_on_ritm.js`](servicenow/business_rules/fire_eda_on_ritm.js)).
+- ⬜ Source the event-stream URL **programmatically** from the just-applied EDA
+  event stream (controller/EDA API) rather than a hand-copied value — closes the
+  "new env → new URL" loop.
+- ⬜ **Open question — SNow driver:** `servicenow.itsm` is ITSM-table-focused and
+  may not cover `sys_rest_message` records; the SNow Table API via
+  `ansible.builtin.uri` is the likely path. Confirm scoped-app vs global table
+  access on the shared instance. Resolve at implementation.
+- ⬜ `DC1.Azure - Configure SNow Trigger` JT wrapping it; reuse the existing
+  `DC1.Azure - ServiceNow` ITSM credential / `SN_*` creds.
+- ⬜ Keep the manual SNow-UI build documented in `docs/servicenow-integration.md`
+  + `servicenow/README.md` as the no-AAP fallback (additive-only).
+- ⬜ A check asserts the REST Message endpoint matches the live EDA URL.
+
+**Exit criteria:** after a fresh install on a new env, one JT run updates the SNow
+Outbound REST Message to the new EDA event-stream URL + token, and a catalog order
+fires the workflow — with zero SNow-UI edits.
+
+### Phase 14 — Fresh-Env End-to-End Validation  ⬜
+
+*Post-demo addition (2026-06-03). Spin a brand-new Ansible Product Demo RHDP env
+and prove the whole thing cold — now that env bring-up is fully automatable
+(Phases 12–13 remove the last manual ADO/SNow UI steps).*
+
+- ⬜ Activate a fresh Product Demo + Azure open env; capture identifiers only in
+  `docs/dev-environment.sh` (gitignored) — placeholder/redact in any commit.
+- ⬜ Run install (`/install-dc1-azure` → `load.yml`) green; `validate.yml` passes.
+- ⬜ Run the Phase 12 ADO-config JT + Phase 13 SNow-config JT → ADO + SNow
+  re-pointed at the new env.
+- ⬜ Exercise all four triggers green: AAP UI, Self-Service Portal, ServiceNow
+  catalog order (**Eric places the order** per convention), ADO launch pipeline.
+  Confirm the guarded SNow nodes fire on the SNow path and no-op on the others.
+- ⬜ Teardown verified clean (no lingering Azure spend); ad-hoc tokens cleaned up
+  (never the operator SA token).
+- ⬜ Capture any live-only fixes back into CaC (the recurring "lint never
+  exercises a live launch" lesson — see AB#91/AB#111).
+
+**Exit criteria:** a from-scratch env reaches "all four triggers green" using only
+automation + documented one-shot JT runs — no UI click-throughs for ADO or SNow
+wiring.
+
+### Phase 15 — Claude Skills Expansion  ⬜
+
+*Post-demo addition (2026-06-03). Today the repo ships one skill
+(`install-dc1-azure`), which assumes prerequisites are already met. Add the skills
+that cover the rest of the lifecycle, all repo-based (Decisions Log 2026-05-26 —
+repo-based, not marketplace).*
+
+- ⬜ **`first-time-setup`** — prerequisites walkthrough for a brand-new user:
+  validates the `~/.ansible.cfg` Hub `galaxy_server` stanza, collection install,
+  `docs/dev-environment.sh` from the `.example`, and each Azure SP / RHDP RG / ADO
+  PAT / SNow / EDA-token var (**by name only**), one at a time, before handing off
+  to `install-dc1-azure`. The repo-based replacement for the marketplace
+  `aap-first-time`.
+- ⬜ **`spin-env`** — full fresh-env bring-up (the Phase 14 cold-run as a skill):
+  `load.yml` install → Phase 12 ADO-config JT → Phase 13 SNow-config JT → validate
+  all four triggers.
+- ⬜ **`demo-readiness`** — SE-facing preflight: confirms **this** env is demo-ready
+  before standing in front of a customer (namespaced objects exist, the EDA
+  activation is running, the SNow REST Message points at this env's EDA URL, the ADO
+  Variable Group/pipeline are present, the nightly teardown schedule is armed).
+  Emits a go/no-go checklist.
+- ⬜ **`teardown`** — run the Teardown JT, verify zero Azure spend, and clean up
+  ad-hoc tokens (never the operator SA token).
+
+**Exit criteria:** a brand-new user can go from a fresh laptop to a validated
+four-trigger demo using only the repo-based skills, and an SE can confirm
+demo-readiness (and tear down afterward) without hand-checking the AAP / SNow / ADO
+UIs.
+
 ---
 
 ## Naming Conventions
@@ -538,6 +658,8 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-06-02 | **Phase 8 validated end-to-end live; three inbound-trigger fixes were live-only** (AB#91) — captured `my_organization` (activation extra_vars), `ask_variables_on_launch` (workflow), and EE `pull` policy in CaC | Lint/build never exercise a live launch; all three only surfaced driving a real ServiceNow→workflow run (job 78→97). Capturing them in CaC keeps a `load.yml` re-apply from reverting the working demo. Confirmed the instance's request-state ints (`3`=Closed Complete, `4`=Closed Incomplete) so the `update_ritm.yml` defaults are correct as-is |
 | 2026-06-02 | **EE update model = deliberate, not auto-pull** (AB#95, direction set; impl deferred) — replace `pull: always` (AB#91 placeholder) with `pull: missing` + immutable version tags + pinning the Controller EE to a tag | `pull: always` re-pulls the 521 MB EE every run (throughput cost, visibly queued concurrent jobs) and is the wrong model — Eric prefers updating the EE deliberately when needed. The safe replacement needs the *reference* to change on a deliberate update (immutable tag + repoint), which is the same immutable-tagging/backout work; blocked on the tag-scheme decision. `pull: always` stays until the replacement lands (additive-only) |
 | 2026-06-03 | **EE tag scheme = semver `vX.Y.Z`** (AB#95 implemented) — Controller EE pins to `ee_version` (default `v1.0.0`) with `pull: missing`; `hub_ee_repositories.yml` `include_tags` templates off `ee_version`; `latest` retained as the smoke-test escape hatch. `v1.0.0` minted from the existing 2026-06-01 hardened digest (`sha256:4423a10…`) via `skopeo copy` — no rebuild. Runbook in `docs/ee-versioning.md`; rationale for the custom EE itself in `docs/ee-why-custom-ee.md` | Semver gives the cleanest platform-engineering demo narrative ("the EE is versioned like a product; we promote deliberately") and the most readable CaC diff on a bump. Bump rule resolves the errata-rebuild ambiguity: CVE-only → patch, +collection → minor, new base → major. Chosen over date / git-SHA / date+sha after two deferrals |
+| 2026-06-03 | **Post-demo roadmap: automate the ADO + SNow trigger wiring from AAP** (Phases 12–13) — the two remaining manual UI build steps become AAP-driven Config-as-Code (`DC1.Azure - Configure ADO Trigger` / `... SNow Trigger` JTs), each with a **new** (create) and **update** (re-point) path | Both trigger wirings carry per-env churn — ADO needs the fresh AAP host/token; SNow needs the fresh EDA event-stream URL/token — so today a fresh Product Demo env can't be stood up without UI click-throughs. Making them code completes "every trigger reconfigures from a repo run," which is what makes the demo cleanly Product-Demo-portable. Driver choice (`az devops` CLI vs ADO REST; `servicenow.itsm` vs SNow Table API) deferred to implementation as open questions |
+| 2026-06-03 | **Skills cover the full lifecycle, repo-based** (Phase 15): `first-time-setup`, `spin-env`, `demo-readiness`, `teardown` (added alongside the existing `install-dc1-azure`) | `install-dc1-azure` assumes prerequisites are already met; the gaps are onboarding (first-time-setup), full env bring-up (spin-env), pre-demo go/no-go (demo-readiness), and cleanup (teardown). All repo-based per the 2026-05-26 marketplace→in-repo decision so the demo carries its own tooling |
 | 2026-06-03 | **Phase 9: Self-Service Portal surfaces JOB templates only, not workflows → bridge with a launcher JT** (AB#107) | Proven live (identical team-level grant: a job template surfaced for `jr-dev`, the workflow did not; backend provider `AAPJobTemplateProvider`) and confirmed in RH 2.6 docs — a product-design choice, not a version gap (chart 2.2.0 doesn't add it). A thin launcher JT (`DC1.Azure - Request Windows VM`, `vm_size_tier` survey → `ansible.controller.workflow_launch`) fires the existing workflow, preserving "one core workflow, four triggers" and keeping everything in dc1.azure's scope (vs a portal-side custom Backstage template). NB: the portal catalog only refreshes per-user access on a `sync_portal_orgs.yml` run (it restarts the portal); the in-UI "Sync now" button does not |
 
 ---
@@ -554,6 +676,8 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 - **SSO/MFA AAP breaks token minting** (Phase 3, AB#85) — the self-managing dance mints via **basic auth**, which a federated (SSO) or MFA-enforced account can't satisfy; the mint 401s on `.../gateway/v1/tokens/` even with "correct" creds. Mitigation: documented escape hatch — UI-mint a token (the browser SSO session satisfies the IdP) and `export AAP_TOKEN`; the run then uses it as-is and never deletes it. INSTALL §4 + troubleshooting row cover the symptom→fix.
 - **Red Hat shared SNow availability** (Phase 8 new) — shared instance means shared state (other SEs' catalog items, flows). Risk of conflicts or accidental changes. Mitigation: namespace SNow objects with `dc1.azure - ` prefix (mirror our AAP naming). Confirm with the SNow admin before standing up the catalog item.
 - **AAP→SNow callback complexity** (Phase 8 new) — RITM update requires a SNow credential in AAP plus the `servicenow.itsm` collection. Risk: time-out behavior when Azure provisioning hangs > workflow time-out leaves RITM in an indeterminate state. Mitigation: explicit failure-path JT that updates RITM with `Failed` + error context.
+- **ADO automation driver** (Phase 12 new) — `az devops` CLI vs the ADO REST API via `ansible.builtin.uri` for creating/updating the Variable Group + pipeline. Affects EE contents (azure-cli weight, already partly present for `azure.azcollection`) and the auth shape (PAT header vs `az devops login`). Mitigation: spike both against the live ADO project before committing; capture the choice in the Decisions Log.
+- **SNow Outbound REST automation scope** (Phase 13 new) — `servicenow.itsm` is ITSM-table-focused and may not expose the `sys_rest_message` / `sys_rest_message_fn` / `sys_property` records, so the SNow Table API via `ansible.builtin.uri` is the likely path. Risk: writing to system tables on the **shared** SNow dev instance has a wider blast radius than ITSM records. Mitigation: namespace + guard + idempotent create-or-update; confirm table access (scoped-app vs global) with the SNow admin first.
 - **`aap.dailydemo.windows` role compatibility with Azure VMs** (Phase 4 reaffirmation) — roles assume an AWS-provisioned Windows box (likely AWS-specific tags or metadata service calls). Mitigation: review each of the 4 roles' tasks before importing; vendor + adapt locally if upstream isn't cloud-agnostic.
 
 ---

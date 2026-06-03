@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Roadmap — Phases 12–15 (post-demo planning)** — captured four new phases in
+  `ROADMAP.md` after the successful demo: **Phase 12** automates the ADO trigger
+  wiring from AAP (a `DC1.Azure - Configure ADO Trigger` JT that creates *and*
+  idempotently re-points the `dc1-azure-aap` Variable Group + launch pipeline on a
+  fresh env — replacing the Phase 10 manual ADO-UI build); **Phase 13** automates
+  the ServiceNow Outbound REST Message from AAP (a `DC1.Azure - Configure SNow
+  Trigger` JT that sets the `sys_rest_message` endpoint + encrypted bearer
+  `sys_property` to the freshly-installed EDA event-stream URL/token — replacing the
+  Phase 8 manual SNow-UI build); **Phase 14** is a fresh-env end-to-end validation
+  (spin a new Product Demo env, run install + the two config JTs, prove all four
+  triggers green, teardown clean); **Phase 15** expands the repo-based Claude skills
+  beyond `install-dc1-azure` with `first-time-setup`, `spin-env`, `demo-readiness`,
+  and `teardown`. Added two Decisions Log rows and two Risks/Open-Questions entries
+  (ADO driver: `az devops` CLI vs REST; SNow driver: `servicenow.itsm` vs Table API).
+  No code changes yet — planning only.
 - **Phase 10 — Azure DevOps trigger (launch pipeline)** (AB#110) — the fourth
   and final trigger. New `azure-pipelines-launch.yml`: a manual-run pipeline
   (`trigger:`/`pr: none`) with a `vm_size_tier` queue-time parameter
