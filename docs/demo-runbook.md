@@ -334,6 +334,88 @@ Demonstrations* business-application relationship:
 
 ---
 
+## 8. The Self-Service Portal variant (Phase 9)
+
+Same workflow, a third front door: a **developer self-serves the VM from the
+AAP Self-Service Portal** (Red Hat Developer Hub) with **least-privilege** access
+and no AAP admin login. The story for a platform-engineering audience —
+*"curated, governed self-service: a junior dev gets exactly one button, and the
+platform team controls everything behind it."*
+
+**How it flows**
+
+```
+jr-dev logs into the Self-Service Portal  →  sees ONLY the templates the
+   DC1.Azure - Developers team is granted (least-privilege)
+   →  Starts "DC1.Azure - Request Windows VM" (picks vm_size_tier)
+   →  launcher JT fires DC1.Azure - Provision and Configure  (the same v1 workflow)
+   →  VM provisioned + configured (identical result to §3 / §7)
+```
+
+> **Why a launcher JT?** The portal auto-syncs **job templates only — not workflow
+> job templates** (confirmed live + Red Hat 2.6 docs). So a thin launcher *job*
+> template (`DC1.Azure - Request Windows VM`, running `playbooks/launch_workflow.yml`
+> → `ansible.controller.workflow_launch`) is the portal-surfaced entry point that
+> fires the existing workflow — no parallel implementation. `jr-dev` runs the
+> launcher; the workflow runs under the `DC1.Azure - Controller` credential, so the
+> dev needs no direct workflow or credential access.
+
+**One-time setup**
+
+1. **Deploy the portal** — RHDH `redhat-rhaap-portal` Helm chart on OpenShift, via
+   the [`aap.selfservice`](https://github.com/ericcames/aap.selfservice) repo
+   (`bootstrap_portal.yml` + `sync_portal_orgs.yml`). dc1.azure references it; it is
+   not vendored here. *Skip that repo's `bootstrap_aap.yml` on an already-configured
+   AAP — it duplicates platform creds (aap.selfservice issue #45).*
+2. **Apply the CaC** — `load.yml` creates the `DC1.Azure - Developers` team, the
+   `dev-lead` (Organization Admin) + `jr-dev` (least-privilege) users, the launcher
+   JT, and the team's **JobTemplate Execute** grants on the launcher + the Gather-
+   and-Display-Facts JT. Passwords come from `DC1_AZURE_DEV_ADMIN_PASSWORD` /
+   `DC1_AZURE_JR_DEV_PASSWORD`.
+3. **Re-sync the portal after any AAP RBAC change** — run `aap.selfservice`'s
+   `sync_portal_orgs.yml` (it **restarts** the portal → rebuilds per-user access).
+   The in-UI **"Sync now"** button only does an incremental data pull and does
+   **not** re-evaluate per-user access (aap.selfservice issue #46).
+
+**Running it live**
+
+1. Open the portal URL (incognito), log in as **`jr-dev`**. Note the top-right shows
+   the dev, not an admin — and the **Templates** view lists *only* the two cards the
+   team is entitled to. Everything else in AAP is invisible to them.
+2. Start **`DC1.Azure - Request Windows VM`**, pick a `vm_size_tier`, submit. The
+   portal task finishes quickly ("executed successfully") — the launcher *fires* the
+   workflow and returns.
+3. Switch to AAP (Automation Execution → Jobs) and show **`DC1.Azure - Provision and
+   Configure`** running — narrate the same node story as §3.4. Same payoff as §4.
+
+The portal as **`jr-dev`** — exactly the two least-privilege cards (the launcher +
+the facts JT), nothing else:
+
+![Self-Service Portal as jr-dev — only the two entitled templates, each with a Start button](images/demo-09-portal-jr-dev-templates.png)
+
+Starting **Request Windows VM** — the auto-generated request form mirrors the JT's
+`vm_size_tier` survey:
+
+![Self-Service Portal request form for Request Windows VM — vm_size_tier picker](images/demo-10-portal-request-vm.png)
+
+The portal reports the launch **executed successfully** — the launcher's log shows
+*"Launched 'DC1.Azure - Provision and Configure' … workflow job id 152"*; the
+workflow then provisions the VM (watch it in AAP Jobs, §3.4):
+
+![Self-Service Portal — Request Windows VM executed successfully, launcher fired the workflow](images/demo-11-portal-launch-success.png)
+
+`jr-dev` is also granted the **Gather and Display Facts** JT, so the same
+self-service motion lets them inventory a host — the curated facts print to the job
+log and the full set is cached in the AAP database (Infrastructure → Hosts → Facts):
+
+![AAP host Facts tab — the Windows VM's facts cached in the AAP database by the self-service facts JT](images/demo-12-portal-facts-cached.png)
+
+> **Least-privilege, proven:** `jr-dev` can Start *only* the launcher + facts JTs —
+> not the workflow directly, not Provision VM, not Teardown. AAP enforces this at
+> launch; the portal just surfaces what the team is granted.
+
+---
+
 ## Appendix A — Failure modes & recovery
 
 | Symptom | Likely cause | Fix |
