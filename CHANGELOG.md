@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 12 ADO-driver spike resolved (AB#121)** — chose the **ADO REST API via
+  `ansible.builtin.uri`** over the `az devops` CLI for the Phase 12 trigger
+  automation. Rationale (Decisions Log 2026-06-03): the pipeline→variable-group
+  authorization step (`pipelinePermissions`) has no `az devops` command, so REST is
+  unavoidable for at least one step — using it for all three operations beats mixing
+  tools; `uri` is built-in (no `azure-devops` EE extension to add/maintain) and
+  matches the repo's existing playbook→API pattern. Verified with a read-only REST
+  GET of the live variable groups (`dc1-azure-aap` id 2, `dc1-azure-shared` id 1).
+  Updated ROADMAP Phase 12 (driver now ✅), the Risks entry (marked resolved), and
+  added a Decisions Log row. No code yet.
 - **Roadmap — Phases 12–15 (post-demo planning)** — captured four new phases in
   `ROADMAP.md` after the successful demo: **Phase 12** automates the ADO trigger
   wiring from AAP (a `DC1.Azure - Configure ADO Trigger` JT that creates *and*
