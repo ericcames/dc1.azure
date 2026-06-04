@@ -137,3 +137,32 @@
   loop_control:
     loop_var: result
     label: "{{ result.item.endpoint }} → {{ result.item.name }}"
+
+# --- Automation Analytics / Insights (Automation Calculator) ----------------
+# Settings aren't named objects, so check them directly: confirm the analytics
+# master switch landed. SUBSCRIPTIONS_CLIENT_SECRET reads back as $encrypted$ so
+# it can't be asserted; the client ID is only asserted when creds were supplied
+# (skipped on an analytics-less load).
+- name: Read the Controller system settings (analytics)
+  ansible.builtin.uri:
+    url: "{{ aap_hostname }}{{ api_base }}/settings/system/"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ aap_token }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  register: dc1_settings_system
+
+- name: Assert Automation Analytics tracking is enabled
+  ansible.builtin.assert:
+    that:
+      - dc1_settings_system.json.INSIGHTS_TRACKING_STATE | bool
+    fail_msg: "Analytics OFF: INSIGHTS_TRACKING_STATE is not true — the Automation Calculator will have no data"
+    success_msg: "OK: INSIGHTS_TRACKING_STATE is true"
+
+- name: Assert the analytics service-account client ID is set (only when supplied)
+  ansible.builtin.assert:
+    that:
+      - dc1_settings_system.json.SUBSCRIPTIONS_CLIENT_ID | default('') | length > 0
+    fail_msg: "SUBSCRIPTIONS_CLIENT_ID is empty — analytics uploads won't authenticate to console.redhat.com"
+    success_msg: "OK: SUBSCRIPTIONS_CLIENT_ID is set"
+  when: redhat_subscriptions_client_id | default('') | length > 0

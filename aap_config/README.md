@@ -13,6 +13,7 @@ collection (pinned **4.4.0**). This is the canonical install path.
 | `requirements.yml` | Collection pins (4.4.0) + note on the reused Windows project |
 | `inventory/aap.yml` | localhost only — CaC runs locally and talks to AAP over the API |
 | `group_vars/all.yml` | Connection + secret references (env-var lookups) + object names |
+| `files/controller_settings.yml` | Platform-wide Controller settings — enables Automation Analytics / Insights (the **Automation Calculator** data feed); var is `controller_settings` |
 | `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
 | `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) |
 | `files/controller_inventories.yml` | `dc1-azure` inventory (WinRM group vars; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |

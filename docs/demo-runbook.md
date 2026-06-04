@@ -490,6 +490,32 @@ summary page (see Appendix B)._
 
 ---
 
+## 10. The Automation Calculator — closing the ROI story
+
+After you've shown the automation *run* (any of §3/§7/§8/§9), close with the
+business value. **Automation Analytics → Automation Calculator** turns the job
+runs into a dollar figure the customer's leadership cares about.
+
+**Pre-req:** analytics must be enabled (it is, via
+`aap_config/files/controller_settings.yml` + the `REDHAT_SUBSCRIPTIONS_*` creds —
+see INSTALL §5) **and** an upload must have already shipped. If the calculator is
+empty, force an upload from **Settings → Subscription** and re-run a JT or two,
+then give it a few minutes.
+
+**Click-by-click:**
+1. Left nav → **Automation Analytics → Automation Calculator**.
+2. Toggle the **Executive / Job template / Savings** views top-right.
+3. Point out **Total savings** — the headline number across all templates.
+4. Adjust the two sliders live: **Manual cost of automation** (e.g. a mid-level
+   engineer's hourly cost) and **Automated process cost**. The savings recompute
+   in front of the customer — this is the "what's it worth to *you*" moment.
+
+**Talk-track:** "Every workflow you just watched is reporting back here. This is
+the same data your leadership would see — automation hours saved, translated to
+the rates *you* set. The platform makes the ROI case for you."
+
+---
+
 ## Appendix A — Failure modes & recovery
 
 | Symptom | Likely cause | Fix |

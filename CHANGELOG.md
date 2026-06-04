@@ -6,6 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Automation Analytics / Insights — Automation Calculator** — new
+  `aap_config/files/controller_settings.yml` (consumed by the
+  `infra.aap_configuration.controller_settings` role, wired into `load.yml`)
+  turns on `INSIGHTS_TRACKING_STATE` and authenticates the console.redhat.com
+  upload with a Red Hat **service account** (`SUBSCRIPTIONS_CLIENT_ID/SECRET`),
+  feeding the Automation Calculator (ROI / planner) for customer demos. Legacy
+  `REDHAT_USERNAME/PASSWORD` are explicitly cleared so the service account is the
+  single analytics identity. Creds resolve at runtime from new env vars
+  `REDHAT_SUBSCRIPTIONS_CLIENT_ID` / `REDHAT_SUBSCRIPTIONS_CLIENT_SECRET`
+  (added to `group_vars/all.yml` + `docs/dev-environment.sh.example`; never
+  committed). `validate_tasks.yml` now asserts tracking is enabled (and that the
+  client ID landed, when supplied). Adapted from `aap.as.code`'s
+  `controller_settings.yml`.
 - **Phase 13 SNow-driver spike resolved (AB#125)** — chose **`servicenow.itsm.api`**
   (the collection's generic Table API module, already in the EE + already used for the
   Phase 8 CMDB CI patch) over raw `ansible.builtin.uri` for updating the ServiceNow

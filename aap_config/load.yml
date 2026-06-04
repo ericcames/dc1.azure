@@ -36,6 +36,7 @@
     cac_token_scope: write
   vars_files:
     - files/gateway_settings.yml
+    - files/controller_settings.yml              # Automation Analytics / Insights (Automation Calculator)
     - files/gateway_organizations.yml
     - files/gateway_teams.yml
     - files/gateway_users.yml                    # Phase 9: Self-Service Portal demo users

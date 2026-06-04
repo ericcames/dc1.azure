@@ -67,6 +67,16 @@ export ADO_PAT=REPLACE_ME_ADO_PAT
 #   openssl rand -hex 32
 # export EDA_EVENT_STREAM_TOKEN=REPLACE_ME_EVENT_STREAM_TOKEN
 
+# --- Automation Analytics / Insights — Automation Calculator -----------------
+# Red Hat SERVICE ACCOUNT creds (client ID + secret), created at
+# https://console.redhat.com/iam/service-accounts. They authenticate AAP's
+# analytics upload to console.redhat.com, which feeds the Automation Calculator
+# (ROI / planner). Consumed by aap_config/files/controller_settings.yml.
+# Leave unset to skip analytics. After loading, force a first upload from the
+# AAP UI (Settings -> Subscription) so the calculator has data to chart.
+export REDHAT_SUBSCRIPTIONS_CLIENT_ID=REPLACE_ME_RH_SVC_ACCOUNT_CLIENT_ID
+export REDHAT_SUBSCRIPTIONS_CLIENT_SECRET=REPLACE_ME_RH_SVC_ACCOUNT_CLIENT_SECRET
+
 # --- Self-Service Portal demo users (Phase 9) --------------------------------
 # Passwords for the two Self-Service Portal demo personas created by load.yml
 # (gateway_users.yml): dev-lead (admin) and jr-dev (least-privilege). They log

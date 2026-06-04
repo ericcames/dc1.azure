@@ -200,6 +200,8 @@ in the repo.
 | `DC1_AZURE_EE` | — | `DC1.Azure - EE` | EE name the JTs reference — `load.yml` creates this EE automatically via CaC; only override if you want JTs to use a different EE |
 | `DC1_AZURE_EE_IMAGE` | — | `<AH_HOSTNAME>/dc1_azure_ee:latest` | Container image for the EE — defaults to the **Private Automation Hub** copy (`load.yml` syncs it there from quay.io and Controller pulls it via the `DC1.Azure - Hub Registry` credential). Override with the public quay.io image (`quay.io/zigfreed/dc1-azure-ee:latest`) only for a Hub-less smoke test |
 | `AH_HOSTNAME` | — | gateway hostname | Private Automation Hub hostname for EE image URLs. On AAP 2.5 unified platform, Hub is at the same host as the gateway — leave unset unless Hub is on a separate host |
+| `REDHAT_SUBSCRIPTIONS_CLIENT_ID` | — | — | Automation Analytics / Insights upload auth (the **Automation Calculator** data feed). Red Hat **service account** client ID from [console.redhat.com/iam/service-accounts](https://console.redhat.com/iam/service-accounts). Leave unset to skip analytics — tracking still flips on but uploads won't authenticate. |
+| `REDHAT_SUBSCRIPTIONS_CLIENT_SECRET` | — | — | Service account client secret (pairs with `REDHAT_SUBSCRIPTIONS_CLIENT_ID`). |
 
 > **Execution environment:** `load.yml` configures Private Automation Hub to
 > register quay.io as a remote registry and **sync the image into Hub**
@@ -222,6 +224,15 @@ in the repo.
 > vaulted extra var or launch-time prompt is required. The Teardown JT bakes a
 > non-secret placeholder (destroy never uses the password), so scheduled/manual
 > teardown runs need no password input.
+
+> **Automation Calculator (optional):** setting `REDHAT_SUBSCRIPTIONS_CLIENT_ID`
+> / `REDHAT_SUBSCRIPTIONS_CLIENT_SECRET` turns on Automation Analytics / Insights
+> (`aap_config/files/controller_settings.yml`) so the **Automation Calculator**
+> (ROI / planner) has data. Enabling tracking is necessary but not sufficient:
+> the calculator only charts data **after** (1) an analytics upload runs — default
+> interval is 4h; force one from the AAP UI under **Settings → Subscription**, or
+> `awx-manage gather_analytics --ship` on the controller — and (2) some job
+> templates have actually run to generate telemetry.
 
 ## 6. Apply the configuration
 
@@ -268,6 +279,9 @@ export AZURE_TF_STORAGE_ACCOUNT=<storage-account-name>  # see §2.6
 # Optional overrides (defaults shown):
 # export DC1_AZURE_EE='DC1.Azure - EE'            # created by load.yml — only set to override
 # export DC1_AZURE_EE_IMAGE='quay.io/zigfreed/dc1-azure-ee:latest'  # or Hub URL after sync
+# Automation Calculator (optional): Red Hat service-account creds for analytics upload
+# export REDHAT_SUBSCRIPTIONS_CLIENT_ID=<rh service account client id>
+# export REDHAT_SUBSCRIPTIONS_CLIENT_SECRET=<rh service account client secret>
 
 ansible-playbook -i aap_config/inventory/ aap_config/load.yml
 ```

@@ -75,6 +75,14 @@ controller_cred_password: "{{ lookup('ansible.builtin.env', 'AAP_CONTROLLER_PASS
 # --- Secret inputs (resolved at runtime; never committed) --------------------
 vault_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_VAULT_PASSWORD') }}"
 
+# Red Hat service-account creds for Automation Analytics / Insights — the data
+# feed behind the Automation Calculator. Consumed by files/controller_settings.yml
+# (SUBSCRIPTIONS_CLIENT_ID/SECRET). These are console.redhat.com SERVICE ACCOUNT
+# creds (client ID + secret), not a portal username/password. Leave unset to skip
+# analytics; tracking still flips on but uploads won't authenticate.
+redhat_subscriptions_client_id: "{{ lookup('ansible.builtin.env', 'REDHAT_SUBSCRIPTIONS_CLIENT_ID') | default('', true) }}"
+redhat_subscriptions_client_secret: "{{ lookup('ansible.builtin.env', 'REDHAT_SUBSCRIPTIONS_CLIENT_SECRET') | default('', true) }}"
+
 azure_subscription_id: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
 azure_tenant_id: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT_ID') }}"
 azure_client_id: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
