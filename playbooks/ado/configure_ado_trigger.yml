@@ -38,7 +38,7 @@
     ado_vg_name: "dc1-azure-aap"
     ado_auth: "Basic {{ (':' + ado_pat) | b64encode }}"
     aap_base_url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') | default(aap_hostname, true) }}"
-    launch_pipeline_name: "dc1.azure"
+    launch_pipeline_name: "DC1.Azure"
 
   tasks:
     - name: Assert required inputs
@@ -85,6 +85,19 @@
         vg_exists: "{{ vg_lookup.json.count | int > 0 }}"
         vg_id: "{{ vg_lookup.json.value[0].id | default('') if vg_lookup.json.count | int > 0 else '' }}"
 
+    - name: Resolve the ADO project id
+      ansible.builtin.uri:
+        url: "https://dev.azure.com/{{ ado_org }}/_apis/projects/{{ ado_project }}?api-version=7.1"
+        method: GET
+        headers:
+          Authorization: "{{ ado_auth }}"
+        status_code: [200]
+      register: project_info
+
+    - name: Set project id
+      ansible.builtin.set_fact:
+        ado_project_id: "{{ project_info.json.id }}"
+
     - name: Build the Variable Group payload
       ansible.builtin.set_fact:
         vg_payload:
@@ -97,8 +110,13 @@
             AAP_TOKEN:
               value: "{{ ado_aap_token.ansible_facts.aap_token.token }}"
               isSecret: true
+          variableGroupProjectReferences:
+            - projectReference:
+                id: "{{ ado_project_id }}"
+                name: "{{ ado_project }}"
+              name: "{{ ado_vg_name }}"
+              description: "AAP connection for the DC1.Azure launch pipeline (Phase 12)"
       no_log: true
-
     - name: Create the Variable Group (new)
       when: not vg_exists
       ansible.builtin.uri:
@@ -138,18 +156,18 @@
     # -----------------------------------------------------------------
     # Step 3: Find the launch pipeline and authorize the Variable Group
     # -----------------------------------------------------------------
-    - name: Find the launch pipeline definition
+    - name: Find all pipeline definitions
       ansible.builtin.uri:
-        url: "{{ ado_api_base }}/_apis/build/definitions?name={{ launch_pipeline_name }}&api-version=7.1"
+        url: "{{ ado_api_base }}/_apis/build/definitions?api-version=7.1"
         method: GET
         headers:
           Authorization: "{{ ado_auth }}"
         status_code: [200]
       register: pipeline_lookup
 
-    - name: Extract the launch pipeline id
+    - name: Extract launch pipeline ids (pipelines whose name contains 'Launch')
       ansible.builtin.set_fact:
-        launch_pipeline_ids: "{{ pipeline_lookup.json.value | map(attribute='id') | list }}"
+        launch_pipeline_ids: "{{ pipeline_lookup.json.value | selectattr('name', 'search', 'Launch') | map(attribute='id') | list }}"
 
     - name: Authorize each pipeline to use the Variable Group
       loop: "{{ launch_pipeline_ids }}"
