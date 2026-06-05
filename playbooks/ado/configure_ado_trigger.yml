@@ -1,0 +1,179 @@
+---
+# ============================================================================
+# playbooks/ado/configure_ado_trigger.yml — Phase 12 (AB#144)
+# ============================================================================
+# Automates the ADO trigger wiring so a fresh RHDP env needs zero ADO-UI
+# clicks. Creates (or updates) the `dc1-azure-aap` Variable Group in the ADO
+# Library with the current AAP hostname + a freshly minted AAP API token, then
+# authorizes the launch pipeline to use it.
+#
+# Uses the ADO REST API via ansible.builtin.uri (decision AB#121: the
+# pipelinePermissions endpoint has no `az devops` CLI command, so REST is
+# unavoidable for at least one step — using it for all three beats mixing
+# tools).
+#
+# The AAP token minted here is LEFT ALIVE (not deleted in always:). It is the
+# launch pipeline's long-lived credential. Re-running this playbook mints a
+# new token and overwrites the Variable Group — the old token becomes stale
+# but harmless (it expires per AAP's token-expiration policy).
+#
+# Required credentials on the JT:
+#   DC1.Azure - Controller  (CONTROLLER_HOST/USERNAME/PASSWORD for token mint)
+# Required vars (from group_vars/all.yml → env):
+#   ado_pat, ado_org (default ericcames), ado_project (default dc1.azure)
+#
+# Run (standalone, outside AAP):
+#   source docs/dev-environment.sh && \
+#   ansible-playbook playbooks/ado/configure_ado_trigger.yml
+# ============================================================================
+
+- name: Configure the ADO trigger for DC1.Azure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ado_api_base: "https://dev.azure.com/{{ ado_org }}/{{ ado_project }}"
+    ado_api_version: "7.1-preview.2"
+    ado_vg_name: "dc1-azure-aap"
+    ado_auth: "Basic {{ (':' + ado_pat) | b64encode }}"
+    aap_base_url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') | default(aap_hostname, true) }}"
+    launch_pipeline_name: "dc1.azure"
+
+  tasks:
+    - name: Assert required inputs
+      ansible.builtin.assert:
+        that:
+          - ado_pat | default('') | length > 0
+          - ado_org | default('') | length > 0
+          - ado_project | default('') | length > 0
+          - aap_base_url | length > 0
+        fail_msg: "Need ado_pat, ado_org, ado_project, and CONTROLLER_HOST/aap_hostname."
+
+    # -----------------------------------------------------------------
+    # Step 1: Mint a long-lived AAP token for the ADO pipeline
+    # -----------------------------------------------------------------
+    - name: Mint a long-lived AAP API token for the ADO pipeline
+      ansible.platform.token:
+        aap_hostname: "{{ aap_base_url }}"
+        aap_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') | default(lookup('ansible.builtin.env', 'AAP_CONTROLLER_USERNAME'), true) }}"
+        aap_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') | default(lookup('ansible.builtin.env', 'AAP_CONTROLLER_PASSWORD'), true) }}"
+        aap_validate_certs: false
+        description: "ADO pipeline trigger (dc1.azure Phase 12)"
+        scope: write
+        state: present
+      register: ado_aap_token
+
+    - name: Confirm token minted
+      ansible.builtin.debug:
+        msg: "AAP token minted (id={{ ado_aap_token.ansible_facts.aap_token.id }})"
+
+    # -----------------------------------------------------------------
+    # Step 2: Create or update the dc1-azure-aap Variable Group
+    # -----------------------------------------------------------------
+    - name: Check if the Variable Group already exists
+      ansible.builtin.uri:
+        url: "{{ ado_api_base }}/_apis/distributedtask/variablegroups?groupName={{ ado_vg_name }}&api-version={{ ado_api_version }}"
+        method: GET
+        headers:
+          Authorization: "{{ ado_auth }}"
+        status_code: [200]
+      register: vg_lookup
+
+    - name: Set Variable Group state
+      ansible.builtin.set_fact:
+        vg_exists: "{{ vg_lookup.json.count | int > 0 }}"
+        vg_id: "{{ vg_lookup.json.value[0].id | default('') if vg_lookup.json.count | int > 0 else '' }}"
+
+    - name: Build the Variable Group payload
+      ansible.builtin.set_fact:
+        vg_payload:
+          name: "{{ ado_vg_name }}"
+          type: Vsts
+          variables:
+            AAP_HOSTNAME:
+              value: "{{ aap_base_url }}"
+              isSecret: false
+            AAP_TOKEN:
+              value: "{{ ado_aap_token.ansible_facts.aap_token.token }}"
+              isSecret: true
+      no_log: true
+
+    - name: Create the Variable Group (new)
+      when: not vg_exists
+      ansible.builtin.uri:
+        url: "{{ ado_api_base }}/_apis/distributedtask/variablegroups?api-version={{ ado_api_version }}"
+        method: POST
+        headers:
+          Authorization: "{{ ado_auth }}"
+          Content-Type: application/json
+        body_format: json
+        body: "{{ vg_payload }}"
+        status_code: [200, 201]
+      register: vg_create
+      no_log: true
+
+    - name: Update the Variable Group (existing)
+      when: vg_exists
+      ansible.builtin.uri:
+        url: "{{ ado_api_base }}/_apis/distributedtask/variablegroups/{{ vg_id }}?api-version={{ ado_api_version }}"
+        method: PUT
+        headers:
+          Authorization: "{{ ado_auth }}"
+          Content-Type: application/json
+        body_format: json
+        body: "{{ vg_payload }}"
+        status_code: [200]
+      register: vg_update
+      no_log: true
+
+    - name: Record the Variable Group id
+      ansible.builtin.set_fact:
+        final_vg_id: "{{ vg_id if vg_exists else vg_create.json.id }}"
+
+    - name: Show Variable Group result
+      ansible.builtin.debug:
+        msg: "Variable Group '{{ ado_vg_name }}' {{ 'updated' if vg_exists else 'created' }} (id={{ final_vg_id }})"
+
+    # -----------------------------------------------------------------
+    # Step 3: Find the launch pipeline and authorize the Variable Group
+    # -----------------------------------------------------------------
+    - name: Find the launch pipeline definition
+      ansible.builtin.uri:
+        url: "{{ ado_api_base }}/_apis/build/definitions?name={{ launch_pipeline_name }}&api-version=7.1"
+        method: GET
+        headers:
+          Authorization: "{{ ado_auth }}"
+        status_code: [200]
+      register: pipeline_lookup
+
+    - name: Extract the launch pipeline id
+      ansible.builtin.set_fact:
+        launch_pipeline_ids: "{{ pipeline_lookup.json.value | map(attribute='id') | list }}"
+
+    - name: Authorize each pipeline to use the Variable Group
+      loop: "{{ launch_pipeline_ids }}"
+      loop_control:
+        label: "pipeline {{ item }}"
+      ansible.builtin.uri:
+        url: "{{ ado_api_base }}/_apis/pipelines/pipelinePermissions/variablegroup/{{ final_vg_id }}?api-version=7.1-preview.1"
+        method: PATCH
+        headers:
+          Authorization: "{{ ado_auth }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          pipelines:
+            - id: "{{ item }}"
+              authorized: true
+        status_code: [200]
+      register: auth_result
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: >-
+          ADO trigger configured:
+          Variable Group '{{ ado_vg_name }}' (id={{ final_vg_id }}) →
+          AAP_HOSTNAME={{ aap_base_url }},
+          AAP_TOKEN=<minted>,
+          {{ launch_pipeline_ids | length }} pipeline(s) authorized.

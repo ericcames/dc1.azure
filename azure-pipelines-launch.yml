@@ -6,9 +6,9 @@
 # CI + the GitHub mirror. THIS pipeline *launches* the AAP workflow on demand:
 # an SE (or a customer) clicks "Run pipeline", picks a VM size, and the same
 # "DC1.Azure - Provision and Configure" workflow the AAP UI / Self-Service /
-# ServiceNow triggers use provisions a Windows Server 2025 VM on Azure. No
-# parallel workflow definition — this is a thin adapter that POSTs to the AAP
-# launch endpoint.
+# ServiceNow triggers use provisions infrastructure on Azure (Windows and/or
+# Linux VMs). No parallel workflow definition — this is a thin adapter that
+# POSTs to the AAP launch endpoint.
 #
 # Manual-run only: trigger/pr are 'none', so committing to the repo never fires
 # a provision. You launch it from ADO → Pipelines → (this pipeline) → Run.
@@ -17,9 +17,9 @@
 #   Variable Group `dc1-azure-aap` (Pipelines → Library) supplies
 #     AAP_HOSTNAME — base URL, e.g. https://<gateway>.rhdp.net  (NOT secret)
 #     AAP_TOKEN    — a UI-minted AAP API token                  (mark SECRET)
-#   The token is UI-minted because this AAP authenticates via SSO and cannot
-#   basic-auth-mint a token; a manually-minted token still works for direct API
-#   calls. Rotate by editing the Library variable — never paste it in YAML.
+#   The token is minted by the 'DC1.Azure - Configure ADO Trigger' JT
+#   (Phase 12) and written to the Variable Group automatically. Re-run that JT
+#   after an AAP env change. Rotate by re-running the JT — never paste in YAML.
 #
 # Workflow is resolved BY NAME, not by a hardcoded id: the numeric
 # workflow_job_template id is env-specific (changes when RHDP re-provisions AAP),
@@ -43,11 +43,11 @@ parameters:
   - name: vm_size_tier
     displayName: VM size tier
     type: string
-    default: medium-4cpu-16gb
+    default: medium-2cpu-8gb
     values:
-      - small-2cpu-8gb
-      - medium-4cpu-16gb
-      - large-8cpu-32gb
+      - small-2cpu-4gb
+      - medium-2cpu-8gb
+      - large-4cpu-16gb
 
 variables:
   - group: dc1-azure-aap # AAP_HOSTNAME + secret AAP_TOKEN

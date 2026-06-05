@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **Phase 12 — Automate ADO trigger setup** (AB#144) — new
+  `DC1.Azure - Configure ADO Trigger` JT running
+  `playbooks/ado/configure_ado_trigger.yml`. Mints a long-lived AAP API token,
+  creates/updates the `dc1-azure-aap` Variable Group in the ADO Library with
+  the current AAP hostname + token, and authorizes the launch pipeline — zero
+  ADO-UI clicks on a fresh env. Uses the ADO REST API via `ansible.builtin.uri`
+  (decision AB#121). Launch pipeline renamed from "DC1.Azure — Launch Windows
+  VM" to "DC1.Azure — Launch Infrastructure" and tier choices updated to
+  B-series.
+
 ### Changed
 - **VM tiers restructured — DSv5 → B-series burstable** (AB#143) — moved all
   three t-shirt tiers from DSv5 (`D2s_v5`/`D4s_v5`/`D8s_v5`) to B-series

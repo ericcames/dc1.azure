@@ -65,6 +65,7 @@
           - "DC1.Azure - Update RITM (success)"
           - "DC1.Azure - Update RITM (failure)"
           - "DC1.Azure - Create Incident"
+          - "DC1.Azure - Configure ADO Trigger"
       - endpoint: workflow_job_templates
         names: ["{{ workflow_name }}"]
       - endpoint: schedules

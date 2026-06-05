@@ -255,3 +255,20 @@ controller_templates:
       # (12-72 chars) and teardown.yml asserts its length. Bake a non-secret
       # placeholder so scheduled/manual teardown runs need no password input.
       dc1_azure_windows_admin_password: "{{ teardown_admin_password_placeholder }}"
+
+  # Phase 12 (AB#144): automate the ADO trigger setup. Mints an AAP token,
+  # creates/updates the dc1-azure-aap Variable Group in ADO Library, and
+  # authorizes the launch pipeline.
+  - name: "DC1.Azure - Configure ADO Trigger"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/ado/configure_ado_trigger.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_controller }}"   # CONTROLLER_* for AAP token minting
+    extra_vars:
+      ado_org: "{{ ado_org }}"
+      ado_project: "{{ ado_project }}"
+      ado_pat: "{{ ado_pat }}"

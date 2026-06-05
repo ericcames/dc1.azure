@@ -98,6 +98,8 @@ azure_tf_storage_account: "{{ lookup('ansible.builtin.env', 'AZURE_TF_STORAGE_AC
 
 ado_username: ericcames
 ado_pat: "{{ lookup('ansible.builtin.env', 'ADO_PAT') }}"
+ado_org: "{{ lookup('ansible.builtin.env', 'ADO_ORG') | default('ericcames', true) }}"
+ado_project: "{{ lookup('ansible.builtin.env', 'ADO_PROJECT') | default('dc1.azure', true) }}"
 
 # Default matches Terraform's admin_username default (demoadmin) so the WinRM
 # credential and the VM's local admin line up out of the box.
