@@ -34,3 +34,9 @@ controller_settings:
     REDHAT_PASSWORD: ""
     SUBSCRIPTIONS_CLIENT_ID: "{{ redhat_subscriptions_client_id }}"
     SUBSCRIPTIONS_CLIENT_SECRET: "{{ redhat_subscriptions_client_secret }}"
+    # When a workflow node's limit resolves to zero hosts (e.g. os_type=linux
+    # makes the windemo group empty), Ansible's default is to error. This
+    # setting changes it to a warning so the job succeeds as a no-op and the
+    # workflow can converge cleanly.
+    AWX_TASK_ENV:
+      ANSIBLE_HOST_PATTERN_MISMATCH: warning
