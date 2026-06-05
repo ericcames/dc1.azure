@@ -20,8 +20,8 @@
 #   linux_public_ip   Linux public IP                -> ip_address (os_type=linux|both)
 #   linux_vm_name     Linux vm_name                  -> serial_number (os_type=linux|both)
 #
-# AB#93 — after registering the CI(s), link the last one back to the
-# originating requested item by setting sc_req_item.configuration_item.
+# AB#93 — after registering the CI(s), link them all to the originating
+# requested item via the task_ci (Affected CIs) junction table.
 #
 # Credential: DC1.Azure - ServiceNow (ServiceNow ITSM Credential → SN_* env).
 # ============================================================================
@@ -133,13 +133,16 @@
               ansible.builtin.set_fact:
                 ritm_sys_id: "{{ ritm_lookup.record[0].sys_id }}"
 
-        - name: Link the RITM to the primary CI (sc_req_item.configuration_item)
+        - name: Link all CIs to the RITM via Affected CIs (task_ci)
+          loop: "{{ ci_results.results }}"
+          loop_control:
+            label: "{{ item.item.name }}"
           servicenow.itsm.api:
-            action: patch
-            resource: sc_req_item
-            sys_id: "{{ ritm_sys_id }}"
+            action: post
+            resource: task_ci
             data:
-              configuration_item: "{{ ci_results.results[-1].record.sys_id }}"
+              task: "{{ ritm_sys_id }}"
+              ci_item: "{{ item.record.sys_id }}"
 
     - name: Note skip on a non-ServiceNow run
       when: ticket_number is not defined or (ticket_number | string | length == 0)
