@@ -30,10 +30,12 @@
     snow_base_url: "{{ lookup('ansible.builtin.env', 'SN_HOST') }}"
     wf_job_id: "{{ awx_workflow_job_id | default(tower_workflow_job_id | default('')) }}"
     aap_job_url: "{{ aap_base_url }}/execution/jobs/workflow/{{ wf_job_id }}/output"
+    os_label: >-
+      {{ {'windows': 'Windows Server', 'linux': 'Linux (RHEL 9)', 'both': 'Windows Server + Linux (RHEL 9)'}[os_type | default('windows')] | default('Windows Server') }}
     ritm_start_comment: |-
       Provisioning has started in Ansible Automation Platform.
 
-      A {{ vm_size_tier | default('selected') }} Windows Server VM on Azure is being
+      A {{ vm_size_tier | default('selected') }} {{ os_label }} VM on Azure is being
       built and configured (typically ~10 minutes). This ticket will update again
       when it completes.
     ritm_start_worknote: |-

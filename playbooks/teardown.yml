@@ -100,7 +100,7 @@
       ansible.builtin.command:
         cmd: >-
           terraform destroy -input=false -auto-approve -no-color
-          -var vm_size_tier={{ vm_size_tier | default('medium-4cpu-16gb') }}
+          -var vm_size_tier={{ vm_size_tier | default('medium-2cpu-8gb') }}
           -var os_type={{ dc1_azure_os_type }}
           -var resource_group_name={{ dc1_azure_resource_group }}
           -var location={{ dc1_azure_location }}

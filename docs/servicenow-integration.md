@@ -153,8 +153,8 @@ They serve three purposes:
 
 ### Catalog item — "Ames - Request Infrastructure (Azure)"
 Variables:
-- `vm_size_tier` — dropdown, choices `small-2cpu-8gb` / `medium-4cpu-16gb` /
-  `large-8cpu-32gb` (mirror the AAP survey exactly; default `medium-4cpu-16gb`).
+- `vm_size_tier` — dropdown, choices `small-2cpu-4gb` / `medium-2cpu-8gb` /
+  `large-4cpu-16gb` (mirror the AAP survey exactly; default `medium-2cpu-8gb`).
 - `justification` — single-line text (for the demo narrative).
 - `requestor` — reference to `sys_user`, auto-populated.
 
@@ -288,15 +288,15 @@ never commit the live values. The token lives only in `docs/dev-environment.sh` 
 On the item, add a variable:
 - **Type:** Multiple Choice
 - **Name:** `vm_size_tier` (matches the REST body field **and** `event.payload.vm_size_tier`)
-- **Default value:** `medium-4cpu-16gb` (mirrors the AAP survey default)
+- **Default value:** `medium-2cpu-8gb` (mirrors the AAP survey default)
 - **Question Choices** (Text = Value), optional monthly `Recurring price` (Windows
   PAYG, `eastus`, ~730 h/mo — see ROADMAP Sizing Tiers):
 
   | Text / Value | Recurring price |
   |---|---|
-  | `small-2cpu-8gb` | 137.24 |
-  | `medium-4cpu-16gb` | 274.48 |
-  | `large-8cpu-32gb` | 548.96 |
+  | `small-2cpu-4gb` | 137.24 |
+  | `medium-2cpu-8gb` | 274.48 |
+  | `large-4cpu-16gb` | 548.96 |
 
 ### 3. Outbound REST Message
 *System Web Services → Outbound → REST Message → New*
@@ -326,7 +326,7 @@ HTTP Method (the **HTTP Methods** related list → New):
   verbatim — kept as a file so it's the single source of truth, not duplicated here.
   It builds the payload (number, sys_id, short_description, **all** catalog variables,
   requester), **trims every value** via a `clean()` helper (prevents the
-  `vm_size_tier "medium-4cpu-16gb "` trailing-space survey-validation failure), POSTs
+  `vm_size_tier "medium-2cpu-8gb "` trailing-space survey-validation failure), POSTs
   via the REST Message, and logs the HTTP status to *System Logs → All*.
 
 > **Token handling — two options.** As-built uses the **static `Authorization`

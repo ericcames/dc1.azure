@@ -33,8 +33,10 @@
     ritm_outcome: success
     servicenow_ritm_success_state: "3"
     servicenow_ritm_failure_state: "4"
+    os_label: >-
+      {{ {'windows': 'Windows Server', 'linux': 'Linux (RHEL 9)', 'both': 'Windows Server + Linux (RHEL 9)'}[os_type | default('windows')] | default('Windows Server') }}
     ritm_success_comment: |-
-      Your Windows Server on Azure is ready.
+      Your {{ os_label }} on Azure is ready.
 
       FQDN:     {{ vm_fqdn | default('n/a') }}
       Public IP:{{ vm_public_ip | default('n/a') }}

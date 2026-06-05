@@ -95,6 +95,18 @@ PNG onto the catalog item form. File: `docs/images/catalog-it-infrastructure.png
 4. Check AAP Jobs for the workflow launch
 5. If no launch: check EDA Rule Audit log, then the SNow System Log for the BR's HTTP status
 
+### Business Rule "Requested for" allowlist
+The BR filter includes a **"Requested for" allowlist** (Eric Ames, Mark
+Lowcher, AAP ServiceAccount). Only orders placed by these users trigger the
+EDA event. This is intentional — the shared SNow instance has 33 other SEs,
+and their orders must NOT fire this workflow. **If a new demo user needs to
+place orders, add them to the BR filter conditions in the ServiceNow UI**
+(Business Rule → "Ames - Service Catalog - dc1.azure" → When to run →
+Filter Conditions → add an OR "Requested for is \<user\>").
+
+API-placed orders (e.g. via `servicenow.itsm.api` or the Order Now API) run
+as `AAP ServiceAccount` — that's why it's in the allowlist.
+
 ### Update the REST Message endpoint (Phase 13 — not yet automated)
 Currently manual: update the `Ames - DC1.Azure EDA Event Stream` Outbound REST
 Message endpoint URL in the ServiceNow UI when the AAP environment changes.

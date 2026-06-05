@@ -4,13 +4,13 @@ locals {
   create_linux   = contains(["linux", "both"], var.os_type)
 
   # T-shirt tier → Azure SKU. Keys match the AAP survey choices exactly.
-  # All same family (Dsv5) for a clean "more cores" story. Same SKUs for both
-  # Windows and Linux — the Linux base rate is ~half the Windows PAYG rate.
-  # Confirm RHDP open-env quota covers Standard_D8s_v5 (8 vCPU) before relying on `large-8cpu-32gb`.
+  # All B-series (burstable) — cheaper, sufficient for demo workloads, and
+  # uses its own vCPU quota pool (separate from DSv5), freeing DSv5 quota for
+  # the Phase 19 F5 appliance. os_type=both at large = 8 vCPUs, fits in 10.
   vm_size_map = {
-    "small-2cpu-8gb"   = "Standard_D2s_v5"
-    "medium-4cpu-16gb" = "Standard_D4s_v5"
-    "large-8cpu-32gb"  = "Standard_D8s_v5"
+    "small-2cpu-4gb"  = "Standard_B2s"
+    "medium-2cpu-8gb" = "Standard_B2ms"
+    "large-4cpu-16gb" = "Standard_B4ms"
   }
 
   vm_size = local.vm_size_map[var.vm_size_tier]

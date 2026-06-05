@@ -27,8 +27,8 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
    ServiceNow UI (drag-drop on the catalog item form).
 2. **Variable `os_type`** — Multiple Choice; choices `windows` / `linux` / `both`;
    default `windows`. Controls which VMs are provisioned.
-3. **Variable `vm_size_tier`** — Multiple Choice; choices `small-2cpu-8gb` /
-   `medium-4cpu-16gb` / `large-8cpu-32gb`; default `medium-4cpu-16gb`. (Optional monthly
+3. **Variable `vm_size_tier`** — Multiple Choice; choices `small-2cpu-4gb` /
+   `medium-2cpu-8gb` / `large-4cpu-16gb`; default `medium-2cpu-8gb`. (Optional monthly
    `Recurring price` per the ROADMAP Sizing Tiers.)
 3. **Encrypted token property** *(required — AB#92)* — the EDA bearer token is held
    here, **not** as a plaintext header on the REST Message:
@@ -69,14 +69,14 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
 - **AAP:** the event stream's *events received* increments and
   `DC1.Azure - Catch ServiceNow Events` launches `DC1.Azure - Provision and Configure`.
 - **Pre-flight without ordering:** `curl -X POST <event-stream-url> -H 'Authorization: Bearer <token>'
-  -H 'Content-Type: application/json' -d '{"short_description":"DC1.Azure Infrastructure Provisioning","vm_size_tier":"small-2cpu-8gb","number":"TEST","sys_id":"x"}'`
+  -H 'Content-Type: application/json' -d '{"short_description":"DC1.Azure Infrastructure Provisioning","vm_size_tier":"small-2cpu-4gb","number":"TEST","sys_id":"x"}'`
   → if the workflow launches, any remaining issue is ServiceNow-side.
 
 ## Gotchas we hit (so you don't)
 
 - **Business Rule "Advanced" must be checked** or the script tab is silently ignored.
 - **Trim variable values** (`clean()` in the script) — a trailing space on a Question
-  Choice value (`"medium-4cpu-16gb "`) fails the workflow survey's exact-match check.
+  Choice value (`"medium-2cpu-8gb "`) fails the workflow survey's exact-match check.
 - **Bearer token is a matched pair** — identical in the encrypted property
   `dc1.eda_event_stream_token` and the AAP `ServiceNow Event Stream` credential;
   a trailing newline on paste → 401.

@@ -19,13 +19,13 @@ variable "location" {
 # ---------------------------------------------------------------------------
 
 variable "vm_size_tier" {
-  description = "T-shirt size selected by the user in the AAP JT survey. Mapped to a Standard_Dsv5 SKU in locals.tf."
+  description = "T-shirt size selected by the user in the AAP JT survey. Mapped to a B-series burstable SKU in locals.tf."
   type        = string
-  default     = "medium-4cpu-16gb"
+  default     = "medium-2cpu-8gb"
 
   validation {
-    condition     = contains(["small-2cpu-8gb", "medium-4cpu-16gb", "large-8cpu-32gb"], var.vm_size_tier)
-    error_message = "vm_size_tier must be one of: small-2cpu-8gb, medium-4cpu-16gb, large-8cpu-32gb."
+    condition     = contains(["small-2cpu-4gb", "medium-2cpu-8gb", "large-4cpu-16gb"], var.vm_size_tier)
+    error_message = "vm_size_tier must be one of: small-2cpu-4gb, medium-2cpu-8gb, large-4cpu-16gb."
   }
 }
 

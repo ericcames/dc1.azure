@@ -30,7 +30,7 @@ from a single survey click.
 | **Cleanup** | Auto-destroys nightly at **18:00 America/Phoenix (01:00 UTC)**; or run *DC1.Azure - Teardown* manually |
 | **Cost guardrail** | The nightly teardown means a forgotten VM costs at most one evening |
 
-**Observed timings (live workflow job 60, `medium-4cpu-16gb`):**
+**Observed timings (live workflow job 60, `medium-2cpu-8gb`):**
 
 | Node | Typical | What's happening |
 |------|---------|------------------|
@@ -72,8 +72,8 @@ demo-logic.
 - [ ] **`dc1-azure` inventory is empty (0 hosts)** — a leftover host from a prior
       run is cosmetic but looks sloppy on screen. If the nightly teardown ran,
       it's already clean.
-- [ ] **Azure quota headroom** — `medium-4cpu-16gb` (4 vCPU) is the safe default.
-      Only pick `large-8cpu-32gb` (8 vCPU) if you've confirmed the RHDP
+- [ ] **Azure quota headroom** — `medium-2cpu-8gb` (4 vCPU) is the safe default.
+      Only pick `large-4cpu-16gb` (8 vCPU) if you've confirmed the RHDP
       subscription's regional vCPU quota allows it.
 - [ ] **Nightly teardown schedule is enabled** — Schedules → *DC1.Azure -
       Nightly Teardown*, next run 18:00 America/Phoenix. (Leave it on — it's part
@@ -129,13 +129,13 @@ The graph is wide, so it's shown in panned sections, left → right:
 Click **Launch**. A single-question survey appears:
 
 - **VM size tier** — choose your pre-decided tier. Default is
-  `medium-4cpu-16gb`. Narrate: *"This is the only decision the requester
+  `medium-2cpu-8gb`. Narrate: *"This is the only decision the requester
   makes — t-shirt sizing, no Azure SKU knowledge required."*
 
 Submit the survey to start the run.
 
 The **`vm_size_tier` survey** — the three t-shirt tiers (small / medium / large,
-all Dsv5), with `medium-4cpu-16gb` as the default:
+all B-series burstable), with `medium-2cpu-8gb` as the default:
 
 ![AAP vm_size_tier survey question — small/medium/large tiers, medium default](images/demo-02-survey.png)
 
@@ -170,7 +170,7 @@ The DNS name follows the pattern:
 dc1az-<tier>-<random>.<region>.cloudapp.azure.com
 ```
 
-e.g. `dc1az-medium-4cpu-16gb-z8crz.eastus.cloudapp.azure.com`. Get the exact
+e.g. `dc1az-medium-2cpu-8gb-z8crz.eastus.cloudapp.azure.com`. Get the exact
 value from either:
 - the **Provision VM** job output (the `fqdn` / `ansible_inventory` Terraform
   output), or
@@ -302,7 +302,7 @@ source docs/dev-environment.sh && \
 curl -sk -X POST '<event-stream-url-from-AAP>' \
   -H "Authorization: Bearer $EDA_EVENT_STREAM_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"number":"RITM0099999","sys_id":"test","short_description":"DC1.Azure Infrastructure Provisioning","vm_size_tier":"medium-4cpu-16gb"}'
+  -d '{"number":"RITM0099999","sys_id":"test","short_description":"DC1.Azure Infrastructure Provisioning","vm_size_tier":"medium-2cpu-8gb"}'
 ```
 
 The workflow should launch within a few seconds (Automation Decisions → Rulebook
@@ -466,7 +466,7 @@ See [`ado-conventions.md`](ado-conventions.md) §7 for the Library entry.
    ```
    ===================================================================
     Launched 'DC1.Azure - Provision and Configure'
-      size:         medium-4cpu-16gb
+      size:         medium-2cpu-8gb
       workflow job: 161
       watch:        https://<gateway>/execution/jobs/workflow/161/output
    ===================================================================
@@ -482,7 +482,7 @@ See [`ado-conventions.md`](ado-conventions.md) §7 for the Library entry.
 > keeps the ADO run short on stage and avoids tying the pipeline up for the full
 > provision-and-patch cycle.
 
-> **Validated live 2026-06-03:** an ADO run (`large-8cpu-32gb`) launched workflow
+> **Validated live 2026-06-03:** an ADO run (`large-4cpu-16gb`) launched workflow
 > job 163 — the same `DC1.Azure - Provision and Configure` workflow, all nodes
 > green, the guarded ServiceNow nodes no-op'd on the ticket-less launch.
 
@@ -527,7 +527,7 @@ the rates *you* set. The platform makes the ROI case for you."
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| **Provision VM fails fast at `terraform apply`**, error mentions quota/`SkuNotAvailable` | RHDP subscription is out of regional vCPU quota for the chosen tier | Re-launch with a smaller tier (`small-2cpu-8gb`); for the demo, default to `medium`. Don't pick `large` without confirming quota in pre-flight. |
+| **Provision VM fails fast at `terraform apply`**, error mentions quota/`SkuNotAvailable` | RHDP subscription is out of regional vCPU quota for the chosen tier | Re-launch with a smaller tier (`small-2cpu-4gb`); for the demo, default to `medium`. Don't pick `large` without confirming quota in pre-flight. |
 | **Provision VM fails at auth / `terraform init`** | RHDP env expired, or Service Principal / storage-account backend creds stale | Re-activate the RHDP env; refresh values in `docs/dev-environment.sh`; re-apply `aap_config/load.yml` so the AAP credentials match. |
 | **Workflow runs *old* playbook behavior after a code change** | Project didn't sync — update-on-launch is off (AB#74) | Manually sync the *DC1.Azure* project (Projects → sync, or `POST /api/controller/v2/projects/21/update/`) and re-launch. |
 | **A configure node (Powershell/Website/Access/Patching) fails to connect** | WinRM not up yet, or the host didn't register into `dc1-azure` | Confirm the host appears in the `dc1-azure` inventory; give the VM a minute and **Retry** the failed node (the workflow supports node-level retry). If WinRM never comes up, tear down and re-provision. |
@@ -565,7 +565,7 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 | Nodes (in order) | Provision VM → Powershell Improvement → Website Setup → Provision Access → Patching |
 | ServiceNow nodes (Demo v2) | CMDB (parallel, early): Provision VM→Create CMDB CI→Create CMDB Relationship; success: Patching `always`→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
 | ServiceNow match string | catalog item Short description = `DC1.Azure Infrastructure Provisioning` |
-| Survey variables | `os_type` ∈ {`windows`, `linux`, `both`} (default `windows`); `vm_size_tier` ∈ {`small-2cpu-8gb`, `medium-4cpu-16gb`, `large-8cpu-32gb`} (default `medium`) |
+| Survey variables | `os_type` ∈ {`windows`, `linux`, `both`} (default `windows`); `vm_size_tier` ∈ {`small-2cpu-4gb`, `medium-2cpu-8gb`, `large-4cpu-16gb`} (default `medium`) |
 | Provision JT | `DC1.Azure - Provision VM` |
 | Teardown JT | `DC1.Azure - Teardown` (runs against `dc1-azure-control`) |
 | Story inventory | `dc1-azure` (VM host registered at runtime) |

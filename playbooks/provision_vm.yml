@@ -21,7 +21,7 @@
 #   - DC1.Azure - Vault           → decrypts the vaulted admin-password var
 #
 # Required inputs (survey / extra_vars / vaulted vars):
-#   - vm_size_tier                       small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb
+#   - vm_size_tier                       small-2cpu-4gb | medium-2cpu-8gb | large-4cpu-16gb
 #   - os_type                            windows | linux | both (default: windows)
 #   - dc1_azure_resource_group           RHDP resource group (JT extra_var)
 #   - dc1_azure_windows_admin_password   sensitive; required when os_type includes windows
@@ -56,11 +56,11 @@
         - name: Assert provisioning inputs are present
           ansible.builtin.assert:
             that:
-              - vm_size_tier | default('') in ['small-2cpu-8gb', 'medium-4cpu-16gb', 'large-8cpu-32gb']
+              - vm_size_tier | default('') in ['small-2cpu-4gb', 'medium-2cpu-8gb', 'large-4cpu-16gb']
               - dc1_azure_os_type in ['windows', 'linux', 'both']
               - dc1_azure_resource_group | default('') | length > 0
             fail_msg: >-
-              Need vm_size_tier (small-2cpu-8gb|medium-4cpu-16gb|large-8cpu-32gb),
+              Need vm_size_tier (small-2cpu-4gb|medium-2cpu-8gb|large-4cpu-16gb),
               os_type (windows|linux|both), and dc1_azure_resource_group.
 
         - name: Assert Windows admin password (required when provisioning Windows)

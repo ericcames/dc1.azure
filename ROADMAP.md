@@ -142,24 +142,21 @@ API-launchable workflow — no parallel re-implementations.
 The provisioning JT survey asks for `vm_size_tier`. Mapping is enforced in
 Terraform `locals.tf`:
 
-| Tier              | Azure SKU          | vCPU | RAM   | Windows $/hr | Use case                |
-|-------------------|--------------------|------|-------|--------------|-------------------------|
-| `small-2cpu-8gb`  | `Standard_D2s_v5`  | 2    | 8 GB  | ~$0.19       | Dev / quick smoke test  |
-| `medium-4cpu-16gb`| `Standard_D4s_v5`  | 4    | 16 GB | ~$0.38       | Default demo path       |
-| `large-8cpu-32gb` | `Standard_D8s_v5`  | 8    | 32 GB | ~$0.75       | "Production-like" story |
+| Tier              | Azure SKU       | vCPU | RAM   | Windows $/hr | Use case                |
+|-------------------|-----------------|------|-------|--------------|-------------------------|
+| `small-2cpu-4gb`  | `Standard_B2s`  | 2    | 4 GB  | ~$0.07       | Dev / quick smoke test  |
+| `medium-2cpu-8gb` | `Standard_B2ms` | 2    | 8 GB  | ~$0.11       | Default demo path       |
+| `large-4cpu-16gb` | `Standard_B4ms` | 4    | 16 GB | ~$0.22       | "Production-like" story |
 
-> **Pricing note.** These are **Windows** PAYG compute rates (`eastus`, Azure
-> Retail Prices API, 2026-06-01) — the Windows Server license adds ~$0.046/vCPU/hr
-> on top of the Linux base ($0.096/$0.192/$0.384/hr), which is why the Windows
-> figure is roughly double. **Azure Hybrid Benefit** (bring-your-own Windows
-> Server license) reverts to the Linux rates. Compute only — excludes the OS
-> managed disk, public IP, and egress. The nightly teardown caps a forgotten VM
-> at one evening (~$4–18 depending on tier).
+> **Why B-series?** B-series (burstable) VMs are cheaper (~60-70% less than
+> DSv5), sufficient for demo workloads (IIS/Apache serving a landing page),
+> and — critically — use their **own separate vCPU quota** in RHDP open
+> environments. This frees the DSv5 quota for the Phase 19 F5 BIG-IP appliance.
+> `os_type=both` at `large-4cpu-16gb` = 8 vCPUs, well within the 10-vCPU
+> B-series quota. Nightly teardown caps a forgotten VM at one evening (~$1–5).
 
-All three are in the `Dsv5` general-purpose family — same family / more
-cores tells a clean scaling story without introducing burstable-vs-dedicated
-nuance into the demo. Quota in the RHDP open environment must be confirmed
-to cover `D8s_v5` (8 vCPU); if not, slide tiers down one notch.
+All three are in the B-series (burstable) family — right-sized for demo
+workloads that are mostly idle between customer page loads.
 
 ---
 

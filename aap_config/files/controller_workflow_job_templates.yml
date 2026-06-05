@@ -56,15 +56,15 @@ controller_workflows:
             - linux
             - both
         - question_name: VM size tier
-          question_description: Azure VM t-shirt size — all Dsv5 family. Verify RHDP quota before using large-8cpu-32gb.
+          question_description: Azure VM t-shirt size — B-series burstable family.
           variable: vm_size_tier
           type: multiplechoice
           required: true
-          default: medium-4cpu-16gb
+          default: medium-2cpu-8gb
           choices:
-            - small-2cpu-8gb
-            - medium-4cpu-16gb
-            - large-8cpu-32gb
+            - small-2cpu-4gb
+            - medium-2cpu-8gb
+            - large-4cpu-16gb
     related:
       workflow_nodes:
         # Start notice — root node (no parent), runs at launch in parallel with

@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **VM tiers restructured — DSv5 → B-series burstable** (AB#143) — moved all
+  three t-shirt tiers from DSv5 (`D2s_v5`/`D4s_v5`/`D8s_v5`) to B-series
+  burstable (`B2s`/`B2ms`/`B4ms`). B-series is cheaper (~60-70% less),
+  sufficient for demo workloads, and uses its own separate vCPU quota — freeing
+  the DSv5 quota for the Phase 19 F5 appliance. Tier names updated to reflect
+  new specs: `small-2cpu-4gb`, `medium-2cpu-8gb`, `large-4cpu-16gb`.
+  `os_type=both` at large now fits in the 10-vCPU quota (8 total). Updated
+  Terraform, playbook asserts, CaC surveys, and all docs.
+- **OS-aware ServiceNow callback messages** — the start notice and RITM
+  success messages now reflect the actual OS type (Windows Server / Linux
+  (RHEL 9) / Windows Server + Linux (RHEL 9)) instead of hardcoded "Windows
+  Server VM."
+
 ### Added
 - **`/servicenow` Claude skill** (AB#142) — new repo-based skill
   (`.claude/skills/servicenow/SKILL.md`) for working with the dc1.azure

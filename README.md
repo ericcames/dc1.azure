@@ -33,11 +33,11 @@ adapter, no parallel re-implementations. All four are live and validated. See th
 
 ## Sizing tiers
 
-| Tier (survey choice) | Azure SKU         | vCPU | RAM   |
-|----------------------|-------------------|------|-------|
-| `small-2cpu-8gb`     | `Standard_D2s_v5` | 2    | 8 GB  |
-| `medium-4cpu-16gb`   | `Standard_D4s_v5` | 4    | 16 GB |
-| `large-8cpu-32gb`    | `Standard_D8s_v5` | 8    | 32 GB |
+| Tier (survey choice) | Azure SKU       | vCPU | RAM   | Family |
+|----------------------|-----------------|------|-------|--------|
+| `small-2cpu-4gb`     | `Standard_B2s`  | 2    | 4 GB  | B-series (burstable) |
+| `medium-2cpu-8gb`    | `Standard_B2ms` | 2    | 8 GB  | B-series (burstable) |
+| `large-4cpu-16gb`    | `Standard_B4ms` | 4    | 16 GB | B-series (burstable) |
 
 ## Repo layout
 
