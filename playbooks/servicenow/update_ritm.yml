@@ -35,11 +35,19 @@
     servicenow_ritm_failure_state: "4"
     os_label: >-
       {{ {'windows': 'Windows Server', 'linux': 'Linux (RHEL 9)', 'both': 'Windows Server + Linux (RHEL 9)'}[os_type | default('windows')] | default('Windows Server') }}
+    linux_section: >-
+      {{ '\n\nLinux VM:\n  FQDN:      ' ~ linux_fqdn ~ '\n  Public IP: ' ~ (linux_public_ip | default('n/a'))
+         if (os_type | default('windows')) in ['linux', 'both'] and linux_fqdn is defined
+         else '' }}
+    windows_section: >-
+      {{ 'Windows VM:\n  FQDN:      ' ~ vm_fqdn ~ '\n  Public IP: ' ~ (vm_public_ip | default('n/a'))
+         if (os_type | default('windows')) in ['windows', 'both'] and vm_fqdn is defined
+         else '' }}
     ritm_success_comment: |-
       Your {{ os_label }} on Azure is ready.
 
-      FQDN:     {{ vm_fqdn | default('n/a') }}
-      Public IP:{{ vm_public_ip | default('n/a') }}
+      {{ windows_section }}{{ linux_section }}
+
       Admin user: {{ vm_admin_username | default('demoadmin') }}
 
       (The admin password is held securely in Ansible Automation Platform — it is
