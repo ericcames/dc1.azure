@@ -53,7 +53,7 @@ Self-Service Portal (Phase 9), and ADO (Phase 10) triggers all drive.
  ServiceNow                          AAP / EDA                          AAP Controller + Azure
  ──────────                          ─────────                          ──────────────────────
  1. User submits catalog item
-    "Request VM (Azure)"
+    "Ames - Request Infrastructure (Azure)"
     (size, justification)
         │
         │ 2. Business Rule (on sc_req_item
@@ -151,7 +151,7 @@ They serve three purposes:
 
 ## Inbound: ServiceNow → EDA (trigger)
 
-### Catalog item — "Request VM (Azure)"
+### Catalog item — "Ames - Request Infrastructure (Azure)"
 Variables:
 - `vm_size_tier` — dropdown, choices `small-2cpu-8gb` / `medium-4cpu-16gb` /
   `large-8cpu-32gb` (mirror the AAP survey exactly; default `medium-4cpu-16gb`).
@@ -278,7 +278,7 @@ never commit the live values. The token lives only in `docs/dev-environment.sh` 
 
 ### 1. Catalog item
 *Service Catalog → Catalog Definitions → Maintain Items → New*
-- **Name:** any friendly label (e.g. `Request VM (Azure)`)
+- **Name:** any friendly label (e.g. `Ames - Request Infrastructure (Azure)`)
 - **Short description:** `DC1.Azure Infrastructure Provisioning` — **the exact match string**
   the rulebook keys on (`my_azure_catalog_short_description`). The RITM inherits
   this field, so it must match byte-for-byte (no trailing space).

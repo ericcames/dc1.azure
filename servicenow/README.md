@@ -69,7 +69,7 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
 - **AAP:** the event stream's *events received* increments and
   `DC1.Azure - Catch ServiceNow Events` launches `DC1.Azure - Provision and Configure`.
 - **Pre-flight without ordering:** `curl -X POST <event-stream-url> -H 'Authorization: Bearer <token>'
-  -H 'Content-Type: application/json' -d '{"short_description":"DC1.Azure Windows VM on Azure","vm_size_tier":"small-2cpu-8gb","number":"TEST","sys_id":"x"}'`
+  -H 'Content-Type: application/json' -d '{"short_description":"DC1.Azure Infrastructure Provisioning","vm_size_tier":"small-2cpu-8gb","number":"TEST","sys_id":"x"}'`
   → if the workflow launches, any remaining issue is ServiceNow-side.
 
 ## Gotchas we hit (so you don't)

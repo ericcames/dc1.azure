@@ -8,7 +8,7 @@
 # "DC1.Azure - Provision and Configure" WORKFLOW with the requested VM size,
 # preserving the "one core workflow, four triggers" principle (no parallel impl).
 #
-# The portal-surfaced JT "DC1.Azure - Request Windows VM" runs this playbook. The
+# The portal-surfaced JT "DC1.Azure - Request Infrastructure" runs this playbook. The
 # Developers team has Execute on that JT (controller_role_team_assignments.yml), so
 # jr-dev can Start it from the portal. The workflow then runs under the attached
 # DC1.Azure - Controller credential (service identity) — jr-dev needs no direct

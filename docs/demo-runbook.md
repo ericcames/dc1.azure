@@ -286,9 +286,10 @@ ticket. No AAP login required.
    objects). Confirm `validate.yml` is green and the rulebook activation is
    *running*.
 3. **In ServiceNow** (one-time):
-   - Catalog item **"Request Windows VM (Azure)"** whose **Short description** is
-     exactly `DC1.Azure Windows VM on Azure` (the rulebook matches this string),
-     with a `vm_size_tier` choice variable mirroring the survey.
+   - Catalog item **"Ames - Request Infrastructure (Azure)"** whose **Short
+     description** is exactly `DC1.Azure Infrastructure Provisioning` (the
+     rulebook matches this string), with `os_type` and `vm_size_tier` choice
+     variables mirroring the survey.
    - A **Business Rule** on `sc_req_item` that fires an **Outbound REST Message**
      `POST`ing to the EDA **event-stream URL** with
      `Authorization: Bearer <EDA_EVENT_STREAM_TOKEN>` and a JSON body of
@@ -301,7 +302,7 @@ source docs/dev-environment.sh && \
 curl -sk -X POST '<event-stream-url-from-AAP>' \
   -H "Authorization: Bearer $EDA_EVENT_STREAM_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"number":"RITM0099999","sys_id":"test","short_description":"DC1.Azure Windows VM on Azure","vm_size_tier":"medium-4cpu-16gb"}'
+  -d '{"number":"RITM0099999","sys_id":"test","short_description":"DC1.Azure Infrastructure Provisioning","vm_size_tier":"medium-4cpu-16gb"}'
 ```
 
 The workflow should launch within a few seconds (Automation Decisions → Rulebook
@@ -318,10 +319,10 @@ shows the new job).
    request `large` against exhausted quota) and show the **Incident** opening
    automatically with the job ID + error, and the RITM citing the incident number.
 
-The **catalog item** the requester orders from — *DC1.Azure Windows VM on Azure*,
-with the `vm_size_tier` choice:
+The **catalog item** the requester orders from — *DC1.Azure Infrastructure
+Provisioning*, with `os_type` and `vm_size_tier` choices:
 
-![ServiceNow catalog item — DC1.Azure Windows VM on Azure with the vm_size_tier choices](images/demo-06-snow-catalog.png)
+![ServiceNow catalog item — DC1.Azure Infrastructure Provisioning](images/demo-06-snow-catalog.png)
 
 The auto-updated **RITM** — its *Configuration item* now linked to the new CMDB
 CI (AB#93) and State *Closed Complete*, with the connection details posted as a
@@ -353,14 +354,14 @@ platform team controls everything behind it."*
 ```
 jr-dev logs into the Self-Service Portal  →  sees ONLY the templates the
    DC1.Azure - Developers team is granted (least-privilege)
-   →  Starts "DC1.Azure - Request Windows VM" (picks vm_size_tier)
+   →  Starts "DC1.Azure - Request Infrastructure" (picks vm_size_tier)
    →  launcher JT fires DC1.Azure - Provision and Configure  (the same v1 workflow)
    →  VM provisioned + configured (identical result to §3 / §7)
 ```
 
 > **Why a launcher JT?** The portal auto-syncs **job templates only — not workflow
 > job templates** (confirmed live + Red Hat 2.6 docs). So a thin launcher *job*
-> template (`DC1.Azure - Request Windows VM`, running `playbooks/launch_workflow.yml`
+> template (`DC1.Azure - Request Infrastructure`, running `playbooks/launch_workflow.yml`
 > → `ansible.controller.workflow_launch`) is the portal-surfaced entry point that
 > fires the existing workflow — no parallel implementation. `jr-dev` runs the
 > launcher; the workflow runs under the `DC1.Azure - Controller` credential, so the
@@ -388,7 +389,7 @@ jr-dev logs into the Self-Service Portal  →  sees ONLY the templates the
 1. Open the portal URL (incognito), log in as **`jr-dev`**. Note the top-right shows
    the dev, not an admin — and the **Templates** view lists *only* the two cards the
    team is entitled to. Everything else in AAP is invisible to them.
-2. Start **`DC1.Azure - Request Windows VM`**, pick a `vm_size_tier`, submit. The
+2. Start **`DC1.Azure - Request Infrastructure`**, pick a `vm_size_tier`, submit. The
    portal task finishes quickly ("executed successfully") — the launcher *fires* the
    workflow and returns.
 3. Switch to AAP (Automation Execution → Jobs) and show **`DC1.Azure - Provision and
@@ -399,16 +400,16 @@ the facts JT), nothing else:
 
 ![Self-Service Portal as jr-dev — only the two entitled templates, each with a Start button](images/demo-09-portal-jr-dev-templates.png)
 
-Starting **Request Windows VM** — the auto-generated request form mirrors the JT's
+Starting **Request Infrastructure** — the auto-generated request form mirrors the JT's
 `vm_size_tier` survey:
 
-![Self-Service Portal request form for Request Windows VM — vm_size_tier picker](images/demo-10-portal-request-vm.png)
+![Self-Service Portal request form for Request Infrastructure — vm_size_tier picker](images/demo-10-portal-request-vm.png)
 
 The portal reports the launch **executed successfully** — the launcher's log shows
 *"Launched 'DC1.Azure - Provision and Configure' … workflow job id 152"*; the
 workflow then provisions the VM (watch it in AAP Jobs, §3.4):
 
-![Self-Service Portal — Request Windows VM executed successfully, launcher fired the workflow](images/demo-11-portal-launch-success.png)
+![Self-Service Portal — Request Infrastructure executed successfully, launcher fired the workflow](images/demo-11-portal-launch-success.png)
 
 `jr-dev` is also granted the **Gather and Display Facts** JT, so the same
 self-service motion lets them inventory a host — the curated facts print to the job
@@ -549,7 +550,7 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 - [x] `demo-04-landing-page-{1,2}.png` — the live IIS landing page in a browser (top + Provisioning Details) — captured 2026-06-02 (no redaction needed)
 - [x] `demo-05-teardown-success.png` — successful teardown + empty inventory — captured 2026-06-02 (teardown job 119 Success; no redaction needed)
 - [ ] *(optional)* the ADO Boards Phase 6 epic/board, for the "how this was built" aside
-- [x] `demo-06-snow-catalog.png` — the ServiceNow "Request Windows VM (Azure)" catalog item *(Demo v2, §7)* — captured 2026-06-02 (no redaction needed)
+- [x] `demo-06-snow-catalog.png` — the ServiceNow "Request Infrastructure (Azure)" catalog item *(Demo v2, §7)* — captured 2026-06-02 (no redaction needed)
 - [x] `demo-07-snow-ritm.png` — the RITM auto-filled with FQDN/IP + Fulfilled state *(Demo v2)* — captured 2026-06-02 (RITM0011939; URL bar + public IP redacted)
 - [x] `demo-08-snow-cmdb-ci.png` — the new CMDB CI with its business-app relationship *(Demo v2)* — captured 2026-06-02 (URL bar redacted)
 - [ ] `demo-13-ado-launch.png` — the ADO *Run pipeline* dialog with the `vm_size_tier` dropdown, and/or the completed run with the workflow-job link on the summary page *(Phase 10, §9)* — redact the org/gateway URL bar if visible
@@ -563,8 +564,8 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 | Workflow | `DC1.Azure - Provision and Configure` |
 | Nodes (in order) | Provision VM → Powershell Improvement → Website Setup → Provision Access → Patching |
 | ServiceNow nodes (Demo v2) | CMDB (parallel, early): Provision VM→Create CMDB CI→Create CMDB Relationship; success: Patching `always`→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
-| ServiceNow match string | catalog item Short description = `DC1.Azure Windows VM on Azure` |
-| Survey variable | `vm_size_tier` ∈ {`small-2cpu-8gb`, `medium-4cpu-16gb`, `large-8cpu-32gb`} (default `medium`) |
+| ServiceNow match string | catalog item Short description = `DC1.Azure Infrastructure Provisioning` |
+| Survey variables | `os_type` ∈ {`windows`, `linux`, `both`} (default `windows`); `vm_size_tier` ∈ {`small-2cpu-8gb`, `medium-4cpu-16gb`, `large-8cpu-32gb`} (default `medium`) |
 | Provision JT | `DC1.Azure - Provision VM` |
 | Teardown JT | `DC1.Azure - Teardown` (runs against `dc1-azure-control`) |
 | Story inventory | `dc1-azure` (VM host registered at runtime) |

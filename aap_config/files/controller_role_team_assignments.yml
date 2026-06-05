@@ -2,7 +2,7 @@
 # Consumed by the infra.aap_configuration.controller_role_team_assignments role.
 # Phase 9 (AB#107) — grants the DC1.Azure - Developers team **Execute** on the
 # self-service JOB templates jr-dev may run from the portal:
-#   - DC1.Azure - Request Windows VM  (launcher JT — fires the workflow; the portal
+#   - DC1.Azure - Request Infrastructure  (launcher JT — fires the workflow; the portal
 #     surfaces job templates only, NOT workflows, so this is the entry point)
 #   - DC1.Azure - Gather and Display Facts  (Phase 11 facts JT)
 # Demo users inherit Execute via team membership (gateway_role_user_assignments.yml).

@@ -224,7 +224,7 @@ dev_admin_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_DEV_ADMIN_PASSW
 jr_dev_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_JR_DEV_PASSWORD') }}"
 # Self-Service launcher job template — the portal-surfaced entry point that fires
 # the workflow. Runs playbooks/launch_workflow.yml.
-launcher_template: "DC1.Azure - Request Windows VM"
+launcher_template: "DC1.Azure - Request Infrastructure"
 # Phase 11 facts JT (already defined in controller_job_templates.yml) — the
 # Developers team also gets Execute on it so jr-dev can self-serve fact-gathering.
 facts_template: "DC1.Azure - Gather and Display Facts"
