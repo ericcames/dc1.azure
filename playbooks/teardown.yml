@@ -1,17 +1,22 @@
 ---
 # ============================================================================
-# playbooks/teardown.yml — Phase 4
+# playbooks/teardown.yml — Phase 4 (+ Phase 16 multi-OS)
 # ============================================================================
-# Standalone "DC1.Azure - Teardown" job template. Destroys the Azure VM (and all
-# resources Terraform created) and removes the host from the dc1-azure AAP
+# Standalone "DC1.Azure - Teardown" job template. Destroys all Azure VMs (and
+# all resources Terraform created) and removes hosts from the dc1-azure AAP
 # inventory so the next provision starts clean.
+#
+# os_type defaults to "both" so teardown always destroys everything regardless
+# of what was provisioned. Terraform handles count=0 on resources that don't
+# exist in state (no-op).
 #
 # Required job-template credentials: DC1.Azure - Azure RM, DC1.Azure - Controller.
 # Required inputs: dc1_azure_resource_group, dc1_azure_windows_admin_password
-#   (Terraform's admin_password var is required and validated even for destroy).
+#   (Terraform's admin_password var is required even for destroy; linux-only
+#   runs use a placeholder).
 # ============================================================================
 
-- name: Tear down the Azure Windows VM
+- name: Tear down the Azure VM(s)
   hosts: localhost
   connection: local
   gather_facts: false
@@ -21,21 +26,15 @@
     dc1_azure_inventory: "{{ inventory_name | default('dc1-azure') }}"
     dc1_azure_location: "{{ location | default('eastus') }}"
     dc1_azure_admin_username: "{{ admin_username | default('demoadmin') }}"
-    # Terraform azurerm state backend is partial (backend.tf) — values are passed
-    # at `init` time. Same values provision_vm.yml used, so destroy attaches to the
-    # existing state blob. storage account arrives as the JT extra_var below.
+    dc1_azure_os_type: "{{ os_type | default('both') }}"
     dc1_azure_tf_container: "{{ tf_container | default('tfstate') }}"
     dc1_azure_tf_key: "{{ tf_key | default('dc1.azure.tfstate') }}"
-    # Map AAP's injected AZURE_* creds to the ARM_* names Terraform's azurerm
-    # provider + state backend read, so init/destroy authenticate as the Service
-    # Principal rather than falling back to Azure CLI auth (no `az` in EE) — AB#57.
     arm_env:
       ARM_CLIENT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
       ARM_CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'AZURE_SECRET') }}"
       ARM_SUBSCRIPTION_ID: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
       ARM_TENANT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT') }}"
 
-  # Play-level: every terraform task (init/output) inherits the ARM_* SP creds.
   environment: "{{ arm_env }}"
 
   tasks:
@@ -43,10 +42,24 @@
       ansible.builtin.assert:
         that:
           - dc1_azure_resource_group | default('') | length > 0
+        fail_msg: >-
+          Need dc1_azure_resource_group.
+
+    - name: Assert Windows admin password (required when tearing down Windows)
+      ansible.builtin.assert:
+        that:
           - dc1_azure_windows_admin_password | default('') | length >= 12
         fail_msg: >-
-          Need dc1_azure_resource_group and dc1_azure_windows_admin_password
-          (Terraform validates the admin_password var even on destroy).
+          dc1_azure_windows_admin_password (>=12 chars) is required when
+          os_type includes windows (Terraform validates admin_password even on destroy).
+      when: dc1_azure_os_type in ['windows', 'both']
+
+    - name: Set admin password placeholder for linux-only teardown
+      ansible.builtin.set_fact:
+        dc1_azure_windows_admin_password: "Placeholder-Linux-Only-1!"
+      when:
+        - dc1_azure_os_type == 'linux'
+        - dc1_azure_windows_admin_password is not defined or dc1_azure_windows_admin_password | length == 0
 
     - name: Initialize Terraform
       ansible.builtin.command:
@@ -67,32 +80,51 @@
       failed_when: false
       register: tf_output
 
-    - name: Record the VM FQDN before destroy (if state still exists)
-      ansible.builtin.set_fact:
-        vm_fqdn: "{{ (tf_output.stdout | from_json).ansible_inventory.value.host }}"
+    - name: Record VM FQDNs before destroy (if state still exists)
       when:
         - tf_output.rc == 0
         - tf_output.stdout | default('') | length > 0
-        - "'ansible_inventory' in (tf_output.stdout | from_json)"
+      block:
+        - name: Parse Terraform outputs
+          ansible.builtin.set_fact:
+            _win_inv: "{{ (tf_output.stdout | from_json).windows_inventory.value | default(false, true) }}"
+            _linux_inv: "{{ (tf_output.stdout | from_json).linux_inventory.value | default(false, true) }}"
+
+        - name: Extract FQDNs
+          ansible.builtin.set_fact:
+            win_fqdn: "{{ _win_inv.host | default(omit) }}"
+            linux_fqdn: "{{ _linux_inv.host | default(omit) }}"
+          when: _win_inv is mapping or _linux_inv is mapping
 
     - name: Destroy Terraform-managed resources
       ansible.builtin.command:
         cmd: >-
           terraform destroy -input=false -auto-approve -no-color
           -var vm_size_tier={{ vm_size_tier | default('medium-4cpu-16gb') }}
+          -var os_type={{ dc1_azure_os_type }}
           -var resource_group_name={{ dc1_azure_resource_group }}
           -var location={{ dc1_azure_location }}
           -var admin_username={{ dc1_azure_admin_username }}
         chdir: "{{ terraform_dir }}"
       environment: >-
         {{ arm_env | combine({'TF_VAR_admin_password': dc1_azure_windows_admin_password}) }}
-      # Combined with arm_env: a task-level environment replaces (not merges
-      # with) the play-level one, so the ARM_* SP creds must be restated here.
       no_log: true
       changed_when: true
+      register: tf_destroy_result
+      ignore_errors: true
 
-    - name: Deregister the host from the AAP inventory
-      when: vm_fqdn is defined
+    - name: Show Terraform error (if destroy failed)
+      when: tf_destroy_result is failed
+      ansible.builtin.debug:
+        msg: "{{ tf_destroy_result.stderr_lines | default(tf_destroy_result.stderr | default('no stderr') | split('\n')) }}"
+
+    - name: Fail if Terraform destroy failed
+      when: tf_destroy_result is failed
+      ansible.builtin.fail:
+        msg: "terraform destroy exited {{ tf_destroy_result.rc | default('?') }}"
+
+    - name: Deregister hosts from the AAP inventory
+      when: (win_fqdn is defined and win_fqdn is string) or (linux_fqdn is defined and linux_fqdn is string)
       block:
         - name: Mint a short-lived controller token
           ansible.platform.token:
@@ -105,14 +137,25 @@
             state: present
           register: td_token
 
-        - name: Remove the host from the inventory
+        - name: Remove the Windows host from the inventory
           ansible.controller.host:
             controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
             controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
             validate_certs: false
-            name: "{{ vm_fqdn }}"
+            name: "{{ win_fqdn }}"
             inventory: "{{ dc1_azure_inventory }}"
             state: absent
+          when: win_fqdn is defined and win_fqdn is string
+
+        - name: Remove the Linux host from the inventory
+          ansible.controller.host:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            name: "{{ linux_fqdn }}"
+            inventory: "{{ dc1_azure_inventory }}"
+            state: absent
+          when: linux_fqdn is defined and linux_fqdn is string
 
       always:
         - name: Delete the short-lived controller token

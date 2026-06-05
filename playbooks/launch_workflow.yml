@@ -16,8 +16,9 @@
 #
 # Required job-template credential:
 #   - DC1.Azure - Controller  → injects CONTROLLER_* for the launch API call
-# Required input (survey):
+# Required inputs (survey):
 #   - vm_size_tier  small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb
+#   - os_type       windows | linux | both (default: windows)
 # ============================================================================
 
 - name: Launch the DC1.Azure provisioning workflow (Self-Service launcher)
@@ -31,12 +32,14 @@
     dc1_workflow_name: "{{ workflow_name | default('DC1.Azure - Provision and Configure') }}"
 
   tasks:
-    - name: Assert a valid VM size tier was provided
+    - name: Assert valid inputs were provided
       ansible.builtin.assert:
         that:
           - vm_size_tier | default('') in ['small-2cpu-8gb', 'medium-4cpu-16gb', 'large-8cpu-32gb']
+          - os_type | default('windows') in ['windows', 'linux', 'both']
         fail_msg: >-
-          Pick a vm_size_tier (small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb).
+          Pick a vm_size_tier (small-2cpu-8gb | medium-4cpu-16gb | large-8cpu-32gb)
+          and os_type (windows | linux | both).
 
     - name: Fire the provisioning workflow with the requested size
       # CONTROLLER_* come from the attached DC1.Azure - Controller credential.
@@ -49,11 +52,12 @@
         validate_certs: false
         extra_vars:
           vm_size_tier: "{{ vm_size_tier }}"
+          os_type: "{{ os_type | default('windows') }}"
         wait: false
       register: wf_launch
 
     - name: Report the launched workflow job
       ansible.builtin.debug:
         msg: >-
-          Launched '{{ dc1_workflow_name }}' (size {{ vm_size_tier }}) —
-          workflow job id {{ wf_launch.id | default('n/a') }}.
+          Launched '{{ dc1_workflow_name }}' (os_type {{ os_type | default('windows') }},
+          size {{ vm_size_tier }}) — workflow job id {{ wf_launch.id | default('n/a') }}.

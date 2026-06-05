@@ -43,8 +43,18 @@ controller_workflows:
     ask_variables_on_launch: true
     survey_spec:
       name: ""
-      description: "Provision and configure a Windows Server 2025 VM on Azure"
+      description: "Provision and configure VM(s) on Azure — Windows, Linux (RHEL 9), or both"
       spec:
+        - question_name: Operating system
+          question_description: "Which OS to provision: Windows only, Linux (RHEL 9) only, or both in one run."
+          variable: os_type
+          type: multiplechoice
+          required: true
+          default: windows
+          choices:
+            - windows
+            - linux
+            - both
         - question_name: VM size tier
           question_description: Azure VM t-shirt size — all Dsv5 family. Verify RHDP quota before using large-8cpu-32gb.
           variable: vm_size_tier
@@ -86,6 +96,7 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
+          limit: windemo
           related:
             success_nodes:
               - identifier: website-setup
@@ -97,6 +108,7 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
+          limit: windemo
           related:
             success_nodes:
               - identifier: patching
@@ -107,6 +119,7 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
+          limit: windemo
           related:
             success_nodes:
               - identifier: patching
@@ -117,6 +130,7 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
+          limit: windemo
           related:
             always_nodes:
               - identifier: update-ritm-success     # decoupled from CMDB (mirrors DDW)

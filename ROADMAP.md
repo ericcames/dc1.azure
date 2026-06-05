@@ -1,4 +1,4 @@
-# DC1 Azure — Windows on Azure Demo Roadmap
+# DC1 Azure — Datacenter on Azure Demo Roadmap
 
 ## Vision
 
@@ -9,14 +9,21 @@ Microsoft-stack story:
 
 > *"Same automation. Same self-service experience. Your cloud, your tools."*
 
-The narrative target is **self-service Windows VM provisioning on Azure**,
-driven by an end user picking a t-shirt size in an AAP survey and getting a
-fully configured Windows Server 2025 box in ~10 minutes — with the source code
-living in Azure DevOps Repos and gated by an Azure DevOps Pipeline.
+The narrative target is **self-service VM provisioning on Azure** — Windows
+Server 2025 and/or RHEL 9 Linux — driven by an end user picking a t-shirt size
+and OS type in an AAP survey and getting fully configured, monitored VMs in
+~10 minutes. The source code lives in Azure DevOps Repos and is gated by an
+Azure DevOps Pipeline.
 
-`dc1.azure` is intentionally scoped smaller than `demo.datacenter`: a single
-VM, a focused story, and a chance to build hands-on Azure + ADO muscle without
-re-implementing the entire DC1 layered platform.
+The platform grows in layers: **provision** (Terraform) → **configure**
+(Windows IIS / Linux Apache web server) → **monitor** (Dynatrace OneAgent) →
+**load balance** (F5 BIG-IP VE) → **patch** (F5-aware rolling patching). Each
+layer is a demo story on its own and composes with the others.
+
+`dc1.azure` started intentionally scoped smaller than `demo.datacenter` — a
+single Windows VM, a focused story, and a chance to build hands-on Azure + ADO
+muscle. It is now growing toward a multi-OS, load-balanced, monitored
+environment while keeping the same "one workflow, four triggers" architecture.
 
 ---
 
@@ -603,6 +610,158 @@ four-trigger demo using only the repo-based skills, and an SE can confirm
 demo-readiness (and tear down afterward) without hand-checking the AAP / SNow / ADO
 UIs.
 
+### Phase 16 — Linux VM Provisioning (Terraform + Multi-OS Survey)  ⬜
+
+*Extends the Terraform layer to provision RHEL 9 Linux VMs alongside — or instead
+of — the existing Windows Server 2025 VMs. The workflow survey gains an `os_type`
+parameter so a single launch can produce Windows only, Linux only, or both.*
+
+Reference pattern: `aap.dailydemo.F5` (AWS Linux web-server provisioning).
+
+- ⬜ **Terraform: `azurerm_linux_virtual_machine`** — RHEL 9 image from Azure
+  Marketplace (`RedHat:RHEL:9-lvm-gen2:latest`), SSH key auth via `admin_ssh_key`
+  block, `cloud-init` for first-boot config (replaces the Windows
+  `custom_data` + `CustomScriptExtension` pattern). Same VNet/Subnet/NSG.
+- ⬜ **NSG: SSH rule** — port 22 inbound (alongside existing RDP 3389, WinRM 5986).
+- ⬜ **Survey: `os_type`** — new survey variable on the workflow with choices
+  `windows` / `linux` / `both` (default `windows` for backward compatibility).
+  `provision_vm.yml` passes `os_type` to Terraform; Terraform uses `count` (or
+  `for_each`) to conditionally create the Windows VM, Linux VM, or both. Each VM
+  gets its own Public IP + NIC.
+- ⬜ **`locals.tf`: Linux SKU map** — same `Dsv5` family tiers (the Linux base rate
+  is ~half the Windows PAYG rate — good demo talking point for Hybrid Benefit).
+- ⬜ **`outputs.tf`** — Linux public IP, FQDN, admin username; structured so
+  `provision_vm.yml` can parse and register both hosts.
+- ⬜ **Inventory registration** — `provision_vm.yml` registers the Linux VM into a
+  `linuxweb` group in the `dc1-azure` inventory (alongside the existing `windemo`
+  group for Windows).
+- ⬜ **Machine credential** — `DC1.Azure - Linux Machine` (Machine credential type,
+  SSH key-based).
+- ⬜ **Teardown** — `teardown.yml` destroys all VMs regardless of `os_type`; host
+  deregistration covers both groups.
+
+**Exit criteria:** `terraform apply` with `os_type=both` produces a reachable
+Windows VM (WinRM) + a reachable Linux VM (SSH) in the same VNet; `os_type=linux`
+produces only the Linux VM; `os_type=windows` produces only the Windows VM (backward
+compatible). Both register into the AAP inventory under their respective groups.
+
+### Phase 17 — Linux Post-Provision Configuration (Web Server)  ⬜
+
+*Configures the provisioned RHEL 9 VM as an Apache web server — mirroring the
+`aap.dailydemo.F5` pattern (RHSM → post-install → website setup) with Red Hat CDN
+registration instead of Satellite.*
+
+Reference pattern: `aap.dailydemo.F5` roles — `rhsm`, `linux_post_install`,
+`website_setup`.
+
+- ⬜ **RHSM / CDN registration** — role based on `aap.dailydemo.F5/roles/rhsm`
+  (uses `redhat.rhel_system_roles.rhc`), pointing directly at the Red Hat CDN (no
+  Satellite). New credential: `DC1.Azure - RHSM` (custom credential type injecting
+  `rhsm_username` + `rhsm_password`, or an activation key).
+- ⬜ **Linux post-install** — role based on `aap.dailydemo.F5/roles/linux_post_install`:
+  Chrony NTP, `dnf` security/bugfix updates, SSH banner, MOTD, Insights client
+  registration.
+- ⬜ **Website setup** — role based on `aap.dailydemo.F5/roles/website_setup`:
+  Apache (`httpd`), `firewalld` (port 80), dc1.azure-branded `index.html` (shows
+  hostname, OS, tier, ticket number — mirrors the Windows IIS page).
+- ⬜ **Job templates** — new Linux configure JTs (mirroring the Windows chain):
+  `DC1.Azure - Register Linux (CDN)`, `DC1.Azure - Configure Linux`,
+  `DC1.Azure - Setup Linux Web Server`. Or a single combined JT if the role chain
+  is short enough.
+- ⬜ **Workflow nodes** — conditional configure path: the `os_type` survey drives
+  which branch fires (Windows configure chain, Linux configure chain, or both in
+  parallel).
+- ⬜ **EE update** — verify `redhat.rhel_system_roles` is in the EE; add if not.
+  EE version bump per `docs/ee-versioning.md`.
+- ⬜ **Collections** — add `redhat.rhel_system_roles` to
+  `collections/requirements.yml` if not already present.
+
+**Exit criteria:** a workflow launch with `os_type=linux` (or `both`) produces a
+RHEL 9 VM registered with the Red Hat CDN, patched, running Apache on port 80, and
+serving a dc1.azure-branded page at its public IP.
+
+### Phase 18 — Dynatrace OneAgent Integration  ⬜
+
+*Installs Dynatrace OneAgent on every provisioned VM so hosts appear in the
+Dynatrace tenant and can generate real problems — closing the loop with the
+[`aap.eda.dynatrace.push`](https://github.com/ericcames/aap.eda.dynatrace.push)
+EDA demo (push model — Dynatrace pushes problem events to AAP EDA via webhook)
+(GitHub Issue #1).*
+
+The Dynatrace SaaS tenant (`ybz84624.live.dynatrace.com`) is always on.
+
+- ⬜ **Custom credential type** — `DC1.Azure - Dynatrace` injecting `DT_API_HOST`
+  (the `.live.dynatrace.com` tenant URL) and `DT_PAAS_TOKEN` (installer download
+  token — generated in the Dynatrace UI under Deploy > OneAgent). Sourced from
+  `docs/dev-environment.sh` env vars (already added).
+- ⬜ **Playbook: `playbooks/dynatrace_oneagent.yml`** — OS-aware installer:
+  - **Windows:** PowerShell — download via the OneAgent deployment API
+    (`/api/v1/deployment/installer/agent/windows/default/latest`), run
+    `Dynatrace-OneAgent.exe` with `/TENANT_URL` + `/PAAS_TOKEN` + `/HOST_GROUP`.
+  - **Linux:** shell — download via
+    `/api/v1/deployment/installer/agent/unix/default/latest`, run with
+    `--set-host-group` + `--set-infra-only=false`.
+- ⬜ **Host group tagging** — register hosts in a `dc1-azure` host group so the
+  `aap.eda.dynatrace` rulebook's metric event (`builtin:host.disk.usedPct > 80%`)
+  can be scoped to dc1.azure-provisioned VMs.
+- ⬜ **Workflow node** — after the VM is reachable and configured (post-configure,
+  pre-patching). Runs against both Windows and Linux hosts.
+- ⬜ **Job template** — `DC1.Azure - Install Dynatrace OneAgent`, attached to the
+  Dynatrace credential.
+- ⬜ **`docs/dev-environment.sh.example`** — Dynatrace section already added
+  (`DT_API_HOST` + `DT_PAAS_TOKEN`).
+- ⬜ `validate.yml` — assert the credential type + credential + JT exist.
+- ⬜ `docs/demo-runbook.md` — Dynatrace section (verify host appears in the
+  Dynatrace Hosts app after provisioning).
+
+**Exit criteria:** after provisioning, each new VM (Windows and/or Linux) is visible
+in the Dynatrace tenant's Hosts app under the `dc1-azure` host group. Filling a
+host's disk past 80% opens a "High Disk Usage" problem — which Dynatrace pushes to
+the `aap.eda.dynatrace.push` EDA event stream, firing the remediation workflow.
+
+### Phase 19 — F5 Load Balancing on Azure  ⬜
+
+*Deploys an F5 BIG-IP Virtual Edition on Azure and places the Linux web servers
+behind it — bringing the proven `aap.dailydemo.F5` load-balancing and patching
+workflow to the Azure platform.*
+
+Reference pattern: `aap.dailydemo.F5` — pool/VIP setup (`f5networks.f5_modules`),
+patching workflow (disable pool member → stop httpd → dnf update → health check →
+restart httpd → re-enable pool member).
+
+- ⬜ **F5 BIG-IP VE on Azure** — Azure Marketplace PAYG image (GOOD tier = LTM
+  only; 30-day free trial). Terraform resource or the official
+  `F5Networks/bigip-module/azure` module. Management NIC + data NIC in the existing
+  VNet.
+- ⬜ **Marketplace term acceptance** — `az vm image terms accept --publisher
+  f5-networks ...`. Risk: RHDP open environments grant Contributor on the RG only;
+  term acceptance is a subscription-level operation. Needs early validation.
+- ⬜ **F5 post-deploy configuration** — `f5networks.f5_modules` collection:
+  - Pool: `bigip_pool` with HTTP health monitor
+  - Pool members: Linux web-server VMs (port 80)
+  - Virtual server: public VIP (port 80/443) → pool
+  - Profiles: HTTP, client-SSL (optional)
+- ⬜ **Credential** — `DC1.Azure - F5 BIG-IP` (Network credential type, or custom
+  type with management IP + admin password).
+- ⬜ **Patching workflow** — reuse the `aap.dailydemo.F5` pattern:
+  1. Pre-checks (pool check, web check)
+  2. Disable pool member (`bigip_pool_member` → `forced_offline`)
+  3. Stop httpd → `dnf update` (security/bugfix) → health check → reboot if needed
+  4. Start httpd → HTTP health probe (retry until 200)
+  5. Re-enable pool member (`bigip_pool_member` → `present`)
+  6. Post-checks
+- ⬜ **Job templates** — `DC1.Azure - Setup F5 Pool`, `DC1.Azure - F5 Patching`
+  (or a patching workflow with approval node, mirroring the daily demo).
+- ⬜ **Collections** — add `f5networks.f5_modules` to `collections/requirements.yml`.
+  EE version bump.
+- ⬜ **Survey integration** — the provision workflow optionally deploys F5 when
+  `os_type` includes `linux` (F5 requires pool members).
+
+**Exit criteria:** F5 BIG-IP VE running on Azure with a VIP fronting the Linux web
+servers; the patching workflow gracefully drains a pool member, patches it, health
+checks, and re-enables it — matching the proven `aap.dailydemo.F5` pattern on Azure
+infrastructure.
+
 ---
 
 ## Naming Conventions
@@ -616,8 +775,11 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | AAP inventory      | `dc1-azure`                              | `dc1-azure`                          |
 | AAP job template   | `DC1.Azure - <verb> <object>`            | `DC1.Azure - Provision VM`           |
 | AAP workflow       | `DC1.Azure - <story>`                    | `DC1.Azure - Provision and Configure`|
-| Azure VM           | `dc1-azure-win-<tier>-<short_id>`        | `dc1-azure-win-medium-a1b2`          |
+| Azure VM (Windows) | `dc1-azure-win-<tier>-<short_id>`        | `dc1-azure-win-medium-a1b2`          |
+| Azure VM (Linux)   | `dc1-azure-lin-<tier>-<short_id>`        | `dc1-azure-lin-medium-a1b2`          |
 | Azure resource tag | `Environment=demo`, `Project=dc1.azure`, `Owner=ericcames` |        |
+| Dynatrace host grp | `dc1-azure`                              | —                                     |
+| F5 pool            | `dc1-azure-web-pool`                     | —                                     |
 | ADO work item      | `[Phase N] <task>`                       | `[Phase 2] Write azurerm Terraform`  |
 
 ---
@@ -671,6 +833,10 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-06-03 | **Skills cover the full lifecycle, repo-based** (Phase 15): `first-time-setup`, `spin-env`, `demo-readiness`, `teardown` (added alongside the existing `install-dc1-azure`) | `install-dc1-azure` assumes prerequisites are already met; the gaps are onboarding (first-time-setup), full env bring-up (spin-env), pre-demo go/no-go (demo-readiness), and cleanup (teardown). All repo-based per the 2026-05-26 marketplace→in-repo decision so the demo carries its own tooling |
 | 2026-06-03 | **Phase 12 ADO driver = the ADO REST API via `ansible.builtin.uri`, not the `az devops` CLI** (AB#121 spike resolved) | Decisive: the pipeline→variable-group authorization step uses the `pipelinePermissions` API, which has **no `az devops` command** (confirmed live + the Phase 10 finding), so REST is unavoidable for ≥1 step — using it for all three (Variable Group, pipeline, authorization) beats mixing two tools. Also: `uri` is built-in (zero new EE deps) vs. adding + version-maintaining the `azure-devops` CLI extension in the EE; it matches the repo's established playbook→API pattern (controller-API token dance, `servicenow.itsm.api`); and the versioned REST API (`api-version=7.1`) is more stable than the CLI surface. PoC: a read-only REST GET listed the live `dc1-azure-aap` (id 2) + `dc1-azure-shared` (id 1) variable groups. Auth = PAT via `Authorization: Basic base64(":"+PAT)` header, sourced from an AAP custom credential type (AB#124) |
 | 2026-06-03 | **Phase 13 SNow driver = `servicenow.itsm.api` (the collection's Table API module), not raw `ansible.builtin.uri`** (AB#125 spike resolved) | The collection's generic `api` module already ships in the EE and is already used for the Phase 8 CMDB CI `configuration_item` patch — reusing it keeps one SNow pattern and handles auth/JSON/idempotency (query→patch by `sys_id`), vs. hand-rolling `uri`. The "servicenow.itsm can't reach `sys_rest_message`" worry was a false dichotomy: `servicenow.itsm.api` *is* the Table API and reaches any table the user's roles allow. **Live PoC:** the shared-instance `SN_*` user has the **admin** role (full write to `sys_rest_message` / `sys_rest_message_fn` / the `dc1.eda_event_stream_token` `password2` property); the existing `Ames - DC1.Azure EDA Event Stream` REST Message is present — the endpoint lives on the `_fn` (function) record, not the parent. **Caveat carried forward:** 33 REST Messages from other SEs live on the shared instance, so every write must target the exact `sys_id` and stay `Ames -`-namespaced (blast-radius) |
+| 2026-06-04 | **Multi-OS provisioning: `os_type` survey (windows / linux / both)** — the workflow survey gains an `os_type` parameter; Terraform conditionally creates Windows, Linux, or both VMs in one launch. Linux = RHEL 9, SSH key, cloud-init. Same VNet/NSG, separate inventory groups (`windemo` / `linuxweb`). Backward compatible: default `os_type=windows` preserves existing behavior |
+| 2026-06-04 | **Linux web-server pattern from `aap.dailydemo.F5`** (not `aap.dailydemo.linux`) — the F5 daily demo's `rhsm` → `linux_post_install` → `website_setup` role chain is the better reference because it already builds the Apache web server that later sits behind the F5 pool. CDN registration direct to Red Hat (no Satellite) |
+| 2026-06-04 | **Dynatrace OneAgent as a standard workflow node** (not conditional/best-effort) — the Dynatrace SaaS tenant (`ybz84624.live.dynatrace.com`) is always on; OneAgent installs on every provisioned VM (Windows + Linux). Uses the **push model** (`aap.eda.dynatrace.push`) — Dynatrace pushes problem events to AAP EDA. Credential: `DC1.Azure - Dynatrace` (PaaS token from `docs/dev-environment.sh`). Hosts tagged into `dc1-azure` host group |
+| 2026-06-04 | **F5 BIG-IP on Azure added to roadmap (Phase 19)** — F5 BIG-IP VE is available in Azure Marketplace (PAYG GOOD tier = LTM, 30-day free trial). Deploys via Terraform; configured via `f5networks.f5_modules`. Linux web servers become pool members; the `aap.dailydemo.F5` patching workflow (disable → patch → re-enable) runs against them. Key risk: RHDP open-env term acceptance is subscription-scoped |
 | 2026-06-03 | **Phase 9: Self-Service Portal surfaces JOB templates only, not workflows → bridge with a launcher JT** (AB#107) | Proven live (identical team-level grant: a job template surfaced for `jr-dev`, the workflow did not; backend provider `AAPJobTemplateProvider`) and confirmed in RH 2.6 docs — a product-design choice, not a version gap (chart 2.2.0 doesn't add it). A thin launcher JT (`DC1.Azure - Request Windows VM`, `vm_size_tier` survey → `ansible.controller.workflow_launch`) fires the existing workflow, preserving "one core workflow, four triggers" and keeping everything in dc1.azure's scope (vs a portal-side custom Backstage template). NB: the portal catalog only refreshes per-user access on a `sync_portal_orgs.yml` run (it restarts the portal); the in-UI "Sync now" button does not |
 
 ---
@@ -690,6 +856,10 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 - ~~**ADO automation driver** (Phase 12 new)~~ — ✅ **RESOLVED by AB#121 (2026-06-03): the ADO REST API via `ansible.builtin.uri`** (not the `az devops` CLI). The `pipelinePermissions` authorization step has no `az` command → REST is unavoidable; `uri` is built-in (no EE-weight cost, no `azure-devops` extension to maintain) and matches the existing playbook→API pattern (controller-API token dance, `servicenow.itsm.api`). PoC: read-only REST GET listed the live `dc1-azure-aap` (id 2) + `dc1-azure-shared` (id 1) variable groups. See Decisions Log.
 - ~~**SNow Outbound REST automation scope** (Phase 13 new)~~ — ✅ **RESOLVED by AB#125 (2026-06-03): use `servicenow.itsm.api`** (the collection's Table API module, already in the EE + in use for the CMDB CI patch), not raw `uri`. Live PoC: the `SN_*` user has **admin** (full write to `sys_rest_message` / `sys_rest_message_fn` / `sys_properties`); the existing `Ames - DC1.Azure EDA Event Stream` REST Message + `dc1.eda_event_stream_token` (`password2`) records are reachable. **Blast-radius caution STANDS** — the shared instance holds 33 REST Messages from other SEs, so every write must target the exact `sys_id` (never a broad name query) and stay namespaced `Ames - …`. See Decisions Log.
 - **`aap.dailydemo.windows` role compatibility with Azure VMs** (Phase 4 reaffirmation) — roles assume an AWS-provisioned Windows box (likely AWS-specific tags or metadata service calls). Mitigation: review each of the 4 roles' tasks before importing; vendor + adapt locally if upstream isn't cloud-agnostic.
+- **RHEL 9 Azure Marketplace image licensing** (Phase 16 new) — RHEL PAYG images include the subscription cost in the compute price; BYOS (Bring Your Own Subscription) images use an existing RH subscription. For a demo, PAYG is simpler (no activation key needed), but CDN registration (Phase 17) with RHSM credentials on a PAYG image may conflict. Mitigation: test early; if PAYG already registers, skip the explicit RHSM step.
+- **Multi-OS Terraform state complexity** (Phase 16 new) — conditional `count` on VM resources means `terraform plan` output changes shape depending on `os_type`. Mitigation: use named resources (`azurerm_linux_virtual_machine.demo[0]`) and stable addressing so `os_type` changes don't force-replace the other OS's VM.
+- **F5 Marketplace term acceptance on RHDP** (Phase 19 new) — `az vm image terms accept` is a subscription-level operation; RHDP open environments typically grant Contributor on the RG only, not Owner on the subscription. If blocked, F5 deployment requires a more permissive environment or pre-accepted terms. Mitigation: test immediately after RHDP env activation; document the fallback.
+- **F5 vCPU quota alongside VMs** (Phase 19 new) — F5 BIG-IP VE needs ≥2 vCPUs on top of the Linux + Windows VMs. With `os_type=both` + F5, total vCPU demand could hit 12–18 depending on tiers. Mitigation: verify RHDP quota covers the sum; document a "demo-lite" tier set if not.
 
 ---
 
@@ -701,6 +871,9 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | [aap.as.code](https://github.com/ericcames/aap.as.code) | Pattern reference only — dc1.azure stands independent (Decisions Log 2026-05-26). The `infra.aap_configuration` collection's own docs are the primary CaC guide |
 | [infra.aap_configuration](https://github.com/redhat-cop/infra.aap_configuration) | **Primary CaC guide** — pinned 4.4.0; `aap_config/` follows its recommended layout; var files named per its roles |
 | [aap.dailydemo.windows](https://github.com/ericcames/aap.dailydemo.windows) | Source of the reused post-provision Windows roles (pinned git reference, not vendored) |
+| [aap.dailydemo.F5](https://github.com/ericcames/aap.dailydemo.F5) | Pattern source for Linux web-server build (rhsm → post-install → website_setup) and F5 patching workflow (disable pool member → patch → re-enable) |
+| [aap.dailydemo.linux](https://github.com/ericcames/aap.dailydemo.linux) | Reference for Linux VM configuration roles (lamp_setup, linux_post_install, rhsm, website_setup) |
+| [aap.eda.dynatrace.push](https://github.com/ericcames/aap.eda.dynatrace.push) | Dynatrace EDA push-model demo; dc1.azure provisions hosts into the same tenant so Dynatrace pushes real problem events to AAP EDA |
 | [aap.aws.infrastructure](https://github.com/ericcames/aap.aws.infrastructure) | Reference for AWS-side IaaS structure being replaced by Azure equivalents |
 
 ---

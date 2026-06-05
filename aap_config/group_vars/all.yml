@@ -105,6 +105,16 @@ windows_admin_username: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_USERNAM
 windows_admin_password: "{{ lookup('ansible.builtin.env', 'WINDOWS_ADMIN_PASSWORD') }}"
 dc1_azure_default_passwd: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_DEFAULT_PASSWD') }}"
 
+# Linux admin — SSH key auth. The public key is injected into the VM by
+# Terraform (TF_VAR_linux_ssh_public_key, set by provision_vm.yml from
+# LINUX_SSH_PUBLIC_KEY). The private key goes into the DC1.Azure - Linux
+# Machine credential so AAP can connect over SSH. Both sourced from
+# docs/dev-environment.sh — use the same key pair as your laptop so you
+# can SSH into the provisioned VM directly.
+linux_admin_username: "{{ lookup('ansible.builtin.env', 'LINUX_ADMIN_USERNAME') | default('azureuser', true) }}"
+linux_ssh_public_key: "{{ lookup('ansible.builtin.env', 'LINUX_SSH_PUBLIC_KEY') }}"
+linux_ssh_private_key: "{{ lookup('ansible.builtin.env', 'LINUX_SSH_PRIVATE_KEY') }}"
+
 # --- AAP object names (namespaced `DC1.Azure -` per ROADMAP) -----------------
 cred_vault: "DC1.Azure - Vault"
 cred_azure_rm: "DC1.Azure - Azure RM"
@@ -120,6 +130,10 @@ cred_hub_registry: "DC1.Azure - Hub Registry"
 # Terraform in the Provision VM JT. Value sourced from WINDOWS_ADMIN_PASSWORD
 # (same env var as cred_windows), so one export covers both credentials.
 cred_win_admin_password: "DC1.Azure - Windows Admin Password"
+# Linux Machine credential — created at runtime by provision_vm.yml with the
+# Terraform-generated SSH key. Not in controller_credentials.yml (the key
+# doesn't exist until Terraform runs). Referenced in validate.yml post-provision.
+cred_linux: "DC1.Azure - Linux Machine"
 cred_demo_account_password: "DC1.Azure - Demo Account Password"
 # ServiceNow callback credential (Phase 8 outbound) — ServiceNow ITSM Credential
 # type; injects SN_HOST/SN_USERNAME/SN_PASSWORD for the callback/CMDB/incident JTs.
@@ -130,6 +144,10 @@ hub_registry_password: "{{ controller_cred_password }}"
 
 project_name: "DC1.Azure"
 inventory_name: "dc1-azure"
+# Runtime inventory groups (created by provision_vm.yml, not by CaC).
+# Connection vars are set at the group level so Windows (WinRM) and Linux (SSH)
+# hosts coexist cleanly in the same inventory.
+dc1_azure_linux_group: linuxweb
 # Control inventory the Teardown JT runs against. The teardown play runs on
 # localhost (deregistration hits dc1-azure via the API), so the JT must NOT run
 # against dc1-azure itself — AAP locks the hosts of the inventory a running job

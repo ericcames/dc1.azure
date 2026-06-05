@@ -26,12 +26,20 @@
 # so the pipeline looks it up from the canonical name below.
 # ============================================================================
 ---
-name: "launch-${{ parameters.vm_size_tier }}-$(Date:yyyyMMdd)$(Rev:.r)"
+name: "launch-${{ parameters.os_type }}-${{ parameters.vm_size_tier }}-$(Date:yyyyMMdd)$(Rev:.r)"
 
 trigger: none
 pr: none
 
 parameters:
+  - name: os_type
+    displayName: Operating system
+    type: string
+    default: windows
+    values:
+      - windows
+      - linux
+      - both
   - name: vm_size_tier
     displayName: VM size tier
     type: string
@@ -71,12 +79,12 @@ steps:
       fi
       echo "    workflow_job_template id = ${WJT_ID}"
 
-      echo "==> Launching with vm_size_tier=${VM_SIZE_TIER}"
+      echo "==> Launching with os_type=${OS_TYPE}, vm_size_tier=${VM_SIZE_TIER}"
       JOB_ID=$(curl -sk --fail-with-body \
         -H "Authorization: Bearer ${AAP_TOKEN}" \
         -H "Content-Type: application/json" \
         -X POST \
-        -d "{\"extra_vars\": {\"vm_size_tier\": \"${VM_SIZE_TIER}\"}}" \
+        -d "{\"extra_vars\": {\"os_type\": \"${OS_TYPE}\", \"vm_size_tier\": \"${VM_SIZE_TIER}\"}}" \
         "${API}/workflow_job_templates/${WJT_ID}/launch/" \
         | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
 
@@ -89,6 +97,7 @@ steps:
       echo ""
       echo "==================================================================="
       echo " Launched '${WF_NAME}'"
+      echo "   os_type:      ${OS_TYPE}"
       echo "   size:         ${VM_SIZE_TIER}"
       echo "   workflow job: ${JOB_ID}"
       echo "   watch:        ${LINK}"
@@ -96,8 +105,8 @@ steps:
 
       # Surface a clickable link on the ADO run summary page.
       SUMMARY="${AGENT_TEMPDIRECTORY}/workflow-link.md"
-      printf '## AAP workflow launched\n\n- **Size:** %s\n- **Workflow job:** %s\n- [Watch the workflow job in AAP](%s)\n' \
-        "${VM_SIZE_TIER}" "${JOB_ID}" "${LINK}" > "${SUMMARY}"
+      printf '## AAP workflow launched\n\n- **OS:** %s\n- **Size:** %s\n- **Workflow job:** %s\n- [Watch the workflow job in AAP](%s)\n' \
+        "${OS_TYPE}" "${VM_SIZE_TIER}" "${JOB_ID}" "${LINK}" > "${SUMMARY}"
       echo "##vso[task.uploadsummary]${SUMMARY}"
     displayName: Launch AAP provisioning workflow
     env:
@@ -106,4 +115,5 @@ steps:
       AAP_HOSTNAME: $(AAP_HOSTNAME)
       AAP_TOKEN: $(AAP_TOKEN)
       WF_NAME: DC1.Azure - Provision and Configure
+      OS_TYPE: ${{ parameters.os_type }}
       VM_SIZE_TIER: ${{ parameters.vm_size_tier }}

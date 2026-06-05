@@ -87,6 +87,18 @@ resource "azurerm_network_security_group" "demo" {
     source_address_prefixes    = var.allowed_source_cidrs
     destination_address_prefix = "*"
   }
+
+  security_rule {
+    name                       = "Allow-SSH"
+    priority                   = 1050
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefixes    = var.allowed_source_cidrs
+    destination_address_prefix = "*"
+  }
 }
 
 resource "azurerm_subnet_network_security_group_association" "demo" {
@@ -95,52 +107,65 @@ resource "azurerm_subnet_network_security_group_association" "demo" {
 }
 
 # ---------------------------------------------------------------------------
-# Public IP + NIC.
+# Windows — Public IP + NIC + VM + WinRM bootstrap.
+# Created only when os_type includes "windows".
 # ---------------------------------------------------------------------------
 
+moved {
+  from = azurerm_public_ip.demo
+  to   = azurerm_public_ip.demo[0]
+}
+
 resource "azurerm_public_ip" "demo" {
+  count               = local.create_windows ? 1 : 0
   name                = "dc1az-pip-${local.name_suffix}"
   location            = data.azurerm_resource_group.rhdp.location
   resource_group_name = data.azurerm_resource_group.rhdp.name
   allocation_method   = "Static"
   sku                 = "Standard"
   domain_name_label   = local.dns_label
-  tags                = local.common_tags
+  tags                = merge(local.common_tags, { OS = "windows", Hostname = local.vm_name })
+}
+
+moved {
+  from = azurerm_network_interface.demo
+  to   = azurerm_network_interface.demo[0]
 }
 
 resource "azurerm_network_interface" "demo" {
+  count               = local.create_windows ? 1 : 0
   name                = "dc1az-nic-${local.name_suffix}"
   location            = data.azurerm_resource_group.rhdp.location
   resource_group_name = data.azurerm_resource_group.rhdp.name
-  tags                = local.common_tags
+  tags                = merge(local.common_tags, { OS = "windows" })
 
   ip_configuration {
     name                          = "primary"
     subnet_id                     = azurerm_subnet.demo.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.demo.id
+    public_ip_address_id          = azurerm_public_ip.demo[0].id
   }
 }
 
-# ---------------------------------------------------------------------------
-# Windows Server 2025 VM with WinRM-HTTPS bootstrap via custom_data.
-# ---------------------------------------------------------------------------
+moved {
+  from = azurerm_windows_virtual_machine.demo
+  to   = azurerm_windows_virtual_machine.demo[0]
+}
 
 resource "azurerm_windows_virtual_machine" "demo" {
+  count               = local.create_windows ? 1 : 0
   name                = local.vm_name
   location            = data.azurerm_resource_group.rhdp.location
   resource_group_name = data.azurerm_resource_group.rhdp.name
   size                = local.vm_size
   admin_username      = var.admin_username
   admin_password      = var.admin_password
-  computer_name       = substr(replace(local.vm_name, ".", ""), 0, 15) # 15-char NetBIOS limit
+  computer_name       = substr(replace(local.vm_name, ".", ""), 0, 15)
 
   network_interface_ids = [
-    azurerm_network_interface.demo.id,
+    azurerm_network_interface.demo[0].id,
   ]
 
-  # Windows Server 2025 Azure Edition is a hotpatch-enabled image. azurerm
-  # v4.x requires patch_mode = AutomaticByPlatform for these images.
   patch_mode          = "AutomaticByPlatform"
   hotpatching_enabled = true
 
@@ -157,24 +182,20 @@ resource "azurerm_windows_virtual_machine" "demo" {
     disk_size_gb         = 128
   }
 
-  # Enable WinRM-HTTPS with a self-signed cert on first boot so Ansible can
-  # connect. AAP's Windows machine credential should use winrm with
-  # ansible_winrm_server_cert_validation=ignore in inventory group_vars.
-  #
-  # custom_data deposits the bootstrap script at C:\AzureData\CustomData.bin
-  # but Azure does NOT auto-execute custom_data on Windows VMs. The
-  # CustomScriptExtension below triggers execution.
   custom_data = base64encode(file("${path.module}/scripts/winrm_bootstrap.ps1"))
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, { OS = "windows", Hostname = local.vm_name })
 }
 
-# Custom Script Extension — triggers execution of the WinRM bootstrap script
-# that custom_data deposited at C:\AzureData\CustomData.bin. The script copies
-# the binary file to bootstrap.ps1, then executes it via the call operator.
+moved {
+  from = azurerm_virtual_machine_extension.winrm_bootstrap
+  to   = azurerm_virtual_machine_extension.winrm_bootstrap[0]
+}
+
 resource "azurerm_virtual_machine_extension" "winrm_bootstrap" {
+  count                = local.create_windows ? 1 : 0
   name                 = "winrm-bootstrap"
-  virtual_machine_id   = azurerm_windows_virtual_machine.demo.id
+  virtual_machine_id   = azurerm_windows_virtual_machine.demo[0].id
   publisher            = "Microsoft.Compute"
   type                 = "CustomScriptExtension"
   type_handler_version = "1.10"
@@ -183,5 +204,70 @@ resource "azurerm_virtual_machine_extension" "winrm_bootstrap" {
     commandToExecute = "powershell -ExecutionPolicy Bypass -Command \"Copy-Item C:\\AzureData\\CustomData.bin C:\\AzureData\\bootstrap.ps1 -Force; & C:\\AzureData\\bootstrap.ps1\""
   })
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, { OS = "windows" })
+}
+
+# ---------------------------------------------------------------------------
+# Linux — SSH key + Public IP + NIC + RHEL 9 VM.
+# Created only when os_type includes "linux".
+# ---------------------------------------------------------------------------
+
+resource "azurerm_public_ip" "linux" {
+  count               = local.create_linux ? 1 : 0
+  name                = "dc1az-lnx-pip-${local.name_suffix}"
+  location            = data.azurerm_resource_group.rhdp.location
+  resource_group_name = data.azurerm_resource_group.rhdp.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  domain_name_label   = local.linux_dns_label
+  tags                = merge(local.common_tags, { OS = "linux", Hostname = local.linux_vm_name })
+}
+
+resource "azurerm_network_interface" "linux" {
+  count               = local.create_linux ? 1 : 0
+  name                = "dc1az-lnx-nic-${local.name_suffix}"
+  location            = data.azurerm_resource_group.rhdp.location
+  resource_group_name = data.azurerm_resource_group.rhdp.name
+  tags                = merge(local.common_tags, { OS = "linux" })
+
+  ip_configuration {
+    name                          = "primary"
+    subnet_id                     = azurerm_subnet.demo.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.linux[0].id
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "linux" {
+  count                           = local.create_linux ? 1 : 0
+  name                            = local.linux_vm_name
+  location                        = data.azurerm_resource_group.rhdp.location
+  resource_group_name             = data.azurerm_resource_group.rhdp.name
+  size                            = local.vm_size
+  admin_username                  = var.linux_admin_username
+  disable_password_authentication = true
+
+  network_interface_ids = [
+    azurerm_network_interface.linux[0].id,
+  ]
+
+  admin_ssh_key {
+    username   = var.linux_admin_username
+    public_key = var.linux_ssh_public_key
+  }
+
+  source_image_reference {
+    publisher = var.linux_image.publisher
+    offer     = var.linux_image.offer
+    sku       = var.linux_image.sku
+    version   = var.linux_image.version
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "StandardSSD_LRS"
+    disk_size_gb         = 64
+  }
+
+  tags = merge(local.common_tags, { OS = "linux", Hostname = local.linux_vm_name })
 }

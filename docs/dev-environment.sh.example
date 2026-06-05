@@ -84,6 +84,23 @@ export REDHAT_SUBSCRIPTIONS_CLIENT_SECRET=REPLACE_ME_RH_SVC_ACCOUNT_CLIENT_SECRE
 export DC1_AZURE_DEV_ADMIN_PASSWORD=REPLACE_ME_DEV_LEAD_PASSWORD
 export DC1_AZURE_JR_DEV_PASSWORD=REPLACE_ME_JR_DEV_PASSWORD
 
+# --- Linux VM (Phase 16) -----------------------------------------------------
+# SSH key pair for the Linux VM. Use the same key as your laptop so you can SSH
+# in directly after provisioning. The public key goes into the VM (Terraform);
+# the private key goes into the DC1.Azure - Linux Machine credential (AAP).
+export LINUX_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_rsa.pub)"
+export LINUX_SSH_PRIVATE_KEY="$(cat ~/.ssh/id_rsa)"
+# export LINUX_ADMIN_USERNAME=azureuser   # default; override if needed
+
+# --- Dynatrace OneAgent (Issue #1) -------------------------------------------
+# Dynatrace SaaS tenant URL (the .live. URL, not .apps.).
+export DT_API_HOST=https://REPLACE_ME_ENV_ID.live.dynatrace.com
+# PaaS token (installer download token) — generate in Dynatrace UI:
+#   Deploy Dynatrace > Download OneAgent > choose your OS > "Create token"
+# This is NOT the API token or OAuth client secret — it's a separate token type
+# scoped only to installer downloads.
+export DT_PAAS_TOKEN=REPLACE_ME_DT_PAAS_TOKEN
+
 # --- Optional overrides (safe to leave commented out) ----------------------
 # export AH_HOSTNAME=$AAP_HOSTNAME           # Hub hostname; defaults to AAP gateway host (correct for AAP 2.5)
 # export DC1_AZURE_EE='DC1.Azure - EE'       # EE name; load.yml creates this automatically

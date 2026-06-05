@@ -1,19 +1,15 @@
 ---
 # Consumed by the infra.aap_configuration.controller_inventories role.
 #
-# The `windemo` group (the group the reused aap.dailydemo.windows playbooks
-# target) is created and populated at runtime by provision_vm.yml, which
-# registers the new VM via the controller API. Group/inventory vars carry the
-# WinRM connection settings.
+# Runtime groups (created by provision_vm.yml, not CaC):
+#   - `windemo`  — Windows hosts; group vars set WinRM connection settings
+#   - `linuxweb` — Linux hosts; group vars set SSH connection settings
+# Connection vars live at the GROUP level (not inventory) so Windows and Linux
+# hosts coexist cleanly in the same inventory.
 controller_inventories:
   - name: "{{ inventory_name }}"
     organization: "{{ my_organization }}"
-    variables:
-      # Applied to all hosts; the `windows` group is populated at runtime.
-      ansible_connection: winrm
-      ansible_port: 5986
-      ansible_winrm_transport: ntlm
-      ansible_winrm_server_cert_validation: ignore
+    variables: {}
 
   # Control inventory the Teardown JT runs against (AB#73). The teardown play
   # runs on localhost and deregisters the VM from `dc1-azure` over the API, so

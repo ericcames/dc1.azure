@@ -24,6 +24,7 @@ controller_templates:
       dc1_azure_resource_group: "{{ azure_resource_group }}"
       dc1_azure_location: "{{ azure_location }}"
       dc1_azure_tf_storage_account: "{{ azure_tf_storage_account }}"
+      dc1_azure_linux_ssh_public_key: "{{ linux_ssh_public_key }}"
     survey_enabled: true
     survey_spec:
       name: ""
@@ -135,8 +136,18 @@ controller_templates:
     survey_enabled: true
     survey_spec:
       name: ""
-      description: "Pick a VM size tier"
+      description: "Pick an OS and VM size tier"
       spec:
+        - question_name: Operating system
+          question_description: "Which OS to provision."
+          variable: os_type
+          type: multiplechoice
+          required: true
+          default: windows
+          choices:
+            - windows
+            - linux
+            - both
         - question_name: VM size tier
           question_description: Azure VM t-shirt size — all Dsv5 family.
           variable: vm_size_tier
@@ -239,6 +250,7 @@ controller_templates:
       dc1_azure_resource_group: "{{ azure_resource_group }}"
       dc1_azure_location: "{{ azure_location }}"
       dc1_azure_tf_storage_account: "{{ azure_tf_storage_account }}"
+      os_type: both
       # destroy doesn't use the admin password, but terraform requires the var
       # (12-72 chars) and teardown.yml asserts its length. Bake a non-secret
       # placeholder so scheduled/manual teardown runs need no password input.

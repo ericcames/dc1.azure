@@ -1,41 +1,37 @@
-output "vm_name" {
-  description = "Hostname assigned to the Windows VM."
-  value       = azurerm_windows_virtual_machine.demo.name
+output "os_type" {
+  description = "OS type requested for this run."
+  value       = var.os_type
 }
 
-output "vm_size_tier" {
-  description = "T-shirt tier selected for this run."
-  value       = var.vm_size_tier
-}
+# ---------------------------------------------------------------------------
+# Windows outputs — null when os_type excludes windows.
+# ---------------------------------------------------------------------------
 
-output "vm_size_chosen" {
-  description = "Resolved Azure SKU for the chosen tier."
-  value       = local.vm_size
-}
-
-output "public_ip" {
-  description = "Public IP address of the VM. Used by AAP to add_host into the windows group."
-  value       = azurerm_public_ip.demo.ip_address
-}
-
-output "fqdn" {
-  description = "Public DNS name of the VM (Azure-managed). Stable across reboots; IP may rotate on stop/start."
-  value       = azurerm_public_ip.demo.fqdn
-}
-
-output "admin_username" {
-  description = "Local Windows administrator username on the VM."
-  value       = var.admin_username
-}
-
-output "ansible_inventory" {
-  description = "JSON inventory snippet ready to pass into AAP via set_stats / add_host."
-  value = {
-    host           = azurerm_public_ip.demo.fqdn
-    ansible_host   = azurerm_public_ip.demo.ip_address
+output "windows_inventory" {
+  description = "Windows VM inventory data for AAP host registration. Null when os_type excludes windows."
+  value = local.create_windows ? {
+    host           = azurerm_public_ip.demo[0].fqdn
+    ansible_host   = azurerm_public_ip.demo[0].ip_address
     ansible_user   = var.admin_username
-    vm_name        = azurerm_windows_virtual_machine.demo.name
+    vm_name        = azurerm_windows_virtual_machine.demo[0].name
     vm_size_tier   = var.vm_size_tier
     vm_size_chosen = local.vm_size
-  }
+  } : null
 }
+
+# ---------------------------------------------------------------------------
+# Linux outputs — null when os_type excludes linux.
+# ---------------------------------------------------------------------------
+
+output "linux_inventory" {
+  description = "Linux VM inventory data for AAP host registration. Null when os_type excludes linux."
+  value = local.create_linux ? {
+    host           = azurerm_public_ip.linux[0].fqdn
+    ansible_host   = azurerm_public_ip.linux[0].ip_address
+    ansible_user   = var.linux_admin_username
+    vm_name        = azurerm_linux_virtual_machine.linux[0].name
+    vm_size_tier   = var.vm_size_tier
+    vm_size_chosen = local.vm_size
+  } : null
+}
+

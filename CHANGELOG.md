@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 16: Linux VM provisioning with multi-OS survey** — extends dc1.azure
+  to provision RHEL 9 Linux VMs alongside Windows Server 2025 VMs. A new
+  `os_type` survey parameter on the workflow (windows / linux / both, default
+  windows) controls which VMs are created via conditional Terraform resources.
+  Linux VMs use SSH key auth (user's own key pair from `LINUX_SSH_PUBLIC_KEY` /
+  `LINUX_SSH_PRIVATE_KEY` env vars). New `DC1.Azure - Linux Machine` credential
+  (CaC-managed). Inventory connection vars moved from inventory level to group
+  level (`windemo` = WinRM, `linuxweb` = SSH). Windows configure workflow nodes
+  scoped with `limit: windemo` so they succeed vacuously with `os_type=linux`.
+  Terraform error output now surfaced in AAP job logs (was hidden by `no_log`).
+- **Roadmap Phases 16–19** — Linux VM provisioning (Phase 16), Linux
+  post-provision configuration with Apache web server (Phase 17, pattern from
+  `aap.dailydemo.F5`), Dynatrace OneAgent push-model integration (Phase 18),
+  and F5 BIG-IP load balancing on Azure (Phase 19).
+- **Dynatrace env vars** — `DT_API_HOST` and `DT_PAAS_TOKEN` added to
+  `docs/dev-environment.sh.example` for Phase 18 OneAgent integration.
 - **Automation Analytics / Insights — Automation Calculator** — new
   `aap_config/files/controller_settings.yml` (consumed by the
   `infra.aap_configuration.controller_settings` role, wired into `load.yml`)
