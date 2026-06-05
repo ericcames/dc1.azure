@@ -10,7 +10,7 @@
 #
 #   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
 #                         │                           └─► Provision Access ─┴─► Patching ──always──┐
-#                         ├─► Configure Linux ──success────────────────────────────────────────────┴─► Update RITM (success)
+#                         ├─► Configure Linux ──always─────────────────────────────────────────────┴─► Update RITM (success) [converge]
 #                         └─► Create CMDB CI ─► Create CMDB Relationship
 #
 # Phase 8 ServiceNow callback:
@@ -92,13 +92,18 @@ controller_workflows:
             failure_nodes:
               - identifier: create-incident
 
+        # --- Windows configure chain -----------------------------------------------
+        # No `limit:` — each upstream playbook already targets `hosts: windemo`.
+        # When the windemo group is empty (os_type=linux) Ansible resolves the
+        # pattern, finds zero hosts, and cleanly skips the play (rc=0). Using
+        # `--limit` instead would error with "no hosts to target" (different
+        # code path, not governed by host_pattern_mismatch).
         - identifier: powershell-improvement
           unified_job_template:
             name: "DC1.Azure - Powershell Improvement"
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          limit: windemo
           related:
             success_nodes:
               - identifier: website-setup
@@ -110,7 +115,6 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          limit: windemo
           related:
             success_nodes:
               - identifier: patching
@@ -121,7 +125,6 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          limit: windemo
           related:
             success_nodes:
               - identifier: patching
@@ -132,27 +135,21 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          limit: windemo
           related:
             always_nodes:
               - identifier: update-ritm-success     # decoupled from CMDB (mirrors DDW)
 
         # --- Phase 17: Linux configure path ------------------------------------
-        # Runs in parallel with the Windows chain. When os_type excludes linux
-        # the linuxweb group is empty — the job fails ("no hosts to target")
-        # and the success edge to update-ritm-success does NOT fire, which is
-        # the desired behaviour (we only want to signal RITM success from the
-        # path that actually ran). Uses success_nodes (not always_nodes) so the
-        # empty-limit failure is silently absorbed by the workflow.
+        # No `limit:` — the playbook targets `hosts: linuxweb` directly. When
+        # the group is empty (os_type=windows) Ansible skips the play cleanly.
         - identifier: configure-linux
           unified_job_template:
             name: "DC1.Azure - Configure Linux"
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          limit: linuxweb
           related:
-            success_nodes:
+            always_nodes:
               - identifier: update-ritm-success
 
         # --- Phase 8 ServiceNow callback nodes (success path) ---------------
@@ -175,17 +172,16 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
 
-        # Update RITM (success) fires when the FIRST completing OS path
-        # signals it: patching (always — Windows) or configure-linux (success
-        # — Linux). For single-OS runs only one edge fires; for os_type=both
-        # the faster path triggers the RITM update (the other still completes
-        # but the RITM is already marked fulfilled).
+        # Update RITM (success) converges both OS paths. Both chains always
+        # complete (real work or clean skip on empty group), so convergence
+        # fires reliably for all os_type values.
         - identifier: update-ritm-success
           unified_job_template:
             name: "DC1.Azure - Update RITM (success)"
             type: job_template
             organization:
               name: "{{ my_organization }}"
+          all_parents_must_converge: true
 
         # --- Phase 8 ServiceNow callback nodes (failure path) ---------------
         - identifier: create-incident
