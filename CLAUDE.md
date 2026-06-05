@@ -64,6 +64,22 @@ is committed) and in an AAP "Microsoft Azure Resource Manager" credential named
   Removed.
 - **Additive only** — don't remove old capabilities until replacements are
   proven.
+- **EDA rulebook activations** — the EDA API rejects updates to a RUNNING
+  activation. `load.yml` handles this by disabling the activation before
+  dispatch and re-enabling it after. If adding a new activation, follow the
+  same bracket pattern. The `ansible.eda.rulebook_activation` module supports
+  `state: disabled`/`enabled`. Add new EDA modules to `.ansible-lint`
+  `mock_modules` (CI runs offline).
+- **Run linters before pushing** — `yamllint .`, `ansible-lint`, and
+  `terraform fmt -check terraform/` locally before `git push` to catch CI
+  failures early.
+- **Log capture for load.yml** — always run with `tee` so failures are
+  reviewable without re-running:
+  `ansible-playbook ... load.yml 2>&1 | tee /tmp/load-$(date +%Y%m%d-%H%M%S).log`
+- **Stale AAP objects** — CaC only manages objects it defines. If an object is
+  renamed in CaC, the old-name object becomes orphaned on AAP. Clean up
+  orphans via the API (`DELETE`), not by adding `state: absent` entries to CaC
+  files — CaC files should only describe the desired state.
 
 ## Issue Tracking (ADO Boards)
 
