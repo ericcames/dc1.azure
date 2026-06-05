@@ -21,9 +21,10 @@
 #     exported as env vars (see group_vars/all.yml)
 #   - collections installed:  ansible-galaxy collection install -r requirements.yml
 #
-# Run:
+# Run (with log capture so failures are reviewable without re-running):
 #   source docs/dev-environment.sh && \
-#   ansible-playbook -i aap_config/inventory/ aap_config/load.yml
+#   ansible-playbook -i aap_config/inventory/ aap_config/load.yml 2>&1 \
+#     | tee /tmp/load-$(date +%Y%m%d-%H%M%S).log
 #
 # Re-running is idempotent — every object is keyed by name.
 # ============================================================================
@@ -62,9 +63,36 @@
         - name: Acquire a write token (or adopt a supplied AAP_TOKEN)
           ansible.builtin.import_tasks: tasks/aap_token_acquire.yml
 
+        # AB#140: the dispatch role's eda_rulebook_activations sub-role fails
+        # with "Activation is not in disabled mode and in stopped status" when
+        # re-applying against a running activation. Disable it first (no-op on
+        # a fresh env where it doesn't exist yet), then re-enable after dispatch.
+        - name: Disable the EDA rulebook activation (if it exists) before re-apply
+          ansible.eda.rulebook_activation:
+            name: "{{ eda_rulebook_activation_name }}"
+            organization_name: "{{ my_organization }}"
+            controller_host: "{{ aap_hostname }}"
+            controller_token: "{{ aap_token }}"
+            validate_certs: "{{ aap_validate_certs }}"
+            state: disabled
+          register: _eda_disable_result
+          failed_when: false
+
         - name: Apply all dc1.azure AAP objects
           ansible.builtin.include_role:
             name: infra.aap_configuration.dispatch
+
+        - name: Re-enable the EDA rulebook activation after re-apply
+          ansible.eda.rulebook_activation:
+            name: "{{ eda_rulebook_activation_name }}"
+            organization_name: "{{ my_organization }}"
+            controller_host: "{{ aap_hostname }}"
+            controller_token: "{{ aap_token }}"
+            validate_certs: "{{ aap_validate_certs }}"
+            state: enabled
+          when:
+            - _eda_disable_result is defined
+            - not (_eda_disable_result.failed | default(false))
 
         # Phase 9 (AB#107): grant the Developers team Execute on the self-service
         # JOB templates jr-dev may run from the portal (launcher + facts). Done here

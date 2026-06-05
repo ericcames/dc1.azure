@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **`load.yml` EDA activation re-apply failure** (AB#140) — every re-run of
+  `load.yml` failed at the `eda_rulebook_activations` role with *"Activation
+  is not in disabled mode and in stopped status"* because the dispatch role
+  tried to update a RUNNING activation. `load.yml` now disables the EDA
+  rulebook activation before dispatch (no-op on a fresh env) and re-enables
+  it after, so re-applies run clean. Also updated the `# Run:` comment to
+  show the `tee` log-capture pattern (`/tmp/load-<timestamp>.log`) so failures
+  are reviewable without re-running.
+
 ### Changed
 - **Nightly teardown — added 10 PM safety-net schedule** — a second daily
   teardown schedule (`DC1.Azure - Nightly Teardown (10 PM)`) fires at 22:00
