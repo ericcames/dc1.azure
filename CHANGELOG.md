@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **Nightly teardown — added 10 PM safety-net schedule** — a second daily
+  teardown schedule (`DC1.Azure - Nightly Teardown (10 PM)`) fires at 22:00
+  America/Phoenix, catching VMs left running by late work sessions that outlast
+  the primary 6 PM teardown. The teardown JT is idempotent (`terraform destroy`
+  no-ops on an empty state), so the 10 PM run costs nothing when the 6 PM run
+  already cleaned up. The original schedule is renamed to
+  `DC1.Azure - Nightly Teardown (6 PM)` for clarity. New
+  `teardown_schedule_name_late` var in `group_vars/all.yml`.
+
 ### Added
 - **Phase 16: Linux VM provisioning with multi-OS survey** — extends dc1.azure
   to provision RHEL 9 Linux VMs alongside Windows Server 2025 VMs. A new
