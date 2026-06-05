@@ -642,7 +642,7 @@ Windows VM (WinRM) + a reachable Linux VM (SSH) in the same VNet; `os_type=linux
 produces only the Linux VM; `os_type=windows` produces only the Windows VM (backward
 compatible). Both register into the AAP inventory under their respective groups.
 
-### Phase 17 — Linux Post-Provision Configuration (Web Server)  ⬜
+### Phase 17 — Linux Post-Provision Configuration (Web Server)  🔄
 
 *Configures the provisioned RHEL 9 VM as an Apache web server — mirroring the
 `aap.dailydemo.F5` pattern (RHSM → post-install → website setup) with Red Hat CDN
@@ -651,31 +651,32 @@ registration instead of Satellite.*
 Reference pattern: `aap.dailydemo.F5` roles — `rhsm`, `linux_post_install`,
 `website_setup`.
 
-- ⬜ **RHSM / CDN registration** — role based on `aap.dailydemo.F5/roles/rhsm`
-  (uses `redhat.rhel_system_roles.rhc`), pointing directly at the Red Hat CDN (no
-  Satellite). New credential: `DC1.Azure - RHSM` (custom credential type injecting
-  `rhsm_username` + `rhsm_password`, or an activation key).
-- ⬜ **Linux post-install** — role based on `aap.dailydemo.F5/roles/linux_post_install`:
-  Chrony NTP, `dnf` security/bugfix updates, SSH banner, MOTD, Insights client
-  registration.
-- ⬜ **Website setup** — role based on `aap.dailydemo.F5/roles/website_setup`:
-  Apache (`httpd`), `firewalld` (port 80), dc1.azure-branded `index.html` (shows
-  hostname, OS, tier, ticket number — mirrors the Windows IIS page).
-- ⬜ **Job templates** — new Linux configure JTs (mirroring the Windows chain):
-  `DC1.Azure - Register Linux (CDN)`, `DC1.Azure - Configure Linux`,
-  `DC1.Azure - Setup Linux Web Server`. Or a single combined JT if the role chain
-  is short enough.
-- ⬜ **Workflow nodes** — conditional configure path: the `os_type` survey drives
-  which branch fires (Windows configure chain, Linux configure chain, or both in
-  parallel).
-- ⬜ **EE update** — verify `redhat.rhel_system_roles` is in the EE; add if not.
-  EE version bump per `docs/ee-versioning.md`.
-- ⬜ **Collections** — add `redhat.rhel_system_roles` to
-  `collections/requirements.yml` if not already present.
+- ⬜ **RHSM / CDN registration** — deferred (activation key ready). Azure PAYG
+  RHEL images have RHUI access for dnf updates; RHSM registration requires EE
+  rebuild (`redhat.rhel_system_roles`) + new credential type. Will add as a
+  follow-up.
+- ✅ **Linux post-install** — combined `linux_configure` role handles SSH banner,
+  MOTD, and `dnf` security/bugfix updates. Chrony and Insights deferred with RHSM.
+- ✅ **Website setup** — `linux_configure` role installs Apache (`httpd`),
+  `firewalld` (port 80), and deploys a dc1.azure-branded `index.html` showing
+  hostname, OS, tier, ticket number — mirrors the Windows IIS page layout.
+- ✅ **Job template** — single combined `DC1.Azure - Configure Linux` JT with
+  `cred_linux` credential, targeting `linuxweb` group. Consolidates post-install +
+  website setup into one step (role chain is short enough for a single JT).
+- ✅ **Workflow node** — `configure-linux` fires after `provision-vm` success in
+  parallel with the Windows chain, limited to `linuxweb`. Both paths converge at
+  `update-ritm-success` (`all_parents_must_converge: true`). When an OS is absent
+  its chain targets an empty group (no-op).
+- ✅ **Inventory groups** — `provision_vm.yml` now creates both `windemo` and
+  `linuxweb` groups unconditionally so workflow nodes with limit always resolve.
+- ⬜ **EE update** — deferred with RHSM; current EE has all needed collections
+  (`ansible.posix` for `firewalld`).
+- ⬜ **Collections** — deferred with RHSM; `redhat.rhel_system_roles` not needed
+  until RHSM registration is added.
 
 **Exit criteria:** a workflow launch with `os_type=linux` (or `both`) produces a
-RHEL 9 VM registered with the Red Hat CDN, patched, running Apache on port 80, and
-serving a dc1.azure-branded page at its public IP.
+RHEL 9 VM patched, running Apache on port 80, and serving a dc1.azure-branded page
+at its public IP. RHSM/CDN registration deferred to a follow-up.
 
 ### Phase 18 — Dynatrace OneAgent Integration  ⬜
 

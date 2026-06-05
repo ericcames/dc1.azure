@@ -1,0 +1,7 @@
+---
+- name: DC1.Azure - Configure Linux
+  hosts: linuxweb
+  become: true
+
+  roles:
+    - role: linux_configure

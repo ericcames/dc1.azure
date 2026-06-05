@@ -1,0 +1,86 @@
+---
+- name: Install Apache and firewalld
+  ansible.builtin.dnf:
+    name:
+      - httpd
+      - firewalld
+    state: present
+
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Start and enable Apache
+  ansible.builtin.service:
+    name: httpd
+    state: started
+    enabled: true
+
+- name: Allow HTTP through firewall
+  ansible.posix.firewalld:
+    service: http
+    zone: public
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Template demo website
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: apache
+    group: apache
+    mode: "0644"
+
+- name: Copy AAP logo
+  ansible.builtin.copy:
+    src: images/aap.png
+    dest: /var/www/html/aap.png
+    owner: apache
+    group: apache
+    mode: "0644"
+
+- name: Copy QR code
+  ansible.builtin.copy:
+    src: images/AmesQNRCode.png
+    dest: /var/www/html/AmesQNRCode.png
+    owner: apache
+    group: apache
+    mode: "0644"
+
+- name: Deploy MOTD
+  ansible.builtin.copy:
+    content: |
+      ============================================
+       DC1.Azure — RHEL 9 Web Server
+       Managed by Ansible Automation Platform
+      ============================================
+    dest: /etc/motd
+    mode: "0644"
+
+- name: Deploy SSH banner
+  ansible.builtin.copy:
+    content: |
+      *** DC1.Azure — Managed by Ansible Automation Platform ***
+    dest: /etc/ssh/sshd-banner
+    mode: "0644"
+
+- name: Configure sshd to use banner
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: Banner /etc/ssh/sshd-banner
+  notify: Restart sshd
+
+- name: Apply security and bugfix updates  # noqa: package-latest
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    security: true
+    bugfix: true
+
+- name: Show website address
+  ansible.builtin.debug:
+    msg: "http://{{ inventory_hostname }}"

@@ -85,6 +85,22 @@ controller_templates:
     credentials:
       - "{{ cred_windows }}"
 
+  # --- Phase 17: Linux post-provision configuration -------------------------
+  # Combined JT: Apache httpd, firewalld, branded website, MOTD, SSH banner,
+  # and dnf security updates. Targets the linuxweb group (RHEL 9 VMs
+  # registered by provision_vm.yml). RHSM/CDN registration deferred.
+  - name: "DC1.Azure - Configure Linux"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/configure_linux.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_linux }}"
+    extra_vars:
+      dc1_azure_location: "{{ azure_location }}"
+
   # --- Phase 11: Fact caching & inventory visibility -------------------------
   # Standalone demo JT. `use_fact_cache: true` persists the gathered facts to the
   # AAP database (viewable per-host under Infrastructure → Hosts → Facts); the

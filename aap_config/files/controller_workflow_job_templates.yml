@@ -9,7 +9,8 @@
 # Instance Info chain.
 #
 #   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
-#                         │                           └─► Provision Access ─┴─► Patching
+#                         │                           └─► Provision Access ─┴─► Patching ──always──┐
+#                         ├─► Configure Linux ──always─────────────────────────────────────────────┴─► Update RITM (success)
 #                         └─► Create CMDB CI ─► Create CMDB Relationship
 #
 # Phase 8 ServiceNow callback:
@@ -86,7 +87,8 @@ controller_workflows:
           related:
             success_nodes:
               - identifier: powershell-improvement
-              - identifier: create-cmdb-ci          # parallel early-CMDB branch (mirrors DDW)
+              - identifier: configure-linux          # Phase 17: parallel Linux configure path
+              - identifier: create-cmdb-ci           # parallel early-CMDB branch (mirrors DDW)
             failure_nodes:
               - identifier: create-incident
 
@@ -135,6 +137,20 @@ controller_workflows:
             always_nodes:
               - identifier: update-ritm-success     # decoupled from CMDB (mirrors DDW)
 
+        # --- Phase 17: Linux configure path ------------------------------------
+        # Runs in parallel with the Windows chain. When os_type excludes linux
+        # the linuxweb group is empty and this node completes as a no-op.
+        - identifier: configure-linux
+          unified_job_template:
+            name: "DC1.Azure - Configure Linux"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: linuxweb
+          related:
+            always_nodes:
+              - identifier: update-ritm-success
+
         # --- Phase 8 ServiceNow callback nodes (success path) ---------------
         # CMDB CI/Relationship run on a parallel branch off Provision VM (see
         # provision-vm.success_nodes above) — terminal at the relationship node.
@@ -155,14 +171,16 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
 
-        # Update RITM (success) is reached from patching.always_nodes (above),
-        # decoupled from the CMDB branch.
+        # Update RITM (success) converges the Windows path (patching) and the
+        # Linux path (configure-linux). Both must complete before the RITM is
+        # marked fulfilled. When one OS is absent its chain is a fast no-op.
         - identifier: update-ritm-success
           unified_job_template:
             name: "DC1.Azure - Update RITM (success)"
             type: job_template
             organization:
               name: "{{ my_organization }}"
+          all_parents_must_converge: true
 
         # --- Phase 8 ServiceNow callback nodes (failure path) ---------------
         - identifier: create-incident

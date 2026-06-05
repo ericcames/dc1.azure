@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 17 — Linux post-provision configuration** — new
+  `DC1.Azure - Configure Linux` JT running `playbooks/configure_linux.yml`
+  with the `linux_configure` role. Installs Apache httpd, opens port 80 via
+  firewalld, deploys a dc1.azure-branded website (mirrors the Windows IIS
+  page layout), sets MOTD + SSH banner, and applies dnf security/bugfix
+  updates. Single combined JT targeting the `linuxweb` group. Workflow gains
+  a `configure-linux` node running in parallel with the Windows chain;
+  `update-ritm-success` now uses `all_parents_must_converge: true` to wait
+  for both paths. RHSM/CDN registration deferred (activation key ready).
+- **Always-create inventory groups** — `provision_vm.yml` now creates both
+  `windemo` and `linuxweb` groups unconditionally so workflow nodes with
+  `limit:` always resolve (empty group = no-op, missing group = job failure).
+
+### Added
 - **Phase 12 — Automate ADO trigger setup** (AB#144) — new
   `DC1.Azure - Configure ADO Trigger` JT running
   `playbooks/ado/configure_ado_trigger.yml`. Mints a long-lived AAP API token,

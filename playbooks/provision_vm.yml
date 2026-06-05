@@ -155,24 +155,40 @@
                 state: present
               register: prov_token
 
-            # --- Windows registration -------------------------------------------
+            # --- Ensure both inventory groups always exist -----------------------
+            # Both groups are created unconditionally so workflow nodes with
+            # limit: windemo / linuxweb always resolve (empty group = no-op,
+            # missing group = job failure).
+            - name: Ensure the windemo group exists (with WinRM connection vars)
+              ansible.controller.group:
+                controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+                controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
+                validate_certs: false
+                name: "{{ dc1_azure_group }}"
+                inventory: "{{ dc1_azure_inventory }}"
+                state: present
+                variables:
+                  ansible_connection: winrm
+                  ansible_port: 5986
+                  ansible_winrm_transport: ntlm
+                  ansible_winrm_server_cert_validation: ignore
+
+            - name: Ensure the linuxweb group exists (with SSH connection vars)
+              ansible.controller.group:
+                controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+                controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
+                validate_certs: false
+                name: "{{ dc1_azure_linux_group }}"
+                inventory: "{{ dc1_azure_inventory }}"
+                state: present
+                variables:
+                  ansible_connection: ssh
+                  ansible_port: 22
+
+            # --- Windows host registration --------------------------------------
             - name: Register Windows VM in AAP
               when: win_inventory is mapping
               block:
-                - name: Ensure the windemo group exists (with WinRM connection vars)
-                  ansible.controller.group:
-                    controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
-                    controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
-                    validate_certs: false
-                    name: "{{ dc1_azure_group }}"
-                    inventory: "{{ dc1_azure_inventory }}"
-                    state: present
-                    variables:
-                      ansible_connection: winrm
-                      ansible_port: 5986
-                      ansible_winrm_transport: ntlm
-                      ansible_winrm_server_cert_validation: ignore
-
                 - name: Add the Windows VM as a host
                   ansible.controller.host:
                     controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
@@ -198,22 +214,10 @@
                       - "{{ win_inventory.host }}"
                     state: present
 
-            # --- Linux registration ---------------------------------------------
+            # --- Linux host registration ----------------------------------------
             - name: Register Linux VM in AAP
               when: linux_inventory is mapping
               block:
-                - name: Ensure the linuxweb group exists (with SSH connection vars)
-                  ansible.controller.group:
-                    controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
-                    controller_oauthtoken: "{{ prov_token.ansible_facts.aap_token.token }}"
-                    validate_certs: false
-                    name: "{{ dc1_azure_linux_group }}"
-                    inventory: "{{ dc1_azure_inventory }}"
-                    state: present
-                    variables:
-                      ansible_connection: ssh
-                      ansible_port: 22
-
                 - name: Add the Linux VM as a host
                   ansible.controller.host:
                     controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
