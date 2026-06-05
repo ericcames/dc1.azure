@@ -2,8 +2,9 @@
 # ============================================================================
 # playbooks/servicenow/create_ci.yml — Phase 8 (outbound callback)
 # ============================================================================
-# Registers the provisioned VM as a ServiceNow CMDB CI. The CI class is
+# Registers provisioned VM(s) as ServiceNow CMDB CIs. The CI class is
 # OS-conditional: cmdb_ci_win_server (Windows) or cmdb_ci_linux_server (Linux).
+# When os_type=both, two CIs are created — one per VM.
 # dc1.azure-owned (not the reused Windows role) so we
 # can GUARD on ticket_number — non-ServiceNow workflow launches (AAP UI /
 # Self-Service / ADO) carry no ticket_number, so this node no-ops and the
@@ -11,72 +12,101 @@
 # role's module + fields; Azure stand-ins come from provision_vm.yml's set_stats.
 #
 # Consumed inputs (workflow artifacts from Provision VM via set_stats):
-#   my_server         CI name (VM FQDN)            -> name
-#   my_public_ip      public IP                    -> ip_address
-#   my_instance_id    Azure stand-in (vm_name)     -> serial_number (optional)
-#   my_instance_type  Azure SKU (vm_size_chosen)   -> other.model_number (optional)
+#   my_server         Windows CI name (VM FQDN)     -> name
+#   my_public_ip      Windows public IP              -> ip_address
+#   my_instance_id    Azure stand-in (vm_name)       -> serial_number (optional)
+#   my_instance_type  Azure SKU (vm_size_chosen)     -> other.model_number (optional)
+#   linux_fqdn        Linux CI name (VM FQDN)        -> name (os_type=linux|both)
+#   linux_public_ip   Linux public IP                -> ip_address (os_type=linux|both)
+#   linux_vm_name     Linux vm_name                  -> serial_number (os_type=linux|both)
 #
-# AB#93 — after registering the CI, link it back to the originating requested
-# item by setting sc_req_item.configuration_item = <CI sys_id>. We patch it HERE
-# (not in update_ritm.yml) because the CI sys_id is only known on this branch:
-# Create CMDB CI and Update RITM (success) run on SIBLING workflow branches, so a
-# set_stats artifact from this node never reaches Update RITM. The CI sys_id is
-# captured from the create step; the RITM is resolved from the threaded
-# ticket_sys_id (falls back to a number lookup) — same pattern as the start
-# notice. We still publish vm_ci_sys_id via set_stats for observability.
+# AB#93 — after registering the CI(s), link the last one back to the
+# originating requested item by setting sc_req_item.configuration_item.
 #
 # Credential: DC1.Azure - ServiceNow (ServiceNow ITSM Credential → SN_* env).
 # ============================================================================
 
-- name: Create or update the ServiceNow CMDB CI for the Azure VM
+- name: Create or update the ServiceNow CMDB CI(s) for the Azure VM(s)
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    ci_sys_class_name: "{{ 'cmdb_ci_linux_server' if (os_type | default('windows')) == 'linux' else 'cmdb_ci_win_server' }}"
     ci_environment: production
     ci_install_status: installed
     ci_operational_status: operational
     ci_category: Hardware
     ci_support_group: "Ansible West Tigers"
     ci_assigned_to: service.ansible
-    ci_short_description: "Created by the DC1.Azure demo ({{ 'Linux' if (os_type | default('windows')) == 'linux' else 'Windows Server' }} on Azure)"
 
   tasks:
-    - name: Register the CI (only on a ServiceNow-driven run)
+    - name: Register the CI(s) (only on a ServiceNow-driven run)
       when:
         - ticket_number is defined
         - ticket_number | string | length > 0
       block:
-        - name: Create a configuration item
-          register: server_info
+        - name: Build the list of VMs to register as CIs
+          ansible.builtin.set_fact:
+            ci_vms: >-
+              {{
+                (
+                  [{'name': my_server,
+                    'ip': my_public_ip | default(''),
+                    'instance_id': my_instance_id | default(''),
+                    'sku': my_instance_type | default(''),
+                    'class': 'cmdb_ci_win_server',
+                    'os_label': 'Windows Server'}]
+                  if (os_type | default('windows')) in ['windows', 'both'] and my_server is defined
+                  else []
+                )
+                +
+                (
+                  [{'name': linux_fqdn,
+                    'ip': linux_public_ip | default(''),
+                    'instance_id': linux_vm_name | default(''),
+                    'sku': my_instance_type | default(''),
+                    'class': 'cmdb_ci_linux_server',
+                    'os_label': 'Linux'}]
+                  if (os_type | default('windows')) in ['linux', 'both'] and linux_fqdn is defined
+                  else []
+                )
+              }}
+
+        - name: Create a configuration item for each VM
+          register: ci_results
+          loop: "{{ ci_vms }}"
+          loop_control:
+            label: "{{ item.name }} ({{ item.class }})"
           servicenow.itsm.configuration_item:
-            name: "{{ my_server }}"
+            name: "{{ item.name }}"
             state: present
-            short_description: "{{ ci_short_description }}"
-            serial_number: "{{ my_instance_id | default(omit) }}"
-            sys_class_name: "{{ ci_sys_class_name }}"
+            short_description: "Created by the DC1.Azure demo ({{ item.os_label }} on Azure)"
+            serial_number: "{{ item.instance_id if item.instance_id else omit }}"
+            sys_class_name: "{{ item.class }}"
             assigned_to: "{{ ci_assigned_to }}"
             environment: "{{ ci_environment }}"
             install_status: "{{ ci_install_status }}"
             category: "{{ ci_category }}"
             operational_status: "{{ ci_operational_status }}"
-            ip_address: "{{ my_public_ip | default(omit) }}"
+            ip_address: "{{ item.ip if item.ip else omit }}"
             other:
-              model_number: "{{ my_instance_type | default(omit) }}"
+              model_number: "{{ item.sku if item.sku else omit }}"
               assignment_group: "{{ ci_support_group }}"
 
-        - name: Show the CI result
+        - name: Show the CI results
           ansible.builtin.debug:
-            var: server_info.record.sys_id
+            msg: "{{ item.item.name }}: sys_id={{ item.record.sys_id }}"
+          loop: "{{ ci_results.results }}"
+          loop_control:
+            label: "{{ item.item.name }}"
 
-        - name: Publish the new CI sys_id as a workflow artifact (observability)
+        - name: Publish CI sys_id(s) as workflow artifacts
           ansible.builtin.set_stats:
             data:
-              vm_ci_sys_id: "{{ server_info.record.sys_id }}"
+              vm_ci_sys_id: "{{ ci_results.results[-1].record.sys_id }}"
+              vm_ci_count: "{{ ci_results.results | length }}"
 
-        # --- AB#93: relate the originating RITM to this CI -------------------
+        # --- AB#93: relate the originating RITM to the primary CI ---------------
         - name: Use the threaded RITM sys_id when present
           ansible.builtin.set_fact:
             ritm_sys_id: "{{ ticket_sys_id }}"
@@ -103,13 +133,13 @@
               ansible.builtin.set_fact:
                 ritm_sys_id: "{{ ritm_lookup.record[0].sys_id }}"
 
-        - name: Link the RITM to the new CI (sc_req_item.configuration_item)
+        - name: Link the RITM to the primary CI (sc_req_item.configuration_item)
           servicenow.itsm.api:
             action: patch
             resource: sc_req_item
             sys_id: "{{ ritm_sys_id }}"
             data:
-              configuration_item: "{{ server_info.record.sys_id }}"
+              configuration_item: "{{ ci_results.results[-1].record.sys_id }}"
 
     - name: Note skip on a non-ServiceNow run
       when: ticket_number is not defined or (ticket_number | string | length == 0)
