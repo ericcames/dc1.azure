@@ -18,7 +18,7 @@ in the gitignored `docs/dev-environment.sh`.
 ## Goal
 
 A business user opens the **ServiceNow self-service catalog**, requests a
-Windows VM on Azure, picks a t-shirt size, and submits. A ServiceNow Business
+VM on Azure (Windows or Linux), picks a t-shirt size, and submits. A ServiceNow Business
 Rule posts the request to an AAP EDA event stream. EDA matches it and launches
 the existing **`DC1.Azure - Provision and Configure`** workflow. When the
 workflow finishes, **AAP calls ServiceNow back** to update the request item

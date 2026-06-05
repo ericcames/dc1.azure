@@ -1,10 +1,16 @@
 # DC1.Azure — Demo Runbook (v1, AAP-driven)
 
-The Solutions-Engineer script for running the **DC1.Azure Windows-on-Azure**
-demo straight from the **AAP web UI**. The goal: a customer watches Ansible
-Automation Platform stand up a real Windows Server 2025 VM in Azure, configure
-it, and serve a live web page — in about ten minutes, from a single survey
-click.
+The Solutions-Engineer script for running the **DC1.Azure** infrastructure demo
+straight from the **AAP web UI**. The goal: a customer watches Ansible
+Automation Platform stand up real VMs in Azure — Windows Server 2025 and/or
+RHEL 9 Linux — configure them, and serve a live web page, in about ten minutes
+from a single survey click.
+
+> **Multi-OS (Phase 16):** the workflow survey now includes an `os_type`
+> parameter (windows / linux / both, default windows). The demo script below
+> focuses on the Windows flow (the original story); for Linux, the
+> configure chain runs Apache instead of IIS and the VM is reachable via SSH
+> instead of RDP. The workflow and triggers are the same regardless of OS.
 
 > **This is the v1 (AAP-driven) flow.** The same workflow is later surfaced
 > through the AAP Self-Service Portal (Phase 9), ServiceNow (Phase 8), and Azure
@@ -18,9 +24,9 @@ click.
 | | |
 |---|---|
 | **Front door** | AAP web UI → Templates → *DC1.Azure - Provision and Configure* |
-| **One input** | `vm_size_tier` survey: `small-2cpu-8gb` / `medium-4cpu-16gb` / `large-8cpu-32gb` |
+| **Inputs** | `os_type` survey (windows / linux / both) + `vm_size_tier` (small / medium / large) |
 | **Run time** | ~10 min provision + configure (Provision VM dominates at ~7 min) |
-| **Payoff** | Browse `http://<vm-fqdn>` → live IIS page on Windows Server 2025; optional RDP |
+| **Payoff** | Browse `http://<vm-fqdn>` → live IIS page (Windows) or Apache page (Linux); RDP or SSH access |
 | **Cleanup** | Auto-destroys nightly at **18:00 America/Phoenix (01:00 UTC)**; or run *DC1.Azure - Teardown* manually |
 | **Cost guardrail** | The nightly teardown means a forgotten VM costs at most one evening |
 

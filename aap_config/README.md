@@ -15,8 +15,8 @@ collection (pinned **4.4.0**). This is the canonical install path.
 | `group_vars/all.yml` | Connection + secret references (env-var lookups) + object names |
 | `files/controller_settings.yml` | Platform-wide Controller settings — enables Automation Analytics / Insights (the **Automation Calculator** data feed); var is `controller_settings` |
 | `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
-| `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) |
-| `files/controller_inventories.yml` | `dc1-azure` inventory (WinRM group vars; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |
+| `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) + `aap.dailydemo.F5` (Linux configure roles) |
+| `files/controller_inventories.yml` | `dc1-azure` inventory (`windemo` group for WinRM, `linuxweb` group for SSH; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |
 | `files/controller_job_templates.yml` | 6 JTs — var is `controller_templates` |
 | `files/controller_workflow_job_templates.yml` | The core workflow — var is `controller_workflows` |
 
@@ -36,10 +36,12 @@ Provision VM ─► Powershell Improvement ─┬─► Website Setup ───�
 ```
 
 The four demo triggers (AAP UI, Self-Service Portal, ServiceNow, Azure DevOps)
-all launch this same workflow — see ROADMAP Phases 6/8/9/10. The Configure
-steps reuse the proven, cloud-agnostic playbooks from the pinned
-`aap.dailydemo.windows` project; only the Provision/Teardown playbooks are
-dc1.azure-native (built in Phase 4).
+all launch this same workflow — see ROADMAP Phases 6/8/9/10. The `os_type`
+survey parameter (windows / linux / both) controls which VMs are provisioned.
+Windows configure steps reuse roles from the pinned `aap.dailydemo.windows`
+project; Linux uses the Apache pattern from `aap.dailydemo.F5`. Only the
+Provision/Teardown playbooks are dc1.azure-native (built in Phase 4, extended
+in Phase 16).
 
 ## Run it
 

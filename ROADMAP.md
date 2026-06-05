@@ -43,8 +43,8 @@ environment while keeping the same "one workflow, four triggers" architecture.
   (Storage backend for Terraform state, Azure RM credential type, ADO
   Pipelines) replace their AWS/GitHub equivalents; the *shape* of the
   automation stays the same.
-- **Single VM, single story** — no platform sprawl. Layer 0 + a Windows
-  workload is the entire scope.
+- **Single VM, single story** — no platform sprawl. Layer 0 + a Linux or
+  Windows workload is the entire scope.
 - **AAP is the orchestrator** — even with ADO Pipelines in the picture, ADO
   handles code quality (lint/validate) only. All provisioning,
   configuration, and teardown runs from AAP. Matches the AWS DC1 split.
@@ -52,10 +52,10 @@ environment while keeping the same "one workflow, four triggers" architecture.
   survey-driven, API-launchable workflow. Each entry point (AAP UI, AAP
   Self-Service Portal, ServiceNow catalog, Azure DevOps) is a *thin adapter*
   in front of that one workflow — never a parallel re-implementation.
-- **Retain the proven Windows configure workflow** — the post-provision half
-  reuses the working roles from `aap.dailydemo.windows` (sourced via a pinned
-  git reference, not rewritten). dc1.azure adds the Azure *provision* half in
-  front of them.
+- **Retain the proven configure workflows** — Windows post-provision reuses
+  the working roles from `aap.dailydemo.windows`; Linux uses the Apache
+  pattern from `aap.dailydemo.F5` (both sourced via pinned git references,
+  not rewritten). dc1.azure adds the Azure *provision* half in front of them.
 - **CaC for every AAP object** — credentials, projects, inventories, job
   templates, workflows defined under `aap_config/` and applied via
   `infra.aap_configuration.dispatch`.

@@ -13,7 +13,7 @@ dependencies:
   "community.windows": ">=3.0.0"
 license_file: LICENSE
 name: dc1_azure
-description: DC1 Azure — self-service Windows VM provisioning on Microsoft Azure, orchestrated by AAP with source code in Azure DevOps. Azure counterpart to demo.datacenter.
+description: DC1 Azure — self-service IT infrastructure provisioning (Windows & Linux) on Microsoft Azure, orchestrated by AAP with source code in Azure DevOps. Azure counterpart to demo.datacenter.
 namespace: ericcames
 readme: README.md
 repository: https://dev.azure.com/ericcames/dc1.azure/_git/dc1.azure
@@ -23,6 +23,8 @@ tags:
   - cloud
   - azure
   - windows
+  - linux
+  - infrastructure
   - dailydemo
   - ansible
   - automation

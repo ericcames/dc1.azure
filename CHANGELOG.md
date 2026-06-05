@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **Documentation pivot — Windows VM → IT infrastructure provisioning**
+  (AB#141) — updated all repo documentation to reflect the multi-OS capability
+  merged in Phase 16. The repo is now framed as "AAP-orchestrated IT
+  infrastructure provisioning on Azure" (Windows Server 2025 and RHEL 9 Linux),
+  showing the evolution from Windows-first to multi-OS. Touched `README.md`
+  (title, story, end-to-end status), `galaxy.yml` (description + tags),
+  `ROADMAP.md` (guiding principles), `docs/INSTALL.md` (Linux SSH prerequisites),
+  `aap_config/README.md` (multi-OS workflow, Linux project), `docs/demo-runbook.md`
+  (multi-OS survey, Linux variant note), `docs/servicenow-integration.md` (goal
+  statement), and the install skill. Docs-only — no code changes.
+
 ### Fixed
 - **`load.yml` EDA activation re-apply failure** (AB#140) — every re-run of
   `load.yml` failed at the `eda_rulebook_activations` role with *"Activation

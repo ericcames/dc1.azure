@@ -29,7 +29,8 @@ You need access to:
 | Azure Service Principal | Azure RM credential + Terraform | RHDP Azure open environment (subscription, tenant, client id/secret) |
 | RHDP resource group | where the VM is created | the Azure open environment (e.g. `openenv-…`) |
 | Azure DevOps PAT | syncs the `DC1.Azure` project | `dev.azure.com/ericcames` → PAT scoped **Code (Read)** |
-| Windows admin password | VM local admin + WinRM | you choose one (Azure complexity: 12–72 chars, 3 of upper/lower/digit/symbol) |
+| Windows admin password | VM local admin + WinRM (Windows VMs) | you choose one (Azure complexity: 12–72 chars, 3 of upper/lower/digit/symbol) |
+| Linux SSH key pair | VM SSH auth (Linux VMs) | your existing SSH key pair — public key baked into the VM, private key goes into the AAP credential |
 | AAP admin (or service) login | the Controller credential | your AAP login — lets provision register the VM in the inventory |
 | Automation Hub offline token | installs the pinned collections locally + populates Galaxy credentials | `console.redhat.com/ansible/automation-hub/token` (also in `~/.ansible.cfg`) |
 

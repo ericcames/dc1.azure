@@ -35,7 +35,8 @@ adds the interactive checking and reporting around them.
 1. **Confirm prerequisites.** Verify `ansible-galaxy` is available and that the
    repo has `aap_config/`. Confirm the user has: an AAP instance, an Azure
    Service Principal + RHDP resource group, an ADO PAT, a chosen Windows admin
-   password, and AAP admin login. Point them at `docs/INSTALL.md` §1 if not.
+   password (for Windows VMs) and/or an SSH key pair (for Linux VMs), and AAP
+   admin login. Point them at `docs/INSTALL.md` §1 if not.
 
 2. **Hub-configured ansible.cfg.** Check that `~/.ansible.cfg` exists and is a
    real file (not a symlink — symlinks can cause Ansible not to load it). If it
