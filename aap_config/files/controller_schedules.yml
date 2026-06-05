@@ -1,20 +1,26 @@
 ---
 # Consumed by the infra.aap_configuration.controller_schedules role.
-# Nightly teardown so the demo VM never runs overnight (keeps Azure cost at $0
-# between demos). The teardown JT itself is idempotent — if no VM exists, the
-# terraform destroy is a no-op.
+# Two nightly teardown schedules so the demo VM never runs overnight (keeps
+# Azure cost at $0 between demos). The 6 PM run is the primary; the 10 PM run
+# is a safety net for late-night work sessions. The teardown JT is idempotent —
+# if no VM exists, terraform destroy is a no-op, so the second run costs nothing.
 #
-# Timezone: America/Phoenix observes NO daylight saving, so 18:00 there is a
-# fixed 01:00 UTC year-round — encode it with TZID so AAP renders/fires it as
-# local Phoenix 6 PM regardless of server timezone. DTSTART just anchors the
-# recurrence; FREQ=DAILY then fires every day at 18:00.
+# Timezone: America/Phoenix observes NO daylight saving, so times there are
+# fixed UTC offsets year-round. Encode with TZID so AAP renders/fires them as
+# local Phoenix time regardless of server timezone.
 #
 # The teardown JT bakes a non-secret placeholder admin password
-# (teardown_admin_password_placeholder), so this schedule needs no extra_data.
+# (teardown_admin_password_placeholder), so these schedules need no extra_data.
 
 controller_schedules:
   - name: "{{ teardown_schedule_name }}"
     unified_job_template: "{{ teardown_template }}"
     description: "Tear down the DC1.Azure VM every day at 6 PM America/Phoenix (no DST)."
     rrule: "DTSTART;TZID=America/Phoenix:20260527T180000 RRULE:FREQ=DAILY;INTERVAL=1"
+    enabled: true
+
+  - name: "{{ teardown_schedule_name_late }}"
+    unified_job_template: "{{ teardown_template }}"
+    description: "Safety-net teardown at 10 PM America/Phoenix — catches late work sessions."
+    rrule: "DTSTART;TZID=America/Phoenix:20260527T220000 RRULE:FREQ=DAILY;INTERVAL=1"
     enabled: true

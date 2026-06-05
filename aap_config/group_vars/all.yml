@@ -158,7 +158,8 @@ workflow_name: "DC1.Azure - Provision and Configure"
 # Teardown JT name (single source of truth — referenced by the JT definition
 # and the nightly teardown schedule) and the schedule object name.
 teardown_template: "DC1.Azure - Teardown"
-teardown_schedule_name: "DC1.Azure - Nightly Teardown"
+teardown_schedule_name: "DC1.Azure - Nightly Teardown (6 PM)"
+teardown_schedule_name_late: "DC1.Azure - Nightly Teardown (10 PM)"
 # Terraform requires admin_password (12-72 chars) even on `destroy`, but the
 # value is never used to destroy an existing VM. The teardown JT bakes this
 # NON-SECRET placeholder so scheduled (and manual) teardown runs need no
