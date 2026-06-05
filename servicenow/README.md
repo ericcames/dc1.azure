@@ -19,7 +19,7 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
 
 ## Inbound trigger — the pieces (in install order)
 
-1. **Catalog item** — *Request VM (Azure)*. **Short description must be exactly
+1. **Catalog item** — *Ames - Request Infrastructure (Azure)*. **Short description must be exactly
    `DC1.Azure Infrastructure Provisioning`** — the rulebook matches on this string,
    and the RITM inherits it.
    Use `playbooks/servicenow/update_catalog_item.yml` to update text fields via API.

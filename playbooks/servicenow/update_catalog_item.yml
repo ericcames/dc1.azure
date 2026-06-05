@@ -28,7 +28,7 @@
   gather_facts: false
 
   vars:
-    catalog_name: "Request VM (Azure)"
+    catalog_name: "Ames - Request Infrastructure (Azure)"
     catalog_short_description: "DC1.Azure Infrastructure Provisioning"
     catalog_description: >-
       Self-service IT infrastructure provisioning on Microsoft Azure.
