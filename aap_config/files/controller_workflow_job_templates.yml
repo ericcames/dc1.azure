@@ -10,7 +10,7 @@
 #
 #   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
 #                         │                           └─► Provision Access ─┴─► Patching ──always──┐
-#                         ├─► Configure Linux ──always─────────────────────────────────────────────┴─► Update RITM (success)
+#                         ├─► Configure Linux ──success────────────────────────────────────────────┴─► Update RITM (success)
 #                         └─► Create CMDB CI ─► Create CMDB Relationship
 #
 # Phase 8 ServiceNow callback:
@@ -139,7 +139,11 @@ controller_workflows:
 
         # --- Phase 17: Linux configure path ------------------------------------
         # Runs in parallel with the Windows chain. When os_type excludes linux
-        # the linuxweb group is empty and this node completes as a no-op.
+        # the linuxweb group is empty — the job fails ("no hosts to target")
+        # and the success edge to update-ritm-success does NOT fire, which is
+        # the desired behaviour (we only want to signal RITM success from the
+        # path that actually ran). Uses success_nodes (not always_nodes) so the
+        # empty-limit failure is silently absorbed by the workflow.
         - identifier: configure-linux
           unified_job_template:
             name: "DC1.Azure - Configure Linux"
@@ -148,7 +152,7 @@ controller_workflows:
               name: "{{ my_organization }}"
           limit: linuxweb
           related:
-            always_nodes:
+            success_nodes:
               - identifier: update-ritm-success
 
         # --- Phase 8 ServiceNow callback nodes (success path) ---------------
@@ -171,16 +175,17 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
 
-        # Update RITM (success) converges the Windows path (patching) and the
-        # Linux path (configure-linux). Both must complete before the RITM is
-        # marked fulfilled. When one OS is absent its chain is a fast no-op.
+        # Update RITM (success) fires when the FIRST completing OS path
+        # signals it: patching (always — Windows) or configure-linux (success
+        # — Linux). For single-OS runs only one edge fires; for os_type=both
+        # the faster path triggers the RITM update (the other still completes
+        # but the RITM is already marked fulfilled).
         - identifier: update-ritm-success
           unified_job_template:
             name: "DC1.Azure - Update RITM (success)"
             type: job_template
             organization:
               name: "{{ my_organization }}"
-          all_parents_must_converge: true
 
         # --- Phase 8 ServiceNow callback nodes (failure path) ---------------
         - identifier: create-incident
