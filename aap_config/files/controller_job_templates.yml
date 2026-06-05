@@ -48,6 +48,7 @@ controller_templates:
     project: "{{ windows_project_name }}"
     playbook: playbooks/05_powershell_improve.yml
     execution_environment: "{{ my_execution_environment }}"
+    ask_limit_on_launch: true
     credentials:
       - "{{ cred_windows }}"
 
@@ -58,6 +59,7 @@ controller_templates:
     project: "{{ project_name }}"
     playbook: playbooks/website_setup.yml
     execution_environment: "{{ my_execution_environment }}"
+    ask_limit_on_launch: true
     credentials:
       - "{{ cred_windows }}"
     extra_vars:
@@ -70,6 +72,7 @@ controller_templates:
     project: "{{ windows_project_name }}"
     playbook: playbooks/06_windows_account_create.yml
     execution_environment: "{{ my_execution_environment }}"
+    ask_limit_on_launch: true
     credentials:
       - "{{ cred_windows }}"
       - "{{ cred_vault }}"
@@ -82,6 +85,7 @@ controller_templates:
     project: "{{ windows_project_name }}"
     playbook: playbooks/07_windows_patching.yml
     execution_environment: "{{ my_execution_environment }}"
+    ask_limit_on_launch: true
     credentials:
       - "{{ cred_windows }}"
 
@@ -96,6 +100,7 @@ controller_templates:
     project: "{{ project_name }}"
     playbook: playbooks/configure_linux.yml
     execution_environment: "{{ my_execution_environment }}"
+    ask_limit_on_launch: true
     credentials:
       - "{{ cred_linux }}"
     extra_vars:
