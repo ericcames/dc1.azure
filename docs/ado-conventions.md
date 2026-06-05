@@ -141,10 +141,17 @@ Lives under: *Pipelines → Library*
 
 `dc1-azure-aap` holds the AAP API connection the **launch** pipeline (Phase 10)
 uses to fire the provisioning workflow. `AAP_HOSTNAME` is the gateway base URL
-(e.g. `https://<gateway>.rhdp.net`); `AAP_TOKEN` is a **UI-minted** AAP API
-token marked **secret** (this AAP authenticates via SSO and cannot basic-auth-mint
-a token — a manually-minted token still works for direct API calls). Rotate by
-editing the Library variable; it is never pasted in YAML and is masked in logs.
+(e.g. `https://<gateway>.rhdp.net`); `AAP_TOKEN` is an AAP API token marked
+**secret**.
+
+> **Phase 12 automation (2026-06-05):** The `dc1-azure-aap` Variable Group can
+> be automatically created, updated, and authorized by running the
+> `DC1.Azure - Configure ADO Trigger` job template. It mints a fresh AAP token
+> and writes it to the Variable Group — zero ADO-UI clicks on a fresh env. The
+> manual procedure below remains the supported no-AAP fallback.
+
+To create or update manually: Pipelines → Library → Variable Group →
+`dc1-azure-aap`. Set `AAP_HOSTNAME` (non-secret) and `AAP_TOKEN` (mark secret).
 No new Service Connection is needed — token auth goes straight to the AAP API.
 
 Shared values that multiple pipeline stages need go in the Variable Group

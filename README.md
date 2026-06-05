@@ -53,8 +53,12 @@ dc1.azure/
 ├── terraform/            ← Azure infra (Phase 2)
 ├── aap_config/           ← AAP Config-as-Code — the canonical install path (Phase 3)
 ├── playbooks/            ← provision + configure + teardown playbooks (Phase 4)
+│   ├── servicenow/       ← ServiceNow callback playbooks (Phase 8)
+│   └── ado/              ← ADO trigger automation (Phase 12)
+├── servicenow/           ← ServiceNow-side artifacts (Business Rule, REST Message docs)
+├── rulebooks/            ← EDA rulebook for ServiceNow events (Phase 8)
 ├── ansible.cfg.example   ← Hub galaxy_server template → ~/.ansible.cfg (Phase 7)
-├── .claude/skills/       ← repo-based Claude skills (install-dc1-azure)
+├── .claude/skills/       ← repo-based Claude skills (install-dc1-azure, servicenow)
 ├── docs/
 │   ├── INSTALL.md        ← manual install guide (Phase 7)
 │   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — AAP-driven flow)

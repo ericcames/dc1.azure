@@ -17,7 +17,7 @@ collection (pinned **4.4.0**). This is the canonical install path.
 | `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
 | `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) + `aap.dailydemo.F5` (Linux configure roles) |
 | `files/controller_inventories.yml` | `dc1-azure` inventory (`windemo` group for WinRM, `linuxweb` group for SSH; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |
-| `files/controller_job_templates.yml` | 6 JTs — var is `controller_templates` |
+| `files/controller_job_templates.yml` | 15 JTs (provision, 4 Windows configure, facts, launcher, teardown, 5 ServiceNow callbacks, start notice, ADO trigger config) — var is `controller_templates` |
 | `files/controller_workflow_job_templates.yml` | The core workflow — var is `controller_workflows` |
 
 > **File-naming convention:** each `files/controller_*.yml` is named after the
@@ -42,6 +42,14 @@ Windows configure steps reuse roles from the pinned `aap.dailydemo.windows`
 project; Linux uses the Apache pattern from `aap.dailydemo.F5`. Only the
 Provision/Teardown playbooks are dc1.azure-native (built in Phase 4, extended
 in Phase 16).
+
+## Phase 12 — ADO Trigger Automation
+
+`DC1.Azure - Configure ADO Trigger` is a post-install JT that automates the
+ADO variable group and pipeline authorization so zero ADO-UI clicks are needed
+on a fresh environment. It mints an AAP API token, creates/updates the
+`dc1-azure-aap` Variable Group, and authorizes the launch pipeline — all via
+the ADO REST API. Run it during env bring-up after `load.yml`.
 
 ## Run it
 

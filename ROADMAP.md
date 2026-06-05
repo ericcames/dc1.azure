@@ -478,7 +478,7 @@ re-stamps every run, so you can narrate drift) and **printed to the job log**
 the VM prints the curated summary to the job log AND the host's Facts tab in the
 AAP UI shows the timestamped, persisted fact set.
 
-### Phase 12 — Automate the ADO Trigger Setup (AAP-driven)  ⬜
+### Phase 12 — Automate the ADO Trigger Setup (AAP-driven)  ✅
 
 *Post-demo addition (2026-06-03). Phase 10 proved the ADO launch trigger, but its
 wiring was hand-built in the ADO UI: the `dc1-azure-aap` Variable Group
@@ -607,7 +607,7 @@ four-trigger demo using only the repo-based skills, and an SE can confirm
 demo-readiness (and tear down afterward) without hand-checking the AAP / SNow / ADO
 UIs.
 
-### Phase 16 — Linux VM Provisioning (Terraform + Multi-OS Survey)  ⬜
+### Phase 16 — Linux VM Provisioning (Terraform + Multi-OS Survey)  ✅
 
 *Extends the Terraform layer to provision RHEL 9 Linux VMs alongside — or instead
 of — the existing Windows Server 2025 VMs. The workflow survey gains an `os_type`
