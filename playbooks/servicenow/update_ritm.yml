@@ -35,20 +35,24 @@
     servicenow_ritm_failure_state: "4"
     os_label: >-
       {{ {'windows': 'Windows Server', 'linux': 'Linux (RHEL 9)', 'both': 'Windows Server + Linux (RHEL 9)'}[os_type | default('windows')] | default('Windows Server') }}
-    linux_section: >-
-      {{ '\n\nLinux VM:\n  FQDN:      ' ~ linux_fqdn ~ '\n  Public IP: ' ~ (linux_public_ip | default('n/a'))
-         if (os_type | default('windows')) in ['linux', 'both'] and linux_fqdn is defined
-         else '' }}
-    windows_section: >-
-      {{ 'Windows VM:\n  FQDN:      ' ~ vm_fqdn ~ '\n  Public IP: ' ~ (vm_public_ip | default('n/a'))
-         if (os_type | default('windows')) in ['windows', 'both'] and vm_fqdn is defined
-         else '' }}
-    ritm_success_comment: |-
+    _has_windows: "{{ (os_type | default('windows')) in ['windows', 'both'] and vm_fqdn is defined }}"
+    _has_linux: "{{ (os_type | default('windows')) in ['linux', 'both'] and linux_fqdn is defined }}"
+    ritm_success_comment: |
       Your {{ os_label }} on Azure is ready.
+      {% if _has_windows | bool %}
 
-      {{ windows_section }}{{ linux_section }}
+      Windows VM:
+        FQDN:      {{ vm_fqdn }}
+        Public IP: {{ vm_public_ip | default('n/a') }}
+        Admin user: {{ vm_admin_username | default('demoadmin') }}
+      {% endif %}
+      {% if _has_linux | bool %}
 
-      Admin user: {{ vm_admin_username | default('demoadmin') }}
+      Linux VM:
+        FQDN:      {{ linux_fqdn }}
+        Public IP: {{ linux_public_ip | default('n/a') }}
+        Admin user: {{ linux_admin_username | default('azureuser') }}
+      {% endif %}
 
       (The admin password is held securely in Ansible Automation Platform — it is
       intentionally NOT recorded on this ticket.)

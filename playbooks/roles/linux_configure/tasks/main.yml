@@ -1,4 +1,29 @@
 ---
+# ============================================================================
+# linux_configure — Phase 17 combined role
+# Web server (Apache) + post-install hardening (from aap.dailydemo.F5
+# linux_post_install, minus nightly-shutdown and /etc/hosts template).
+# ============================================================================
+
+# --- NTP -------------------------------------------------------------------
+- name: Install Chrony
+  ansible.builtin.dnf:
+    name: chrony
+    state: present
+
+- name: Enable Chrony
+  ansible.builtin.systemd_service:
+    name: chronyd
+    state: started
+    enabled: true
+
+# --- Remove Cockpit --------------------------------------------------------
+- name: Remove Cockpit
+  ansible.builtin.dnf:
+    name: cockpit
+    state: absent
+
+# --- Web server ------------------------------------------------------------
 - name: Install Apache and firewalld
   ansible.builtin.dnf:
     name:
@@ -50,21 +75,13 @@
     group: apache
     mode: "0644"
 
-- name: Deploy MOTD
-  ansible.builtin.copy:
-    content: |
-      ============================================
-       DC1.Azure — RHEL 9 Web Server
-       Managed by Ansible Automation Platform
-      ============================================
-    dest: /etc/motd
-    mode: "0644"
-
+# --- Security banners (from aap.dailydemo.F5 linux_post_install) -----------
 - name: Deploy SSH banner
   ansible.builtin.copy:
-    content: |
-      *** DC1.Azure — Managed by Ansible Automation Platform ***
+    src: sshd-banner
     dest: /etc/ssh/sshd-banner
+    owner: root
+    group: root
     mode: "0644"
 
 - name: Configure sshd to use banner
@@ -74,12 +91,81 @@
     line: Banner /etc/ssh/sshd-banner
   notify: Restart sshd
 
+- name: Deploy MOTD
+  ansible.builtin.copy:
+    src: motd
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy pre-login banner
+  ansible.builtin.copy:
+    src: issue
+    dest: /etc/issue
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure /etc/motd.d directory exists
+  ansible.builtin.file:
+    path: /etc/motd.d
+    state: directory
+    mode: "0755"
+
+- name: Ensure /etc/cockpit directory exists
+  ansible.builtin.file:
+    path: /etc/cockpit
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Cockpit banner
+  ansible.builtin.copy:
+    src: issue.cockpit
+    dest: /etc/issue.cockpit
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy Cockpit config
+  ansible.builtin.copy:
+    src: cockpit.conf
+    dest: /etc/cockpit/cockpit.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+# --- Patching --------------------------------------------------------------
 - name: Apply security and bugfix updates  # noqa: package-latest
   ansible.builtin.dnf:
     name: "*"
     state: latest
     security: true
     bugfix: true
+    update_only: true
+    skip_broken: true
+    exclude:
+      - sudo.x86_64
+
+# --- Insights ---------------------------------------------------------------
+- name: Run insights-client
+  register: linux_configure_insights_result
+  changed_when: linux_configure_insights_result.rc == 1
+  failed_when: linux_configure_insights_result.rc > 1
+  ansible.builtin.command:
+    cmd: insights-client
+
+# --- Reboot if needed -------------------------------------------------------
+- name: Check if reboot is required
+  register: linux_configure_reboot_required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+
+- name: Reboot if required
+  when: linux_configure_reboot_required.stat.exists
+  ansible.builtin.reboot:
 
 - name: Show website address
   ansible.builtin.debug:
