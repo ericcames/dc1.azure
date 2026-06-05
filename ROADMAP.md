@@ -642,7 +642,7 @@ Windows VM (WinRM) + a reachable Linux VM (SSH) in the same VNet; `os_type=linux
 produces only the Linux VM; `os_type=windows` produces only the Windows VM (backward
 compatible). Both register into the AAP inventory under their respective groups.
 
-### Phase 17 — Linux Post-Provision Configuration (Web Server)  🔄
+### Phase 17 — Linux Post-Provision Configuration (Web Server)  ✅
 
 *Configures the provisioned RHEL 9 VM as an Apache web server — mirroring the
 `aap.dailydemo.F5` pattern (RHSM → post-install → website setup) with Red Hat CDN

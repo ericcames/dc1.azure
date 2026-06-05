@@ -17,7 +17,7 @@ collection (pinned **4.4.0**). This is the canonical install path.
 | `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
 | `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) + `aap.dailydemo.F5` (Linux configure roles) |
 | `files/controller_inventories.yml` | `dc1-azure` inventory (`windemo` group for WinRM, `linuxweb` group for SSH; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |
-| `files/controller_job_templates.yml` | 15 JTs (provision, 4 Windows configure, facts, launcher, teardown, 5 ServiceNow callbacks, start notice, ADO trigger config) — var is `controller_templates` |
+| `files/controller_job_templates.yml` | 16 JTs (provision, 4 Windows configure, 1 Linux configure, facts, launcher, teardown, 5 ServiceNow callbacks, start notice, ADO trigger config) — var is `controller_templates` |
 | `files/controller_workflow_job_templates.yml` | The core workflow — var is `controller_workflows` |
 
 > **File-naming convention:** each `files/controller_*.yml` is named after the
@@ -31,9 +31,15 @@ collection (pinned **4.4.0**). This is the canonical install path.
 workflow, `DC1.Azure - Provision and Configure`:
 
 ```
-Provision VM ─► Powershell Improvement ─┬─► Website Setup ───┐
-                                        └─► Provision Access ┴─► Patching
+Provision VM ─┬─► Powershell Improvement ─┬─► Website Setup ───┐
+              │                           └─► Provision Access ┴─► Patching ──always──► Update RITM (success)
+              ├─► Configure Linux ──success──────────────────────────────────────────►
+              └─► Create CMDB CI ─► Create CMDB Relationship
 ```
+
+The `os_type` survey routes which branch does real work: Windows (`windemo` limit),
+Linux (`linuxweb` limit), or both in parallel. The unused OS chain runs against an
+empty group and is silently absorbed by the workflow.
 
 The four demo triggers (AAP UI, Self-Service Portal, ServiceNow, Azure DevOps)
 all launch this same workflow — see ROADMAP Phases 6/8/9/10. The `os_type`

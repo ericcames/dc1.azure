@@ -140,17 +140,28 @@ all B-series burstable), with `medium-2cpu-8gb` as the default:
 ![AAP vm_size_tier survey question — small/medium/large tiers, medium default](images/demo-02-survey.png)
 
 ### 3.4 Watch the workflow graph
-The workflow visualizer shows the run unfold left-to-right. Narrate these five
-**configure** nodes as they go green — on an AAP-UI launch the other (ServiceNow
-callback) nodes in the 11-node graph also run but no-op without a ticket (see §7):
+The workflow visualizer shows the run unfold left-to-right. The `os_type` survey
+controls which configure branch does real work — Windows (`windemo`), Linux
+(`linuxweb`), or both in parallel. The unused OS chain targets an empty group and
+is silently absorbed. On an AAP-UI launch the ServiceNow callback nodes also run
+but no-op without a ticket (see §7).
+
+**Windows path** (`os_type=windows`):
 
 | # | Node | What to say |
 |---|------|-------------|
-| 1 | **Provision VM** | "Terraform is building the Azure footprint — virtual network, security group, public IP with a DNS name, and the Windows Server 2025 VM at the size I picked. When it finishes, the platform registers the new host into its own inventory so the next steps can reach it." *(This is the long one — ~7 min. Good moment for Q&A or to talk architecture.)* |
+| 1 | **Provision VM** | "Terraform is building the Azure footprint — virtual network, security group, public IP with a DNS name, and the Windows Server 2025 VM at the size I picked. When it finishes, the platform registers the new host into its own inventory so the next steps can reach it." *(This is the long one — ~1 min. Good moment for Q&A or to talk architecture.)* |
 | 2 | **Powershell Improvement** | "Now we're configuring the OS — installing PowerShell 7, a modern shell for whatever the app team runs next." |
 | 3 | **Website Setup** | "Installing IIS and deploying a demo web app — so we end on something the customer can actually see in a browser." |
 | 4 | **Provision Access** | "Creating the demo user account — access provisioning is part of the same automated flow, not a separate ticket." |
 | 5 | **Patching** | "Applying Windows Updates. The VM is born already patched — no drift, no manual hardening step." |
+
+**Linux path** (`os_type=linux`):
+
+| # | Node | What to say |
+|---|------|-------------|
+| 1 | **Provision VM** | Same as above, but "…and the RHEL 9 Linux VM…" |
+| 2 | **Configure Linux** | "Apache, firewall rules, security patches, a branded landing page — all in one step. Same pattern as the Windows chain, just a different OS and web server." *(~10 min; the dnf security updates are the slow part.)* |
 
 The **Jobs list** after a clean run — the *DC1.Azure - Provision and Configure*
 workflow job and every child playbook (Provision VM, Powershell Improvement,
@@ -562,7 +573,8 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 | Thing | Value |
 |-------|-------|
 | Workflow | `DC1.Azure - Provision and Configure` |
-| Nodes (in order) | Provision VM → Powershell Improvement → Website Setup → Provision Access → Patching |
+| Nodes (Windows path) | Provision VM → Powershell Improvement → Website Setup / Provision Access → Patching → Update RITM (success) |
+| Nodes (Linux path) | Provision VM → Configure Linux → Update RITM (success) |
 | ServiceNow nodes (Demo v2) | CMDB (parallel, early): Provision VM→Create CMDB CI→Create CMDB Relationship; success: Patching `always`→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
 | ServiceNow match string | catalog item Short description = `DC1.Azure Infrastructure Provisioning` |
 | Survey variables | `os_type` ∈ {`windows`, `linux`, `both`} (default `windows`); `vm_size_tier` ∈ {`small-2cpu-4gb`, `medium-2cpu-8gb`, `large-4cpu-16gb`} (default `medium`) |
@@ -574,7 +586,7 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 | Default region | `eastus` |
 | Admin user | `demoadmin` |
 | Nightly teardown | 18:00 America/Phoenix = 01:00 UTC, daily |
-| Sizing tiers | small=`Standard_D2s_v5`, medium=`Standard_D4s_v5`, large=`Standard_D8s_v5` |
+| Sizing tiers | small=`Standard_B2s`, medium=`Standard_B2ms`, large=`Standard_B4ms` (B-series burstable) |
 
 See also: [`INSTALL.md`](INSTALL.md) (how to install the CaC),
 [`ROADMAP.md`](../ROADMAP.md) (phases + decisions), [`README.md`](../README.md).

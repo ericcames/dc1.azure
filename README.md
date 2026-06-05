@@ -53,6 +53,8 @@ dc1.azure/
 ├── terraform/            ← Azure infra (Phase 2)
 ├── aap_config/           ← AAP Config-as-Code — the canonical install path (Phase 3)
 ├── playbooks/            ← provision + configure + teardown playbooks (Phase 4)
+│   ├── configure_linux.yml ← Linux post-provision: Apache, firewalld, MOTD (Phase 17)
+│   ├── roles/linux_configure/ ← combined Linux configure role
 │   ├── servicenow/       ← ServiceNow callback playbooks (Phase 8)
 │   └── ado/              ← ADO trigger automation (Phase 12)
 ├── servicenow/           ← ServiceNow-side artifacts (Business Rule, REST Message docs)
