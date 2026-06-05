@@ -19,10 +19,15 @@ deployment-/secret-specific. The token lives only in `docs/dev-environment.sh` a
 
 ## Inbound trigger — the pieces (in install order)
 
-1. **Catalog item** — *Request Windows VM (Azure)*. **Short description must be exactly
-   `DC1.Azure Windows VM on Azure`** — the rulebook matches on this string, and the RITM
-   inherits it.
-2. **Variable `vm_size_tier`** — Multiple Choice; choices `small-2cpu-8gb` /
+1. **Catalog item** — *Request VM (Azure)*. **Short description must be exactly
+   `DC1.Azure Infrastructure Provisioning`** — the rulebook matches on this string,
+   and the RITM inherits it.
+   Use `playbooks/servicenow/update_catalog_item.yml` to update text fields via API.
+   Upload the icon (`docs/images/catalog-it-infrastructure.png`) manually in the
+   ServiceNow UI (drag-drop on the catalog item form).
+2. **Variable `os_type`** — Multiple Choice; choices `windows` / `linux` / `both`;
+   default `windows`. Controls which VMs are provisioned.
+3. **Variable `vm_size_tier`** — Multiple Choice; choices `small-2cpu-8gb` /
    `medium-4cpu-16gb` / `large-8cpu-32gb`; default `medium-4cpu-16gb`. (Optional monthly
    `Recurring price` per the ROADMAP Sizing Tiers.)
 3. **Encrypted token property** *(required — AB#92)* — the EDA bearer token is held

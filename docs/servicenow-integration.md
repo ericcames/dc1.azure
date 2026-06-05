@@ -53,7 +53,7 @@ Self-Service Portal (Phase 9), and ADO (Phase 10) triggers all drive.
  ServiceNow                          AAP / EDA                          AAP Controller + Azure
  ──────────                          ─────────                          ──────────────────────
  1. User submits catalog item
-    "Request Windows VM (Azure)"
+    "Request VM (Azure)"
     (size, justification)
         │
         │ 2. Business Rule (on sc_req_item
@@ -151,7 +151,7 @@ They serve three purposes:
 
 ## Inbound: ServiceNow → EDA (trigger)
 
-### Catalog item — "Request Windows VM (Azure)"
+### Catalog item — "Request VM (Azure)"
 Variables:
 - `vm_size_tier` — dropdown, choices `small-2cpu-8gb` / `medium-4cpu-16gb` /
   `large-8cpu-32gb` (mirror the AAP survey exactly; default `medium-4cpu-16gb`).
@@ -160,7 +160,7 @@ Variables:
 
 The catalog item's **`short_description`** must be a unique, stable string —
 this is what the rulebook matches on. Pin it as the var
-`my_azure_catalog_short_description` (e.g. `"DC1.Azure Windows VM on Azure"`)
+`my_azure_catalog_short_description` (e.g. `"DC1.Azure Infrastructure Provisioning"`)
 used in *both* the rulebook condition and the activation `extra_vars`.
 
 ### Business Rule + Outbound REST Message
@@ -278,8 +278,8 @@ never commit the live values. The token lives only in `docs/dev-environment.sh` 
 
 ### 1. Catalog item
 *Service Catalog → Catalog Definitions → Maintain Items → New*
-- **Name:** any friendly label (e.g. `Request Windows VM (Azure)`)
-- **Short description:** `DC1.Azure Windows VM on Azure` — **the exact match string**
+- **Name:** any friendly label (e.g. `Request VM (Azure)`)
+- **Short description:** `DC1.Azure Infrastructure Provisioning` — **the exact match string**
   the rulebook keys on (`my_azure_catalog_short_description`). The RITM inherits
   this field, so it must match byte-for-byte (no trailing space).
 - Catalog: Service Catalog · Category: your choice · Active: ✓

@@ -1,0 +1,92 @@
+---
+# ============================================================================
+# playbooks/servicenow/update_catalog_item.yml — AB#142
+# ============================================================================
+# One-time operational playbook to update the ServiceNow catalog item's text
+# fields (name, short_description, description) via the Table API. Run locally
+# with SN_* env vars — NOT a JT (no AAP credential needed, just ServiceNow).
+#
+# The short_description MUST match the EDA rulebook match string
+# (my_azure_catalog_short_description in group_vars/all.yml) byte-for-byte,
+# or ServiceNow orders silently fail to trigger the workflow.
+#
+# The catalog item picture (icon) is NOT set here — ServiceNow stores pictures
+# as attachments, which requires the Attachment API (multipart upload). Upload
+# the PNG manually in the ServiceNow UI (drag-drop on the catalog item form).
+#
+# Run:
+#   source docs/dev-environment.sh && \
+#   ansible-playbook playbooks/servicenow/update_catalog_item.yml \
+#     -e catalog_short_description="DC1.Azure Infrastructure Provisioning"
+#
+# Prerequisites: SN_HOST, SN_USERNAME, SN_PASSWORD exported.
+# ============================================================================
+
+- name: Update the DC1.Azure ServiceNow catalog item
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    catalog_name: "Request VM (Azure)"
+    catalog_short_description: "DC1.Azure Infrastructure Provisioning"
+    catalog_description: >-
+      Self-service IT infrastructure provisioning on Microsoft Azure.
+      Choose an OS type (Windows Server 2025 or RHEL 9 Linux) and a
+      t-shirt size, then submit. AAP provisions a fully configured VM
+      in ~10 minutes. The VM is automatically torn down nightly.
+    # Lookup filter — find the catalog item by the OLD short_description
+    # (the one currently on the SNow instance). If you've already updated
+    # once, change this to match the current value.
+    catalog_lookup_filter: "short_descriptionLIKEDC1.Azure"
+
+  tasks:
+    - name: Assert ServiceNow credentials are set
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'SN_HOST') | length > 0
+          - lookup('ansible.builtin.env', 'SN_USERNAME') | length > 0
+          - lookup('ansible.builtin.env', 'SN_PASSWORD') | length > 0
+        fail_msg: "Export SN_HOST, SN_USERNAME, SN_PASSWORD before running."
+
+    - name: Find the DC1.Azure catalog item
+      servicenow.itsm.api_info:
+        resource: sc_cat_item
+        sysparm_query: "{{ catalog_lookup_filter }}"
+      register: cat_items
+
+    - name: Assert exactly one catalog item found
+      ansible.builtin.assert:
+        that:
+          - cat_items.record | length == 1
+        fail_msg: >-
+          Expected 1 catalog item matching '{{ catalog_lookup_filter }}',
+          found {{ cat_items.record | length }}.
+          {{ 'Items: ' ~ (cat_items.record | map(attribute='short_description') | list) if cat_items.record | length > 0 else '' }}
+
+    - name: Show current catalog item
+      ansible.builtin.debug:
+        msg: >-
+          Found: "{{ cat_items.record[0].name }}"
+          (short_description: "{{ cat_items.record[0].short_description }}")
+          sys_id: {{ cat_items.record[0].sys_id }}
+
+    - name: Update catalog item text fields
+      servicenow.itsm.api:
+        resource: sc_cat_item
+        action: patch
+        sys_id: "{{ cat_items.record[0].sys_id }}"
+        data:
+          name: "{{ catalog_name }}"
+          short_description: "{{ catalog_short_description }}"
+          description: "{{ catalog_description }}"
+      register: update_result
+
+    - name: Confirm update
+      ansible.builtin.debug:
+        msg: >-
+          Catalog item updated:
+          name="{{ catalog_name }}"
+          short_description="{{ catalog_short_description }}"
+          — NOW upload the icon PNG in the ServiceNow UI (drag-drop on the
+          catalog item form). File: docs/images/catalog-it-infrastructure.png

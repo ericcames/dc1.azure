@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Globe -->
+  <circle cx="105" cy="108" r="72" fill="#4A4A4A"/>
+  <circle cx="105" cy="108" r="68" fill="#2D2D2D"/>
+  <!-- Globe latitude lines -->
+  <ellipse cx="105" cy="108" rx="68" ry="26" fill="none" stroke="#EE0000" stroke-width="1.5" opacity="0.35"/>
+  <ellipse cx="105" cy="108" rx="68" ry="52" fill="none" stroke="#EE0000" stroke-width="1.5" opacity="0.25"/>
+  <!-- Globe longitude line -->
+  <ellipse cx="105" cy="108" rx="26" ry="68" fill="none" stroke="#EE0000" stroke-width="1.5" opacity="0.35"/>
+  <!-- Globe equator highlight -->
+  <ellipse cx="105" cy="108" rx="68" ry="68" fill="none" stroke="#EE0000" stroke-width="2" opacity="0.6"/>
+  <!-- Globe highlight -->
+  <circle cx="82" cy="82" r="20" fill="white" opacity="0.06"/>
+
+  <!-- Server rack -->
+  <rect x="158" y="125" width="74" height="105" rx="8" fill="#EE0000"/>
+  <rect x="158" y="125" width="74" height="105" rx="8" fill="none" stroke="#CC0000" stroke-width="2"/>
+  <!-- Server slots -->
+  <rect x="168" y="137" width="54" height="16" rx="3" fill="#CC0000"/>
+  <rect x="168" y="161" width="54" height="16" rx="3" fill="#CC0000"/>
+  <rect x="168" y="185" width="54" height="16" rx="3" fill="#CC0000"/>
+  <!-- Server LEDs -->
+  <circle cx="177" cy="145" r="3.5" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="187" cy="145" r="3.5" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="177" cy="169" r="3.5" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="187" cy="169" r="3.5" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="177" cy="193" r="3.5" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="187" cy="193" r="3.5" fill="#FFFFFF" opacity="0.6"/>
+  <!-- Server vents -->
+  <line x1="200" y1="140" x2="218" y2="140" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="143" x2="218" y2="143" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="146" x2="218" y2="146" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="164" x2="218" y2="164" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="167" x2="218" y2="167" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="170" x2="218" y2="170" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="188" x2="218" y2="188" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="191" x2="218" y2="191" stroke="#A80000" stroke-width="1.5"/>
+  <line x1="200" y1="194" x2="218" y2="194" stroke="#A80000" stroke-width="1.5"/>
+  <!-- Server base port -->
+  <rect x="182" y="210" width="26" height="10" rx="2" fill="#4A4A4A"/>
+
+  <!-- Gears (automation) -->
+  <g transform="translate(210, 40)">
+    <circle cx="0" cy="0" r="18" fill="#4A4A4A"/>
+    <circle cx="0" cy="0" r="7" fill="#2D2D2D"/>
+    <rect x="-4" y="-22" width="8" height="8" rx="1.5" fill="#4A4A4A"/>
+    <rect x="-4" y="14" width="8" height="8" rx="1.5" fill="#4A4A4A"/>
+    <rect x="-22" y="-4" width="8" height="8" rx="1.5" fill="#4A4A4A"/>
+    <rect x="14" y="-4" width="8" height="8" rx="1.5" fill="#4A4A4A"/>
+    <!-- Diagonal teeth -->
+    <rect x="9" y="-19" width="7" height="7" rx="1.5" fill="#4A4A4A" transform="rotate(45, 12.5, -15.5)"/>
+    <rect x="-16" y="12" width="7" height="7" rx="1.5" fill="#4A4A4A" transform="rotate(45, -12.5, 15.5)"/>
+    <rect x="9" y="12" width="7" height="7" rx="1.5" fill="#4A4A4A" transform="rotate(45, 12.5, 15.5)"/>
+    <rect x="-16" y="-19" width="7" height="7" rx="1.5" fill="#4A4A4A" transform="rotate(45, -12.5, -15.5)"/>
+  </g>
+  <g transform="translate(240, 78)">
+    <circle cx="0" cy="0" r="13" fill="#EE0000" opacity="0.7"/>
+    <circle cx="0" cy="0" r="5" fill="#CC0000"/>
+    <rect x="-3" y="-16" width="6" height="6" rx="1" fill="#EE0000" opacity="0.7"/>
+    <rect x="-3" y="10" width="6" height="6" rx="1" fill="#EE0000" opacity="0.7"/>
+    <rect x="-16" y="-3" width="6" height="6" rx="1" fill="#EE0000" opacity="0.7"/>
+    <rect x="10" y="-3" width="6" height="6" rx="1" fill="#EE0000" opacity="0.7"/>
+  </g>
+
+  <!-- Connection orbit line -->
+  <ellipse cx="128" cy="128" rx="112" ry="42" fill="none" stroke="#EE0000" stroke-width="2" opacity="0.3" transform="rotate(-25, 128, 128)"/>
+
+  <!-- Connection nodes on orbit -->
+  <circle cx="25" cy="155" r="5" fill="#EE0000" opacity="0.8"/>
+  <circle cx="190" cy="58" r="5" fill="#FFFFFF" opacity="0.7"/>
+  <circle cx="238" cy="148" r="5" fill="#EE0000" opacity="0.6"/>
+
+  <!-- Wifi/signal arcs (connectivity) -->
+  <path d="M 40 60 Q 52 48 64 60" fill="none" stroke="#EE0000" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 34 50 Q 52 32 70 50" fill="none" stroke="#EE0000" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M 28 40 Q 52 16 76 40" fill="none" stroke="#EE0000" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+</svg>

@@ -5,7 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **`/servicenow` Claude skill** (AB#142) — new repo-based skill
+  (`.claude/skills/servicenow/SKILL.md`) for working with the dc1.azure
+  ServiceNow integration. Covers architecture, credentials, key files,
+  common tasks (catalog updates, trigger debugging, token rotation), module
+  patterns, and CMDB CI classes. Living reference — updated with new
+  patterns as they're discovered.
+- **`playbooks/servicenow/update_catalog_item.yml`** (AB#142) — operational
+  playbook to update the ServiceNow catalog item text fields (name,
+  short_description, description) via `servicenow.itsm.api`. Picture upload
+  is manual (SNow Attachment API requires multipart).
+- **Catalog icon** (AB#142) — Red Hat-themed IT infrastructure SVG/PNG icon
+  for the ServiceNow catalog item (`docs/images/catalog-it-infrastructure.*`).
+
+### Fixed
+- **CMDB CI class now OS-conditional** (AB#142) —
+  `playbooks/servicenow/create_ci.yml` was hardcoded to `cmdb_ci_win_server`.
+  Now uses `cmdb_ci_linux_server` when `os_type == 'linux'`, so Linux VMs
+  get the correct CMDB class. Customer-visible fix.
+
 ### Changed
+- **ServiceNow catalog pivot — Windows VM → IT infrastructure** (AB#142) —
+  renamed the catalog match string from `DC1.Azure Windows VM on Azure` to
+  `DC1.Azure Infrastructure Provisioning` (`my_azure_catalog_short_description`
+  in `group_vars/all.yml`). Updated `servicenow/README.md` and
+  `docs/servicenow-integration.md` to reflect the new catalog item name,
+  os_type variable, and icon. The EDA rulebook and activation template off
+  the variable, so no rulebook code changes needed.
 - **Documentation pivot — Windows VM → IT infrastructure provisioning**
   (AB#141) — updated all repo documentation to reflect the multi-OS capability
   merged in Phase 16. The repo is now framed as "AAP-orchestrated IT

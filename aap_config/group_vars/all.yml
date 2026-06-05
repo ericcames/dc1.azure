@@ -195,7 +195,7 @@ eda_decision_environment: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_EDA_DE') 
 
 # The catalog item's short_description — the rulebook matches on this exact
 # string. Must equal the ServiceNow catalog item's Short description verbatim.
-my_azure_catalog_short_description: "DC1.Azure Windows VM on Azure"
+my_azure_catalog_short_description: "DC1.Azure Infrastructure Provisioning"
 
 # Shared bearer token: ServiceNow's Outbound REST Message sends it as
 # `Authorization: Bearer <token>`; the ServiceNow Event Stream credential

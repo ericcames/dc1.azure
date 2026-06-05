@@ -2,8 +2,9 @@
 # ============================================================================
 # playbooks/servicenow/create_ci.yml — Phase 8 (outbound callback)
 # ============================================================================
-# Registers the provisioned Windows VM as a ServiceNow CMDB CI
-# (class cmdb_ci_win_server). dc1.azure-owned (not the reused Windows role) so we
+# Registers the provisioned VM as a ServiceNow CMDB CI. The CI class is
+# OS-conditional: cmdb_ci_win_server (Windows) or cmdb_ci_linux_server (Linux).
+# dc1.azure-owned (not the reused Windows role) so we
 # can GUARD on ticket_number — non-ServiceNow workflow launches (AAP UI /
 # Self-Service / ADO) carry no ticket_number, so this node no-ops and the
 # workflow stays green. Mirrors the aap.dailydemo.windows create_configuration_item
@@ -33,14 +34,14 @@
   gather_facts: false
 
   vars:
-    ci_sys_class_name: cmdb_ci_win_server
+    ci_sys_class_name: "{{ 'cmdb_ci_linux_server' if (os_type | default('windows')) == 'linux' else 'cmdb_ci_win_server' }}"
     ci_environment: production
     ci_install_status: installed
     ci_operational_status: operational
     ci_category: Hardware
     ci_support_group: "Ansible West Tigers"
     ci_assigned_to: service.ansible
-    ci_short_description: "Created by the DC1.Azure demo (Windows Server on Azure)"
+    ci_short_description: "Created by the DC1.Azure demo ({{ 'Linux' if (os_type | default('windows')) == 'linux' else 'Windows Server' }} on Azure)"
 
   tasks:
     - name: Register the CI (only on a ServiceNow-driven run)
