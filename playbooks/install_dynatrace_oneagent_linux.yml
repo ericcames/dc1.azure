@@ -79,13 +79,8 @@
 
     - name: Set host group via oneagentctl
       ansible.builtin.command:
-        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --set-host-group={{ dt_host_group }}
+        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --set-host-group={{ dt_host_group }} --restart-service
       changed_when: true
-
-    - name: Restart oneagent to apply host group
-      ansible.builtin.service:
-        name: oneagent
-        state: restarted
 
     - name: Verify oneagent service
       ansible.builtin.service:

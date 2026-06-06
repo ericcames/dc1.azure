@@ -82,13 +82,8 @@
 
     - name: Set host group via oneagentctl
       ansible.windows.win_command:
-        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --set-host-group={{ dt_host_group }}'
+        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --set-host-group={{ dt_host_group }} --restart-service'
       changed_when: true
-
-    - name: Restart Dynatrace OneAgent to apply host group
-      ansible.windows.win_service:
-        name: Dynatrace OneAgent
-        state: restarted
 
     - name: Verify Dynatrace OneAgent service
       ansible.windows.win_service:
