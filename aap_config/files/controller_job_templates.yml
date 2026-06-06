@@ -277,20 +277,32 @@ controller_templates:
       # placeholder so scheduled/manual teardown runs need no password input.
       dc1_azure_windows_admin_password: "{{ teardown_admin_password_placeholder }}"
 
-  # Phase 18 (AB#147): Dynatrace OneAgent installation on all provisioned VMs.
-  # Runs after Patching + Configure Linux; targets both windemo + linuxweb
-  # (empty group = clean skip). Downloads + installs OneAgent from the
-  # Dynatrace deployment API, tags hosts into the dc1-azure host group.
-  - name: "{{ dynatrace_template }}"
+  # Phase 18 (AB#147): Dynatrace OneAgent installation on provisioned VMs.
+  # Split into two JTs (Windows + Linux) because AAP doesn't allow multiple
+  # Machine credentials on a single JT. Each targets its OS group; empty
+  # group = clean skip.
+  - name: "{{ dynatrace_template_windows }}"
     job_type: run
     organization: "{{ my_organization }}"
     inventory: "{{ inventory_name }}"
     project: "{{ project_name }}"
-    playbook: playbooks/install_dynatrace_oneagent.yml
+    playbook: playbooks/install_dynatrace_oneagent_windows.yml
     execution_environment: "{{ my_execution_environment }}"
     credentials:
       - "{{ cred_dynatrace }}"
       - "{{ cred_windows }}"
+    extra_vars:
+      dt_host_group: "{{ dt_host_group }}"
+
+  - name: "{{ dynatrace_template_linux }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/install_dynatrace_oneagent_linux.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_dynatrace }}"
       - "{{ cred_linux }}"
     extra_vars:
       dt_host_group: "{{ dt_host_group }}"

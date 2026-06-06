@@ -9,8 +9,8 @@
 # Instance Info chain.
 #
 #   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
-#                         │                           └─► Provision Access ─┴─► Patching ──always──┐
-#                         ├─► Configure Linux ──always─────────────────────────────────────────────┴─► Install Dynatrace [converge] ──always──► Update RITM (success)
+#                         │                           └─► Provision Access ─┴─► Patching ──always──► Install DT (Win) ──always──┐
+#                         ├─► Configure Linux ──always──► Install DT (Linux) ──always──────────────┴─► Update RITM (success) [converge]
 #                         └─► Create CMDB CI ─► Create CMDB Relationship
 #
 # Phase 8 ServiceNow callback:
@@ -141,7 +141,7 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: install-dynatrace
+              - identifier: install-dynatrace-windows
 
         # --- Phase 17: Linux configure path ------------------------------------
         # No `limit:` — the playbook targets `hosts: linuxweb` directly. When
@@ -155,20 +155,30 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: install-dynatrace
+              - identifier: install-dynatrace-linux
 
         # --- Phase 18: Dynatrace OneAgent ------------------------------------
-        # Converges both OS paths (Patching + Configure Linux) before installing
-        # OneAgent on all VMs. Targets windemo + linuxweb; empty group = clean
-        # skip. After OneAgent, the workflow proceeds to update-ritm-success.
-        - identifier: install-dynatrace
+        # Two nodes (Windows + Linux) because AAP doesn't allow multiple
+        # Machine credentials on a single JT. Each targets its OS group;
+        # empty group = clean skip. Both feed into update-ritm-success.
+        - identifier: install-dynatrace-windows
           unified_job_template:
-            name: "{{ dynatrace_template }}"
+            name: "{{ dynatrace_template_windows }}"
             type: job_template
             organization:
               name: "{{ my_organization }}"
           limit: ""
-          all_parents_must_converge: true
+          related:
+            always_nodes:
+              - identifier: update-ritm-success
+
+        - identifier: install-dynatrace-linux
+          unified_job_template:
+            name: "{{ dynatrace_template_linux }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: ""
           related:
             always_nodes:
               - identifier: update-ritm-success

@@ -1,0 +1,63 @@
+---
+# ============================================================================
+# playbooks/install_dynatrace_oneagent_linux.yml — Phase 18 (AB#147)
+# ============================================================================
+# Installs Dynatrace OneAgent on Linux VMs (linuxweb group). Empty group =
+# clean skip. See install_dynatrace_oneagent_windows.yml for the Windows
+# variant.
+#
+# Required JT credentials:
+#   DC1.Azure - Dynatrace      → DT_API_HOST, DT_PAAS_TOKEN
+#   DC1.Azure - Linux Machine  → SSH auth
+# ============================================================================
+
+- name: Install Dynatrace OneAgent (Linux)
+  hosts: linuxweb
+  become: true
+  gather_facts: false
+
+  vars:
+    dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+    dt_paas_token: "{{ lookup('ansible.builtin.env', 'DT_PAAS_TOKEN') }}"
+    dt_installer_url: "{{ dt_api_host }}/api/v1/deployment/installer/agent/unix/default/latest"
+    dt_installer_path: /tmp/Dynatrace-OneAgent-Linux.sh
+
+  tasks:
+    - name: Assert Dynatrace inputs
+      ansible.builtin.assert:
+        that:
+          - dt_api_host | length > 0
+          - dt_paas_token | length > 0
+          - dt_host_group | default('') | length > 0
+        fail_msg: "DT_API_HOST, DT_PAAS_TOKEN, and dt_host_group are required."
+
+    - name: Download OneAgent installer
+      ansible.builtin.uri:
+        url: "{{ dt_installer_url }}"
+        headers:
+          Authorization: "Api-Token {{ dt_paas_token }}"
+        dest: "{{ dt_installer_path }}"
+        mode: "0755"
+        status_code: [200]
+      register: dt_download
+
+    - name: Install OneAgent
+      ansible.builtin.command:
+        argv:
+          - /bin/sh
+          - "{{ dt_installer_path }}"
+          - "--set-host-group={{ dt_host_group }}"
+          - --set-infra-only=false
+        creates: /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+      register: dt_install
+
+    - name: Verify oneagent service
+      ansible.builtin.service:
+        name: oneagent
+        state: started
+      register: dt_service
+
+    - name: Clean up installer
+      ansible.builtin.file:
+        path: "{{ dt_installer_path }}"
+        state: absent

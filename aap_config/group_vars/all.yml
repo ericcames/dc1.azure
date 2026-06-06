@@ -221,7 +221,8 @@ servicenow_password: "{{ lookup('ansible.builtin.env', 'SN_PASSWORD') }}"
 dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
 dt_paas_token: "{{ lookup('ansible.builtin.env', 'DT_PAAS_TOKEN') }}"
 dt_host_group: dc1-azure
-dynatrace_template: "DC1.Azure - Install Dynatrace OneAgent"
+dynatrace_template_windows: "DC1.Azure - Install Dynatrace OneAgent (Windows)"
+dynatrace_template_linux: "DC1.Azure - Install Dynatrace OneAgent (Linux)"
 
 # --- Phase 9: Self-Service Portal RBAC + launcher (AB#107) -------------------
 # The portal (RHDH, deployed by the aap.selfservice repo) surfaces JOB templates

@@ -67,7 +67,8 @@
           - "DC1.Azure - Update RITM (failure)"
           - "DC1.Azure - Create Incident"
           - "DC1.Azure - Configure ADO Trigger"
-          - "{{ dynatrace_template }}"
+          - "{{ dynatrace_template_windows }}"
+          - "{{ dynatrace_template_linux }}"
       - endpoint: workflow_job_templates
         names: ["{{ workflow_name }}"]
       - endpoint: schedules
