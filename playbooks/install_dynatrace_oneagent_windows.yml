@@ -112,3 +112,29 @@
           {{ inventory_hostname }} (Windows) — OneAgent audit proof:
           Version: {{ dt_version.stdout | trim }}
           Server:  {{ dt_server.stdout | trim }}
+
+    - name: Confirm host in Dynatrace tenant
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_api_host }}/api/v2/entities?entitySelector=type(%22HOST%22),
+          toRelationships.isNetworkClientOfHost(type(%22HOST%22))&from=now-10m
+        headers:
+          Authorization: "Api-Token {{ dt_paas_token }}"
+        validate_certs: true
+      register: dt_host_check
+      until: (dt_host_check.json.entities | default([]) | length) > 0
+      retries: 6
+      delay: 30
+      failed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Log tenant verification to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Windows): Dynatrace tenant verification —
+          {{ 'host confirmed in tenant ' ~ dt_api_host ~ '.'
+             if (dt_host_check.json.entities | default([]) | length) > 0
+             else 'host not visible after 3 min of retries.' }}
