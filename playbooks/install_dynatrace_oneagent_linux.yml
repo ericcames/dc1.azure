@@ -77,6 +77,16 @@
           {{ inventory_hostname }} (Linux): OneAgent installed successfully
           (host group: {{ dt_host_group }}).
 
+    - name: Set host group via oneagentctl
+      ansible.builtin.command:
+        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --set-host-group={{ dt_host_group }}
+      changed_when: true
+
+    - name: Restart oneagent to apply host group
+      ansible.builtin.service:
+        name: oneagent
+        state: restarted
+
     - name: Verify oneagent service
       ansible.builtin.service:
         name: oneagent
