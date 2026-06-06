@@ -31,7 +31,13 @@
           - dt_host_group | default('') | length > 0
         fail_msg: "DT_API_HOST, DT_PAAS_TOKEN, and dt_host_group are required."
 
+    - name: Check if OneAgent is already installed
+      ansible.builtin.stat:
+        path: /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+      register: dt_installed
+
     - name: Download OneAgent installer
+      when: not dt_installed.stat.exists
       ansible.builtin.uri:
         url: "{{ dt_installer_url }}"
         headers:
@@ -42,6 +48,7 @@
       register: dt_download
 
     - name: Install OneAgent
+      when: not dt_installed.stat.exists
       ansible.builtin.command:
         argv:
           - /bin/sh
