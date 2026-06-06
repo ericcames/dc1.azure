@@ -161,7 +161,7 @@ but no-op without a ticket (see §7).
 | # | Node | What to say |
 |---|------|-------------|
 | 1 | **Provision VM** | Same as above, but "…and the RHEL 9 Linux VM…" |
-| 2 | **Configure Linux** | "Apache, firewall rules, security patches, a branded landing page — all in one step. Same pattern as the Windows chain, just a different OS and web server." *(~10 min; the dnf security updates are the slow part.)* |
+| 2 | **Configure Linux** | "One step does everything: time sync (Chrony), Cockpit removal for security hardening, Apache web server with firewall rules, security banners on SSH and console login, Red Hat Insights registration, dnf security patches, and a branded landing page — same pattern as the Windows chain, different OS." *(~10 min; the dnf security updates are the slow part.)* |
 
 The **Jobs list** after a clean run — the *DC1.Azure - Provision and Configure*
 workflow job and every child playbook (Provision VM, Powershell Improvement,

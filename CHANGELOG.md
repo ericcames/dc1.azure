@@ -5,19 +5,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **Install docs: ADO Trigger post-install step** — `INSTALL.md` §7 and the
+  `/install-dc1-azure` skill now mention running the `DC1.Azure - Configure
+  ADO Trigger` JT after a green `load.yml` (once per RHDP env, idempotent).
+- **Install docs: stale object counts** — updated credential count (8 → 10;
+  added Linux Machine + ServiceNow), JT count (6 → 16), added EDA objects to
+  the post-install inventory list.
+- **Install skill: auto-token** — replaced manual token creation/deletion
+  steps (old steps 4 + 8) with a note that `load.yml` mints + deletes its
+  own token automatically; moved `AAP_TOKEN` / `CONTROLLER_OAUTH_TOKEN` to
+  optional (SSO/MFA escape hatch only).
+
 ### Added
 - **Phase 17 — Linux post-provision configuration** — new
   `DC1.Azure - Configure Linux` JT running `playbooks/configure_linux.yml`
-  with the `linux_configure` role. Installs Apache httpd, opens port 80 via
-  firewalld, deploys a dc1.azure-branded website (mirrors the Windows IIS
-  page layout), sets MOTD + SSH banner, and applies dnf security/bugfix
-  updates. Single combined JT targeting the `linuxweb` group. Workflow gains
-  a `configure-linux` node running in parallel with the Windows chain;
-  `update-ritm-success` now uses `all_parents_must_converge: true` to wait
-  for both paths. RHSM/CDN registration deferred (activation key ready).
+  with the `linux_configure` role. Apache httpd + firewalld (port 80) +
+  dc1.azure-branded website ("This website is running on Red Hat Enterprise
+  Linux Server" + hostname). Post-install hardening from `aap.dailydemo.F5`
+  `linux_post_install` pattern: Chrony NTP, Cockpit removal, Insights
+  client, security SSH/MOTD/issue banners, Cockpit config, dnf
+  security+bugfix updates (`update_only`, `skip_broken`, exclude
+  `sudo.x86_64`), conditional reboot. RHSM/CDN registration deferred
+  (activation key ready).
 - **Always-create inventory groups** — `provision_vm.yml` now creates both
-  `windemo` and `linuxweb` groups unconditionally so workflow nodes with
-  `limit:` always resolve (empty group = no-op, missing group = job failure).
+  `windemo` and `linuxweb` groups unconditionally; publishes
+  `linux_admin_username` via `set_stats` for the RITM callback.
+
+### Changed
+- **Workflow convergence + limit cleanup** — removed `limit:` from all
+  configure workflow nodes (playbooks already target `hosts: windemo` /
+  `hosts: linuxweb` directly); explicit `limit: ""` clears stale limits on
+  AAP. `all_parents_must_converge: true` on `update-ritm-success` ensures
+  both OS paths complete before the RITM is marked fulfilled. Empty group =
+  clean skip (rc=0), not an error.
+- **`ask_limit_on_launch: true`** on all configure JTs (Windows + Linux) so
+  CaC is authoritative for the setting.
+
+### Fixed
+- **RITM success message formatting** — literal `\n` in the ServiceNow work
+  note replaced with proper Jinja2 block template. Per-OS sections now show
+  the correct admin user (Windows: `demoadmin`, Linux: `azureuser`) instead
+  of hardcoded `demoadmin`.
 
 ### Added
 - **Phase 12 — Automate ADO trigger setup** (AB#144) — new

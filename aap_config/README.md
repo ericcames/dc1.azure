@@ -32,14 +32,17 @@ workflow, `DC1.Azure - Provision and Configure`:
 
 ```
 Provision VM ─┬─► Powershell Improvement ─┬─► Website Setup ───┐
-              │                           └─► Provision Access ┴─► Patching ──always──► Update RITM (success)
-              ├─► Configure Linux ──success──────────────────────────────────────────►
+              │   (hosts: windemo)        └─► Provision Access ┴─► Patching ──always──┐
+              ├─► Configure Linux ──always────────────────────────────────────────────┴─► Update RITM (success)
+              │   (hosts: linuxweb)                                                       [all_parents_must_converge]
               └─► Create CMDB CI ─► Create CMDB Relationship
 ```
 
-The `os_type` survey routes which branch does real work: Windows (`windemo` limit),
-Linux (`linuxweb` limit), or both in parallel. The unused OS chain runs against an
-empty group and is silently absorbed by the workflow.
+Workflow nodes use explicit `limit: ""` (no `--limit` flag) — each playbook
+targets its group via `hosts:` directly. An empty group is a clean skip (rc=0).
+`all_parents_must_converge: true` on `update-ritm-success` ensures both OS paths
+complete before the RITM is marked fulfilled. The `os_type` survey routes which
+branch does real work; the unused OS chain skips cleanly.
 
 The four demo triggers (AAP UI, Self-Service Portal, ServiceNow, Azure DevOps)
 all launch this same workflow — see ROADMAP Phases 6/8/9/10. The `os_type`

@@ -294,17 +294,32 @@ idempotent.
 
 ## 7. Confirm and launch
 
-In the AAP UI you should now see (all prefixed `DC1.Azure -`): 8 credentials
-(Vault, Azure RM, ADO Source Control, Windows Machine, Controller, Hub Registry,
-plus the Windows Admin Password and Demo Account Password custom-type
-credentials), 2 projects (`DC1.Azure`,
+In the AAP UI you should now see (all prefixed `DC1.Azure -`): 10 credentials
+(Vault, Azure RM, ADO Source Control, Windows Machine, Linux Machine,
+Controller, Hub Registry, ServiceNow, plus the Windows Admin Password and Demo
+Account Password custom-type credentials), 2 projects (`DC1.Azure`,
 `aap.dailydemo.windows`), 2 inventories (`dc1-azure` plus the empty
-`dc1-azure-control` the Teardown JT runs against), 6 job templates, the
+`dc1-azure-control` the Teardown JT runs against), 16 job templates, the
 `DC1.Azure - EE` execution environment, the **`DC1.Azure - Provision and
-Configure`** workflow, and the `DC1.Azure - Nightly Teardown` schedule on the
-Teardown job template (runs daily at 18:00 `America/Phoenix`).
+Configure`** workflow, the `DC1.Azure - Nightly Teardown` schedule on the
+Teardown job template (runs daily at 18:00 `America/Phoenix`), and EDA objects
+(credential, project, event stream, rulebook activation).
 
-Launch that workflow, pick a `vm_size_tier` in the survey, and watch it
+### Post-install: Configure the ADO Trigger
+
+After a green `load.yml` run, launch the **`DC1.Azure - Configure ADO Trigger`**
+job template from the AAP UI. It mints a long-lived AAP token, creates (or
+updates) the `dc1-azure-aap` Variable Group in the ADO Library, and authorizes
+the launch pipeline — so the ADO CI/CD pipeline can trigger the workflow without
+any manual ADO-UI steps.
+
+This only needs to run **once per RHDP environment**. It is idempotent, so
+re-running after a credential rotation is safe (it mints a fresh token and
+overwrites the Variable Group).
+
+### Launch
+
+Launch the workflow, pick a `vm_size_tier` in the survey, and watch it
 provision the Azure VM and run the configure chain.
 
 ---

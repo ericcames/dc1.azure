@@ -375,7 +375,9 @@ Of type `ServiceNow ITSM Credential` (already defined). Injects
   branches, so a `set_stats` artifact would not reach Update RITM).
 - `DC1.Azure - Create CMDB Relationship` → `playbooks/servicenow/create_cmdb_relationship.yml`
 - `DC1.Azure - Update RITM (success)` → `playbooks/servicenow/update_ritm.yml`
-  (state Fulfilled, work note w/ FQDN + public IP + admin user)
+  (state Fulfilled, per-OS work note: FQDN + public IP + admin user —
+  Windows shows `demoadmin`, Linux shows `azureuser`; proper newlines via
+  Jinja2 block template)
 - `DC1.Azure - Update RITM (failure)` → same playbook, failure vars (state 4 +
   the incident number + error message — `update_ritm.yml` drives both outcomes
   via the `ritm_outcome` extra-var)

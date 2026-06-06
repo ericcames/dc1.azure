@@ -57,26 +57,26 @@ adds the interactive checking and reporting around them.
    `infra.aap_configuration` async workers connect to `127.0.0.1` and fail
    with `Connection refused` on credential creation.
 
-4. **Create the AAP personal token.** Use the gateway v1 endpoint (not the old
-   controller v2 endpoint) and capture the ID for cleanup:
-   ```bash
-   curl -sk -u admin:<pw> -X POST -H 'Content-Type: application/json' \
-     -d '{"description":"dc1.azure CaC install","scope":"write"}' \
-     "https://<aap>/api/gateway/v1/tokens/"
-   ```
-   Write the token value to `/tmp/.aap_token_dc1` (mode 600). Delete token ID
-   after the install: `curl -sk -u admin:<pw> -X DELETE .../gateway/v1/tokens/<id>/`.
+4. **AAP API token — handled automatically.** `load.yml` mints a short-lived
+   token from `AAP_CONTROLLER_USERNAME` / `AAP_CONTROLLER_PASSWORD` at the
+   start of the run and deletes it in an `always:` block. No manual token
+   creation needed. **SSO/MFA escape hatch:** if the AAP account uses SSO or
+   MFA, basic-auth minting is blocked — have the user create a token in the
+   AAP UI (Users → Tokens, scope Write) and export it as `AAP_TOKEN`. The run
+   then uses it as-is and does **not** delete it.
 
 5. **Check the environment.** If `docs/dev-environment.sh` exists, suggest the
    user run `source docs/dev-environment.sh` (they type `! source docs/dev-environment.sh`
    in the prompt). Otherwise, for each variable in the `docs/INSTALL.md` §5
-   table, test presence by name (don't read the value). Required: `AAP_HOSTNAME`,
-   `AAP_TOKEN`, `CONTROLLER_HOST`, `CONTROLLER_OAUTH_TOKEN`,
-   `DC1_AZURE_VAULT_PASSWORD`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`,
-   `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_RESOURCE_GROUP`,
-   `AZURE_TF_STORAGE_ACCOUNT`, `ADO_PAT`, `WINDOWS_ADMIN_PASSWORD`,
-   `AAP_CONTROLLER_PASSWORD`. Optional with good defaults: `AAP_VALIDATE_CERTS`
-   (false), `CONTROLLER_VERIFY_SSL` (false), `DC1_AZURE_EE` (defaults to
+   table, test presence by name (don't read the value). Required:
+   `AAP_HOSTNAME`, `CONTROLLER_HOST`, `DC1_AZURE_VAULT_PASSWORD`,
+   `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+   `AZURE_CLIENT_SECRET`, `AZURE_RESOURCE_GROUP`, `AZURE_TF_STORAGE_ACCOUNT`,
+   `ADO_PAT`, `WINDOWS_ADMIN_PASSWORD`, `AAP_CONTROLLER_PASSWORD`.
+   Optional — SSO escape hatch only: `AAP_TOKEN`, `CONTROLLER_OAUTH_TOKEN`
+   (leave unset on a username/password AAP — the run mints its own).
+   Optional with good defaults: `AAP_VALIDATE_CERTS` (false),
+   `CONTROLLER_VERIFY_SSL` (false), `DC1_AZURE_EE` (defaults to
    `DC1.Azure - EE` — the EE registered by load.yml), `DC1_AZURE_EE_IMAGE`
    (defaults to `quay.io/zigfreed/dc1-azure-ee:latest`; after Hub syncs set
    to `<ah_hostname>/dc1_azure_ee:latest`), `AH_HOSTNAME` (defaults to gateway
@@ -108,8 +108,8 @@ adds the interactive checking and reporting around them.
    ```
    If the env file isn't present, build a single compound export + playbook command:
    ```bash
-   export AAP_HOSTNAME=... AAP_TOKEN=... CONTROLLER_HOST=$AAP_HOSTNAME
-   export CONTROLLER_OAUTH_TOKEN=$AAP_TOKEN CONTROLLER_VERIFY_SSL=false
+   export AAP_HOSTNAME=... CONTROLLER_HOST=$AAP_HOSTNAME
+   export CONTROLLER_VERIFY_SSL=false
    export <all other vars> ...
    ansible-playbook -i aap_config/inventory/ aap_config/load.yml
    ```
@@ -117,11 +117,16 @@ adds the interactive checking and reporting around them.
    exists. If validation fails on `/api/v2/` not found, re-run with
    `DC1_AZURE_API_BASE=/api/v2`.
 
-8. **Delete the token.** After a green run, delete the AAP token created in
-   step 4. Then remove `/tmp/.aap_token_dc1`.
+8. **Post-install: Configure ADO Trigger.** After a green `load.yml` run,
+   tell the user to launch the **`DC1.Azure - Configure ADO Trigger`** job
+   template from the AAP UI. It mints a long-lived AAP token, creates (or
+   updates) the `dc1-azure-aap` Variable Group in ADO, and authorizes the
+   launch pipeline — so the ADO pipeline can trigger the workflow without
+   manual ADO-UI steps. This only needs to run once per RHDP environment
+   (it is idempotent, so re-running after a credential rotation is safe).
 
-9. **Report.** Summarize the created objects (5 credentials, 2 projects, the
-   `dc1-azure` inventory, 6 JTs, the `DC1.Azure - Provision and Configure`
-   workflow). Tell the user they can launch that workflow and pick a
-   `vm_size_tier`. If anything failed, map it to the `docs/INSTALL.md`
-   Troubleshooting table.
+9. **Report.** Summarize the created objects (10 credentials, 2 projects,
+   2 inventories, 16 JTs, the `DC1.Azure - Provision and Configure`
+   workflow, and EDA objects). Tell the user they can launch that workflow
+   and pick a `vm_size_tier`. If anything failed, map it to the
+   `docs/INSTALL.md` Troubleshooting table.

@@ -22,8 +22,8 @@ decisions log.
 2. Picks an OS type — `windows`, `linux`, or `both` — and a t-shirt size
 3. Watches the workflow run for ~10 minutes
 4. Lands on a provisioned VM: Windows Server 2025 (PowerShell 7, IIS, Windows
-   Update, RDP) and/or RHEL 9 Linux (Apache web server, SSH) — fully configured
-   and reachable
+   Update, RDP) and/or RHEL 9 Linux (Apache, Chrony, Insights, security-hardened,
+   SSH) — fully configured, patched, and serving a branded landing page
 
 **One workflow, four front doors.** The same `DC1.Azure - Provision and Configure`
 workflow is launched from **four** triggers — the AAP web UI, the AAP Self-Service
