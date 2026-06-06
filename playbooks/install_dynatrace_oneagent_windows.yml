@@ -66,7 +66,7 @@
     # --- Audit proof (AB#147) ------------------------------------------------
     - name: Get OneAgent version
       ansible.windows.win_command:
-        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --get-version'
+        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --version'
       register: dt_version
       changed_when: false
 

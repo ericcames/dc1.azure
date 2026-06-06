@@ -65,7 +65,7 @@
     # --- Audit proof (AB#147) ------------------------------------------------
     - name: Get OneAgent version
       ansible.builtin.command:
-        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --get-version
+        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --version
       register: dt_version
       changed_when: false
 
