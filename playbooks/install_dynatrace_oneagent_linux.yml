@@ -9,6 +9,7 @@
 # Required JT credentials:
 #   DC1.Azure - Dynatrace      → DT_API_HOST, DT_PAAS_TOKEN
 #   DC1.Azure - Linux Machine  → SSH auth
+#   DC1.Azure - ServiceNow     → SN_HOST, SN_USERNAME, SN_PASSWORD (snow_log)
 # ============================================================================
 
 - name: Install Dynatrace OneAgent (Linux)
@@ -36,6 +37,15 @@
         path: /opt/dynatrace/oneagent/agent/tools/oneagentctl
       register: dt_installed
 
+    - name: Log install check to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Linux): OneAgent
+          {{ 'already installed — skipping download.' if dt_installed.stat.exists
+             else 'not found — starting installation.' }}
+
     - name: Download OneAgent installer
       when: not dt_installed.stat.exists
       ansible.builtin.uri:
@@ -57,6 +67,15 @@
           - --set-infra-only=false
         creates: /opt/dynatrace/oneagent/agent/tools/oneagentctl
       register: dt_install
+
+    - name: Log install result to ServiceNow
+      when: not dt_installed.stat.exists
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Linux): OneAgent installed successfully
+          (host group: {{ dt_host_group }}).
 
     - name: Verify oneagent service
       ansible.builtin.service:
@@ -82,6 +101,15 @@
       register: dt_server
       changed_when: false
 
+    - name: Log audit proof to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |
+          {{ inventory_hostname }} (Linux) — OneAgent audit proof:
+          Version: {{ dt_version.stdout | trim }}
+          Server:  {{ dt_server.stdout | trim }}
+
     - name: Confirm host in Dynatrace tenant
       ansible.builtin.uri:
         url: >-
@@ -95,11 +123,12 @@
       delegate_to: localhost
       become: false
 
-    - name: Publish Dynatrace audit data
-      ansible.builtin.set_stats:
-        data:
-          dt_linux_oneagent_version: "{{ dt_version.stdout | trim }}"
-          dt_linux_connection_info: "{{ dt_server.stdout | trim }}"
-          dt_linux_host_verified: "{{ (dt_host_check.json.entities | default([]) | length) > 0 }}"
-          dt_tenant_url: "{{ dt_api_host }}"
-          dt_host_group_name: "{{ dt_host_group }}"
+    - name: Log tenant verification to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Linux): Dynatrace tenant verification —
+          {{ 'host confirmed in tenant ' ~ dt_api_host ~ '.'
+             if (dt_host_check.json.entities | default([]) | length) > 0
+             else 'host not yet visible (may take 2-3 min to appear).' }}

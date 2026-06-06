@@ -8,6 +8,7 @@
 # Required JT credentials:
 #   DC1.Azure - Dynatrace       → DT_API_HOST, DT_PAAS_TOKEN
 #   DC1.Azure - Windows Machine → WinRM auth
+#   DC1.Azure - ServiceNow      → SN_HOST, SN_USERNAME, SN_PASSWORD (snow_log)
 # ============================================================================
 
 - name: Install Dynatrace OneAgent (Windows)
@@ -35,6 +36,15 @@
       register: dt_check
       failed_when: false
 
+    - name: Log install check to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Windows): OneAgent service
+          {{ 'already running — skipping download.' if dt_check.state is defined
+             else 'not found — starting installation.' }}
+
     - name: Create temp directory
       when: dt_check.state is not defined
       ansible.windows.win_file:
@@ -61,6 +71,15 @@
         state: present
       register: dt_install
 
+    - name: Log install result to ServiceNow
+      when: dt_check.state is not defined
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Windows): OneAgent installed successfully
+          (host group: {{ dt_host_group }}).
+
     - name: Verify Dynatrace OneAgent service
       ansible.windows.win_service:
         name: Dynatrace OneAgent
@@ -85,10 +104,11 @@
       register: dt_server
       changed_when: false
 
-    - name: Publish Dynatrace audit data
-      ansible.builtin.set_stats:
-        data:
-          dt_windows_oneagent_version: "{{ dt_version.stdout | trim }}"
-          dt_windows_connection_info: "{{ dt_server.stdout | trim }}"
-          dt_tenant_url: "{{ dt_api_host }}"
-          dt_host_group_name: "{{ dt_host_group }}"
+    - name: Log audit proof to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |
+          {{ inventory_hostname }} (Windows) — OneAgent audit proof:
+          Version: {{ dt_version.stdout | trim }}
+          Server:  {{ dt_server.stdout | trim }}

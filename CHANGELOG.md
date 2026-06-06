@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **`snow_log` role** — reusable role for real-time ServiceNow ticket logging
+  from any playbook. Posts work notes (or comments) to any ticket type (RITM,
+  incident, change request). Guarded on `ticket_number` (no-ops on non-SNow
+  runs), non-breaking (rescue on failure), and delegates to localhost so it
+  works from plays targeting remote hosts. Dynatrace OneAgent playbooks are the
+  first consumers.
+
+### Changed
+- **Dynatrace audit proof → real-time SNow logging** — replaced the
+  `set_stats` → `update_ritm.yml` path with direct `snow_log` role calls in
+  both OneAgent playbooks. Audit proof now posts to the RITM in real-time
+  during the Dynatrace JT, not deferred to the final workflow summary.
+  Removed the Dynatrace Jinja block from `update_ritm.yml`. Added
+  `cred_servicenow` to both Dynatrace JTs.
+
+### Added
 - **Phase 18 — Dynatrace OneAgent integration** (AB#147) — new
   `DC1.Azure - Install Dynatrace OneAgent` JT running
   `playbooks/install_dynatrace_oneagent.yml`. Downloads and installs the

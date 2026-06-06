@@ -291,6 +291,7 @@ controller_templates:
     credentials:
       - "{{ cred_dynatrace }}"
       - "{{ cred_windows }}"
+      - "{{ cred_servicenow }}"
     extra_vars:
       dt_host_group: "{{ dt_host_group }}"
 
@@ -304,6 +305,7 @@ controller_templates:
     credentials:
       - "{{ cred_dynatrace }}"
       - "{{ cred_linux }}"
+      - "{{ cred_servicenow }}"
     extra_vars:
       dt_host_group: "{{ dt_host_group }}"
 
