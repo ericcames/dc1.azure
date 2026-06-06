@@ -29,6 +29,7 @@ mock_modules:
   - ansible.windows.win_file
   - ansible.windows.win_uri
   - ansible.windows.win_package
+  - ansible.windows.win_command
   # servicenow.itsm — used by playbooks/servicenow/* (Phase 8); not installed in CI
   - servicenow.itsm.configuration_item
   - servicenow.itsm.api

@@ -62,3 +62,24 @@
       ansible.windows.win_file:
         path: "{{ dt_installer_path }}"
         state: absent
+
+    # --- Audit proof (AB#147) ------------------------------------------------
+    - name: Get OneAgent version
+      ansible.windows.win_command:
+        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --get-version'
+      register: dt_version
+      changed_when: false
+
+    - name: Get server connection info
+      ansible.windows.win_command:
+        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --get-server'
+      register: dt_server
+      changed_when: false
+
+    - name: Publish Dynatrace audit data
+      ansible.builtin.set_stats:
+        data:
+          dt_windows_oneagent_version: "{{ dt_version.stdout | trim }}"
+          dt_windows_connection_info: "{{ dt_server.stdout | trim }}"
+          dt_tenant_url: "{{ dt_api_host }}"
+          dt_host_group_name: "{{ dt_host_group }}"

@@ -17,6 +17,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   inserted after Patching + Configure Linux (converges both OS paths), before
   Update RITM (success).
 
+### Added
+- **Dynatrace OneAgent audit proof in RITM** (AB#147) — both OneAgent
+  playbooks now query `oneagentctl` for version and server connection info,
+  publish the results via `set_stats`, and the RITM success work note
+  includes a "Dynatrace OneAgent" section showing tenant, host group,
+  version per OS, connection info, and tenant-side host verification
+  (Linux only, via Dynatrace `/api/v2/entities` — best-effort).
+- **IT controls document** (`docs/controls.md`) — maps audit control
+  requirements (CTL-001 through CTL-004) to their technical enforcement in
+  the AAP workflow: Dynatrace OneAgent deployment, nightly teardown, token
+  lifecycle, and cross-system RITM ↔ AAP traceability.
+
 ### Changed
 - **Install docs: ADO Trigger post-install step** — `INSTALL.md` §7 and the
   `/install-dc1-azure` skill now mention running the `DC1.Azure - Configure

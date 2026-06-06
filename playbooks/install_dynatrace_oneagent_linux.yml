@@ -61,3 +61,38 @@
       ansible.builtin.file:
         path: "{{ dt_installer_path }}"
         state: absent
+
+    # --- Audit proof (AB#147) ------------------------------------------------
+    - name: Get OneAgent version
+      ansible.builtin.command:
+        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --get-version
+      register: dt_version
+      changed_when: false
+
+    - name: Get server connection info
+      ansible.builtin.command:
+        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --get-server
+      register: dt_server
+      changed_when: false
+
+    - name: Confirm host in Dynatrace tenant
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_api_host }}/api/v2/entities?entitySelector=type(%22HOST%22),
+          toRelationships.isNetworkClientOfHost(type(%22HOST%22))&from=now-5m
+        headers:
+          Authorization: "Api-Token {{ dt_paas_token }}"
+        validate_certs: true
+      register: dt_host_check
+      failed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Publish Dynatrace audit data
+      ansible.builtin.set_stats:
+        data:
+          dt_linux_oneagent_version: "{{ dt_version.stdout | trim }}"
+          dt_linux_connection_info: "{{ dt_server.stdout | trim }}"
+          dt_linux_host_verified: "{{ (dt_host_check.json.entities | default([]) | length) > 0 }}"
+          dt_tenant_url: "{{ dt_api_host }}"
+          dt_host_group_name: "{{ dt_host_group }}"

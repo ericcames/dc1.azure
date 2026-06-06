@@ -54,6 +54,20 @@
         Admin user: {{ linux_admin_username | default('azureuser') }}
       {% endif %}
 
+      {% if dt_windows_oneagent_version is defined or dt_linux_oneagent_version is defined %}
+
+      Dynatrace OneAgent:
+        Tenant:      {{ dt_tenant_url | default('n/a') }}
+        Host group:  {{ dt_host_group_name | default('n/a') }}
+      {% if dt_windows_oneagent_version is defined %}
+        Windows:     v{{ dt_windows_oneagent_version }} — {{ dt_windows_connection_info | default('pending') }}
+      {% endif %}
+      {% if dt_linux_oneagent_version is defined %}
+        Linux:       v{{ dt_linux_oneagent_version }} — {{ dt_linux_connection_info | default('pending') }}
+        Tenant verified: {{ 'yes' if (dt_linux_host_verified | default(false) | bool) else 'pending (host may take 2-3 min to appear)' }}
+      {% endif %}
+      {% endif %}
+
       (The admin password is held securely in Ansible Automation Platform — it is
       intentionally NOT recorded on this ticket.)
     ritm_failure_comment: |-
