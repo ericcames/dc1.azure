@@ -678,7 +678,7 @@ Reference pattern: `aap.dailydemo.F5` roles — `rhsm`, `linux_post_install`,
 RHEL 9 VM patched, running Apache on port 80, and serving a dc1.azure-branded page
 at its public IP. RHSM/CDN registration deferred to a follow-up.
 
-### Phase 18 — Dynatrace OneAgent Integration  ⬜
+### Phase 18 — Dynatrace OneAgent Integration  ✅
 
 *Installs Dynatrace OneAgent on every provisioned VM so hosts appear in the
 Dynatrace tenant and can generate real problems — closing the loop with the
@@ -688,28 +688,28 @@ EDA demo (push model — Dynatrace pushes problem events to AAP EDA via webhook)
 
 The Dynatrace SaaS tenant (`ybz84624.live.dynatrace.com`) is always on.
 
-- ⬜ **Custom credential type** — `DC1.Azure - Dynatrace` injecting `DT_API_HOST`
+- ✅ **Custom credential type** — `DC1.Azure - Dynatrace` injecting `DT_API_HOST`
   (the `.live.dynatrace.com` tenant URL) and `DT_PAAS_TOKEN` (installer download
   token — generated in the Dynatrace UI under Deploy > OneAgent). Sourced from
   `docs/dev-environment.sh` env vars (already added).
-- ⬜ **Playbook: `playbooks/dynatrace_oneagent.yml`** — OS-aware installer:
-  - **Windows:** PowerShell — download via the OneAgent deployment API
-    (`/api/v1/deployment/installer/agent/windows/default/latest`), run
-    `Dynatrace-OneAgent.exe` with `/TENANT_URL` + `/PAAS_TOKEN` + `/HOST_GROUP`.
-  - **Linux:** shell — download via
-    `/api/v1/deployment/installer/agent/unix/default/latest`, run with
+- ✅ **Playbook: `playbooks/install_dynatrace_oneagent.yml`** — OS-aware installer:
+  - **Windows:** `win_uri` download via the OneAgent deployment API
+    (`/api/v1/deployment/installer/agent/windows/default/latest`), `win_package`
+    install with `--set-host-group` + `--set-infra-only=false`.
+  - **Linux:** `ansible.builtin.uri` download via
+    `/api/v1/deployment/installer/agent/unix/default/latest`, shell install with
     `--set-host-group` + `--set-infra-only=false`.
-- ⬜ **Host group tagging** — register hosts in a `dc1-azure` host group so the
+- ✅ **Host group tagging** — register hosts in a `dc1-azure` host group so the
   `aap.eda.dynatrace` rulebook's metric event (`builtin:host.disk.usedPct > 80%`)
   can be scoped to dc1.azure-provisioned VMs.
-- ⬜ **Workflow node** — after the VM is reachable and configured (post-configure,
-  pre-patching). Runs against both Windows and Linux hosts.
-- ⬜ **Job template** — `DC1.Azure - Install Dynatrace OneAgent`, attached to the
-  Dynatrace credential.
-- ⬜ **`docs/dev-environment.sh.example`** — Dynatrace section already added
+- ✅ **Workflow node** — `install-dynatrace`, after Patching + Configure Linux
+  (converges both OS paths), before Update RITM (success).
+- ✅ **Job template** — `DC1.Azure - Install Dynatrace OneAgent`, attached to the
+  Dynatrace + Windows Machine + Linux Machine credentials.
+- ✅ **`docs/dev-environment.sh.example`** — Dynatrace section already added
   (`DT_API_HOST` + `DT_PAAS_TOKEN`).
-- ⬜ `validate.yml` — assert the credential type + credential + JT exist.
-- ⬜ `docs/demo-runbook.md` — Dynatrace section (verify host appears in the
+- ✅ `validate.yml` — assert the credential + JT exist.
+- ✅ `docs/demo-runbook.md` — Dynatrace section (verify host appears in the
   Dynatrace Hosts app after provisioning).
 
 **Exit criteria:** after provisioning, each new VM (Windows and/or Linux) is visible

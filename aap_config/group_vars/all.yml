@@ -140,6 +140,9 @@ cred_demo_account_password: "DC1.Azure - Demo Account Password"
 # ServiceNow callback credential (Phase 8 outbound) — ServiceNow ITSM Credential
 # type; injects SN_HOST/SN_USERNAME/SN_PASSWORD for the callback/CMDB/incident JTs.
 cred_servicenow: "DC1.Azure - ServiceNow"
+# Dynatrace credential (Phase 18) — injects DT_API_HOST + DT_PAAS_TOKEN as
+# env vars for the OneAgent installer download.
+cred_dynatrace: "DC1.Azure - Dynatrace"
 hub_registry_host: "{{ ah_hostname }}"
 hub_registry_username: "{{ controller_cred_username }}"
 hub_registry_password: "{{ controller_cred_password }}"
@@ -211,6 +214,14 @@ eda_event_stream_token: "{{ lookup('ansible.builtin.env', 'EDA_EVENT_STREAM_TOKE
 servicenow_instance: "{{ lookup('ansible.builtin.env', 'SN_HOST') }}"
 servicenow_username: "{{ lookup('ansible.builtin.env', 'SN_USERNAME') }}"
 servicenow_password: "{{ lookup('ansible.builtin.env', 'SN_PASSWORD') }}"
+
+# --- Phase 18: Dynatrace OneAgent (AB#147) ------------------------------------
+# Dynatrace SaaS tenant + PaaS token for OneAgent installer download. The
+# credential type injects these as env vars; the playbook reads them.
+dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+dt_paas_token: "{{ lookup('ansible.builtin.env', 'DT_PAAS_TOKEN') }}"
+dt_host_group: dc1-azure
+dynatrace_template: "DC1.Azure - Install Dynatrace OneAgent"
 
 # --- Phase 9: Self-Service Portal RBAC + launcher (AB#107) -------------------
 # The portal (RHDH, deployed by the aap.selfservice repo) surfaces JOB templates

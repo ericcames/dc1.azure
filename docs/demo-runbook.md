@@ -534,6 +534,40 @@ the rates *you* set. The platform makes the ROI case for you."
 
 ---
 
+## 11. Dynatrace OneAgent — observability closes the loop (Phase 18)
+
+The workflow now installs the Dynatrace OneAgent on every provisioned VM
+(Windows and Linux) as the second-to-last step — after configuration and
+patching, before the RITM is marked fulfilled.
+
+**What it does:** the `DC1.Azure - Install Dynatrace OneAgent` node downloads
+the OneAgent installer from the Dynatrace deployment API and installs it with
+host group `dc1-azure`. Both OS types are handled in a single playbook (empty
+group = clean skip).
+
+**Verify after the workflow completes:**
+
+1. Open the Dynatrace tenant: `https://ybz84624.live.dynatrace.com`
+2. Navigate to **Infrastructure → Hosts**
+3. Filter by host group: `dc1-azure`
+4. Confirm the provisioned VM(s) appear and show as **monitored**
+5. Click into a host — you should see CPU, memory, disk, and network metrics
+   flowing within 2–3 minutes of the OneAgent install completing
+
+**Talk-track:** "The same workflow that provisions and configures the VM also
+instruments it with Dynatrace. The host shows up in the tenant automatically —
+no manual agent install, no separate ticket. And when Dynatrace detects a
+problem on that host, it pushes an event to AAP's Event-Driven Ansible, which
+triggers automated remediation. That's the full loop: provision → configure →
+monitor → remediate."
+
+**Link to the EDA push demo:** this is the feeder for the
+[`aap.eda.dynatrace.push`](https://github.com/ericcames/aap.eda.dynatrace.push)
+demo. Once OneAgent is running, filling a host's disk past 80% (or triggering
+any Davis problem) fires a Dynatrace Workflow that pushes the event to AAP EDA.
+
+---
+
 ## Appendix A — Failure modes & recovery
 
 | Symptom | Likely cause | Fix |
@@ -573,8 +607,9 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 | Thing | Value |
 |-------|-------|
 | Workflow | `DC1.Azure - Provision and Configure` |
-| Nodes (Windows path) | Provision VM → Powershell Improvement → Website Setup / Provision Access → Patching → Update RITM (success) |
-| Nodes (Linux path) | Provision VM → Configure Linux → Update RITM (success) |
+| Nodes (Windows path) | Provision VM → Powershell Improvement → Website Setup / Provision Access → Patching → Install Dynatrace → Update RITM (success) |
+| Nodes (Linux path) | Provision VM → Configure Linux → Install Dynatrace → Update RITM (success) |
+| Dynatrace | OneAgent installed on all VMs; host group `dc1-azure`; tenant `ybz84624.live.dynatrace.com` |
 | ServiceNow nodes (Demo v2) | CMDB (parallel, early): Provision VM→Create CMDB CI→Create CMDB Relationship; success: Patching `always`→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
 | ServiceNow match string | catalog item Short description = `DC1.Azure Infrastructure Provisioning` |
 | Survey variables | `os_type` ∈ {`windows`, `linux`, `both`} (default `windows`); `vm_size_tier` ∈ {`small-2cpu-4gb`, `medium-2cpu-8gb`, `large-4cpu-16gb`} (default `medium`) |

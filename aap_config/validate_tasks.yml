@@ -49,6 +49,7 @@
           - "{{ cred_demo_account_password }}"
           - "{{ cred_servicenow }}"
           - "{{ cred_linux }}"
+          - "{{ cred_dynatrace }}"
       - endpoint: execution_environments
         names: ["{{ ee_name }}"]
       - endpoint: job_templates
@@ -66,6 +67,7 @@
           - "DC1.Azure - Update RITM (failure)"
           - "DC1.Azure - Create Incident"
           - "DC1.Azure - Configure ADO Trigger"
+          - "{{ dynatrace_template }}"
       - endpoint: workflow_job_templates
         names: ["{{ workflow_name }}"]
       - endpoint: schedules

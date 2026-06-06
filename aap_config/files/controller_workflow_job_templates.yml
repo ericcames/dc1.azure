@@ -10,7 +10,7 @@
 #
 #   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
 #                         │                           └─► Provision Access ─┴─► Patching ──always──┐
-#                         ├─► Configure Linux ──always─────────────────────────────────────────────┴─► Update RITM (success) [converge]
+#                         ├─► Configure Linux ──always─────────────────────────────────────────────┴─► Install Dynatrace [converge] ──always──► Update RITM (success)
 #                         └─► Create CMDB CI ─► Create CMDB Relationship
 #
 # Phase 8 ServiceNow callback:
@@ -141,7 +141,7 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: update-ritm-success     # decoupled from CMDB (mirrors DDW)
+              - identifier: install-dynatrace
 
         # --- Phase 17: Linux configure path ------------------------------------
         # No `limit:` — the playbook targets `hosts: linuxweb` directly. When
@@ -153,6 +153,22 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
           limit: ""
+          related:
+            always_nodes:
+              - identifier: install-dynatrace
+
+        # --- Phase 18: Dynatrace OneAgent ------------------------------------
+        # Converges both OS paths (Patching + Configure Linux) before installing
+        # OneAgent on all VMs. Targets windemo + linuxweb; empty group = clean
+        # skip. After OneAgent, the workflow proceeds to update-ritm-success.
+        - identifier: install-dynatrace
+          unified_job_template:
+            name: "{{ dynatrace_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: ""
+          all_parents_must_converge: true
           related:
             always_nodes:
               - identifier: update-ritm-success

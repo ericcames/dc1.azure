@@ -1,0 +1,128 @@
+---
+# ============================================================================
+# playbooks/install_dynatrace_oneagent.yml — Phase 18 (AB#147)
+# ============================================================================
+# Installs Dynatrace OneAgent on provisioned VMs (Windows + Linux) so they
+# appear in the Dynatrace tenant under the dc1-azure host group. Closes the
+# loop with the aap.eda.dynatrace.push EDA demo — OneAgent detects problems,
+# Dynatrace pushes events to AAP EDA for automated remediation.
+#
+# Two plays — one per OS. Empty group = clean skip (same pattern as all other
+# configure playbooks). The installer is downloaded from the Dynatrace
+# deployment API using the PaaS token injected by the DC1.Azure - Dynatrace
+# credential (DT_API_HOST + DT_PAAS_TOKEN env vars).
+#
+# Required JT credentials:
+#   DC1.Azure - Dynatrace       → DT_API_HOST, DT_PAAS_TOKEN
+#   DC1.Azure - Windows Machine → WinRM auth
+#   DC1.Azure - Linux Machine   → SSH auth
+#
+# Required extra_vars:
+#   dt_host_group: dc1-azure    (baked into JT extra_vars by CaC)
+# ============================================================================
+
+# --- Windows ----------------------------------------------------------------
+- name: Install Dynatrace OneAgent (Windows)
+  hosts: windemo
+  gather_facts: false
+
+  vars:
+    dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+    dt_paas_token: "{{ lookup('ansible.builtin.env', 'DT_PAAS_TOKEN') }}"
+    dt_installer_url: "{{ dt_api_host }}/api/v1/deployment/installer/agent/windows/default/latest"
+    dt_installer_path: 'C:\Temp\Dynatrace-OneAgent-Windows.exe'
+
+  tasks:
+    - name: Assert Dynatrace inputs
+      ansible.builtin.assert:
+        that:
+          - dt_api_host | length > 0
+          - dt_paas_token | length > 0
+          - dt_host_group | default('') | length > 0
+        fail_msg: "DT_API_HOST, DT_PAAS_TOKEN, and dt_host_group are required."
+
+    - name: Create temp directory
+      ansible.windows.win_file:
+        path: 'C:\Temp'
+        state: directory
+
+    - name: Download OneAgent installer
+      ansible.windows.win_uri:
+        url: "{{ dt_installer_url }}"
+        headers:
+          Authorization: "Api-Token {{ dt_paas_token }}"
+        dest: "{{ dt_installer_path }}"
+        method: GET
+      register: dt_download
+
+    - name: Install OneAgent (silent)
+      ansible.windows.win_package:
+        path: "{{ dt_installer_path }}"
+        arguments:
+          - --set-host-group={{ dt_host_group }}
+          - --set-infra-only=false
+        state: present
+      register: dt_install
+
+    - name: Verify Dynatrace OneAgent service
+      ansible.windows.win_service:
+        name: Dynatrace OneAgent
+      register: dt_service
+      failed_when: dt_service.state != 'running'
+
+    - name: Clean up installer
+      ansible.windows.win_file:
+        path: "{{ dt_installer_path }}"
+        state: absent
+
+# --- Linux ------------------------------------------------------------------
+- name: Install Dynatrace OneAgent (Linux)
+  hosts: linuxweb
+  become: true
+  gather_facts: false
+
+  vars:
+    dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+    dt_paas_token: "{{ lookup('ansible.builtin.env', 'DT_PAAS_TOKEN') }}"
+    dt_installer_url: "{{ dt_api_host }}/api/v1/deployment/installer/agent/unix/default/latest"
+    dt_installer_path: /tmp/Dynatrace-OneAgent-Linux.sh
+
+  tasks:
+    - name: Assert Dynatrace inputs
+      ansible.builtin.assert:
+        that:
+          - dt_api_host | length > 0
+          - dt_paas_token | length > 0
+          - dt_host_group | default('') | length > 0
+        fail_msg: "DT_API_HOST, DT_PAAS_TOKEN, and dt_host_group are required."
+
+    - name: Download OneAgent installer
+      ansible.builtin.uri:
+        url: "{{ dt_installer_url }}"
+        headers:
+          Authorization: "Api-Token {{ dt_paas_token }}"
+        dest: "{{ dt_installer_path }}"
+        mode: "0755"
+        status_code: [200]
+      register: dt_download
+
+    - name: Install OneAgent
+      ansible.builtin.command:
+        argv:
+          - /bin/sh
+          - "{{ dt_installer_path }}"
+          - "--set-host-group={{ dt_host_group }}"
+          - --set-infra-only=false
+        creates: /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+      register: dt_install
+
+    - name: Verify oneagent service
+      ansible.builtin.service:
+        name: oneagent
+        state: started
+      register: dt_service
+
+    - name: Clean up installer
+      ansible.builtin.file:
+        path: "{{ dt_installer_path }}"
+        state: absent

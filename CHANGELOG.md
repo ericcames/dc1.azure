@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **Phase 18 — Dynatrace OneAgent integration** (AB#147) — new
+  `DC1.Azure - Install Dynatrace OneAgent` JT running
+  `playbooks/install_dynatrace_oneagent.yml`. Downloads and installs the
+  OneAgent from the Dynatrace deployment API on both Windows (`windemo`) and
+  Linux (`linuxweb`) VMs. Tags hosts into the `dc1-azure` host group so the
+  `aap.eda.dynatrace.push` EDA demo can scope problem events to dc1.azure-
+  provisioned infrastructure. New `DC1.Azure - Dynatrace` custom credential
+  type injecting `DT_API_HOST` + `DT_PAAS_TOKEN` as env vars. Workflow node
+  inserted after Patching + Configure Linux (converges both OS paths), before
+  Update RITM (success).
+
 ### Changed
 - **Install docs: ADO Trigger post-install step** — `INSTALL.md` §7 and the
   `/install-dc1-azure` skill now mention running the `DC1.Azure - Configure
