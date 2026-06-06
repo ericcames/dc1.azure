@@ -33,7 +33,7 @@
 
     - name: Check if OneAgent is already installed
       ansible.builtin.stat:
-        path: /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+        path: /opt/dynatrace/oneagent/agent/tools/oneagentctl
       register: dt_installed
 
     - name: Download OneAgent installer
@@ -55,7 +55,7 @@
           - "{{ dt_installer_path }}"
           - "--set-host-group={{ dt_host_group }}"
           - --set-infra-only=false
-        creates: /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+        creates: /opt/dynatrace/oneagent/agent/tools/oneagentctl
       register: dt_install
 
     - name: Verify oneagent service
