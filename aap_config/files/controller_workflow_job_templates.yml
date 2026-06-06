@@ -9,9 +9,11 @@
 # Instance Info chain.
 #
 #   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
-#                         │                           └─► Provision Access ─┴─► Patching ──always──► Install DT (Win) ──always──┐
-#                         ├─► Configure Linux ──always──► Install DT (Linux) ──always──────────────┴─► Update RITM (success) [converge]
-#                         └─► Create CMDB CI ─► Create CMDB Relationship
+#                         │                           └─► Provision Access ─┴─► Patching ──always───────────┐
+#                         ├─► Configure Linux ──always─────────────────────────────────────────────────────┤
+#                         ├─► Install DT (Win) ──always────────────────────────────────────────────────────┤
+#                         ├─► Install DT (Linux) ──always──────────────────────────────────────────────────┤
+#                         └─► Create CMDB CI ─► Create CMDB Relationship                    Update RITM (success) [converge]
 #
 # Phase 8 ServiceNow callback:
 #   Create CMDB CI runs EARLY, on a parallel branch off Provision VM (mirrors
@@ -20,12 +22,16 @@
 #   provision_vm.yml (my_server/my_public_ip/my_instance_id/my_instance_type) are
 #   available the moment Provision VM finishes, so the early branch has its data.
 #
-#   Patching      ─always─► Update RITM (success)
+#   Patching          ─always─► Update RITM (success) [converge, 4 parents]
+#   Configure Linux   ─always─► Update RITM (success)
+#   Install DT (Win)  ─always─► Update RITM (success)
+#   Install DT (Linux)─always─► Update RITM (success)
 #   Provision VM  ─failure─► Create Incident ─always─► Update RITM (failure)
 #
-# Update RITM (success) hangs off Patching `always` (mirrors DDW "Update request
-# ticket - success") so it fires whenever the workflow reaches Patching, decoupled
-# from CMDB — a CMDB failure no longer blocks the request being marked fulfilled.
+# Update RITM (success) converges four always-parents: Patching, Configure Linux,
+# and both DT nodes. All four complete (real work or clean skip on empty group)
+# before the RITM is closed. CMDB is a parallel terminal branch — its failure
+# does not block fulfillment.
 # The callback JTs run THIS repo's guarded playbooks/servicenow/*, which no-op
 # when ticket_number is absent — so AAP-UI / Self-Service / ADO launches (no
 # ticket) stay green; only ServiceNow-triggered runs (ticket_number from EDA)
@@ -87,8 +93,10 @@ controller_workflows:
           related:
             success_nodes:
               - identifier: powershell-improvement
-              - identifier: configure-linux          # Phase 17: parallel Linux configure path
-              - identifier: create-cmdb-ci           # parallel early-CMDB branch (mirrors DDW)
+              - identifier: configure-linux
+              - identifier: install-dynatrace-windows
+              - identifier: install-dynatrace-linux
+              - identifier: create-cmdb-ci
             failure_nodes:
               - identifier: create-incident
 
@@ -141,7 +149,7 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: install-dynatrace-windows
+              - identifier: update-ritm-success
 
         # --- Phase 17: Linux configure path ------------------------------------
         # No `limit:` — the playbook targets `hosts: linuxweb` directly. When
@@ -155,11 +163,13 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: install-dynatrace-linux
+              - identifier: update-ritm-success
 
         # --- Phase 18: Dynatrace OneAgent ------------------------------------
         # Two nodes (Windows + Linux) because AAP doesn't allow multiple
-        # Machine credentials on a single JT. Each targets its OS group;
+        # Machine credentials on a single JT. Parallel branches off Provision
+        # VM — OneAgent installs immediately after the VM is provisioned,
+        # running alongside the configure chain. Each targets its OS group;
         # empty group = clean skip. Both feed into update-ritm-success.
         - identifier: install-dynatrace-windows
           unified_job_template:
@@ -203,9 +213,10 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
 
-        # Update RITM (success) converges both OS paths. Both chains always
-        # complete (real work or clean skip on empty group), so convergence
-        # fires reliably for all os_type values.
+        # Update RITM (success) converges four parents: Patching, Configure
+        # Linux, DT Windows, DT Linux. All four always-complete (real work or
+        # clean skip on empty group), so convergence fires reliably for all
+        # os_type values.
         - identifier: update-ritm-success
           unified_job_template:
             name: "DC1.Azure - Update RITM (success)"
