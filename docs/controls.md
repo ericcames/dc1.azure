@@ -24,45 +24,45 @@ Dynatrace SaaS tenant, and recording proof in the originating service request.
 
 | Step | Mechanism | Evidence |
 |------|-----------|----------|
-| 1. Agent is installed | Workflow nodes `install-dynatrace-windows` / `install-dynatrace-linux` run on every provision — they are non-optional nodes in the `DC1.Azure - Provision and Configure` workflow | AAP job log (green node = installed) |
-| 2. Version is captured | `oneagentctl --get-version` runs on each VM after install | Version string published via `set_stats` (`dt_windows_oneagent_version` / `dt_linux_oneagent_version`) |
-| 3. Communication is confirmed | `oneagentctl --get-server` returns the active Dynatrace server endpoint | Connection info published via `set_stats` (`dt_windows_connection_info` / `dt_linux_connection_info`) |
-| 4. Tenant-side verification | Dynatrace `/api/v2/entities` API queried to confirm the host appeared in the tenant (Linux) | `dt_linux_host_verified` = `yes` in RITM |
-| 5. Proof recorded on ticket | `DC1.Azure - Update RITM (success)` writes a "Dynatrace OneAgent" section to the RITM work note | RITM work note contains: tenant URL, host group, version per OS, connection info, tenant verification |
+| 1. Agent is installed | Workflow nodes `install-dynatrace-windows` / `install-dynatrace-linux` fire in parallel with the configure chain immediately after Provision VM — they are non-optional nodes in the `DC1.Azure - Provision and Configure` workflow | AAP job log (green node = installed) |
+| 2. Install logged to ticket in real-time | The [`snow_log`](snow-log.md) role posts a work note to the RITM the moment the install completes — per host, with hostname and host group | RITM work note (timestamped, posted during the DT job) |
+| 3. Version + connection captured | `oneagentctl --version` and `oneagentctl --get-server` run on each VM after install | Version + connected status posted to RITM via `snow_log` |
+| 4. Audit proof recorded on ticket | `snow_log` posts a structured audit proof note with version, tenant URL, host group, and connection status — **in real-time during the Dynatrace JT**, not deferred to a final workflow node | RITM work note per host containing: version, tenant, host group, connected |
+
+**Task-level, per-host logging:** each host in a multi-host group posts its
+own work note with its specific hostname, version, and connection status. For
+a `both` (Windows + Linux) provision, the RITM receives 6 work notes from the
+Dynatrace playbooks alone — 3 per OS (install check, install result, audit
+proof). All are timestamped and posted by `AAP ServiceAccount` as the tasks
+execute.
 
 **Failure behavior:** if OneAgent installation fails, the workflow node fails
 and the RITM is marked with the failure outcome — the ticket cannot be closed
-as fulfilled without a successful OneAgent install.
+as fulfilled without a successful OneAgent install. The `snow_log` role is
+non-breaking (failures are logged but don't block the provisioning workflow).
 
 **Playbooks:**
-- `playbooks/install_dynatrace_oneagent_windows.yml`
-- `playbooks/install_dynatrace_oneagent_linux.yml`
-- `playbooks/servicenow/update_ritm.yml`
+- [`playbooks/install_dynatrace_oneagent_windows.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_windows.yml)
+- [`playbooks/install_dynatrace_oneagent_linux.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_linux.yml)
+- [`playbooks/roles/snow_log/`](https://github.com/ericcames/dc1.azure/tree/main/playbooks/roles/snow_log)
 
-**Example RITM work note (success):**
+**Example RITM work notes (real-time, per task):**
 
 ```
-Your Windows Server + Linux (RHEL 9) on Azure is ready.
-
-Windows VM:
-  FQDN:      dc1az-medium-abc123.eastus.cloudapp.azure.com
-  Public IP:  20.121.194.187
-  Admin user: demoadmin
-
-Linux VM:
-  FQDN:      dc1az-medium-def456.eastus.cloudapp.azure.com
-  Public IP:  20.121.194.188
-  Admin user: azureuser
-
-Dynatrace OneAgent:
-  Tenant:      https://ybz84624.live.dynatrace.com
-  Host group:  dc1-azure
-  Windows:     v1.301.0.20250520-140000 — https://ybz84624.live.dynatrace.com
-  Linux:       v1.301.0.20250520-140000 — https://ybz84624.live.dynatrace.com
-  Tenant verified: yes
-
-(The admin password is held securely in Ansible Automation Platform — it is
-intentionally NOT recorded on this ticket.)
+17:59:04  dc1az-lnx-small (Linux): OneAgent not found — starting installation.
+17:59:13  dc1az-win-small (Windows): OneAgent service not found — starting installation.
+18:00:35  dc1az-lnx-small (Linux): OneAgent installed successfully (host group: dc1-azure).
+18:01:21  dc1az-win-small (Windows): OneAgent installed successfully (host group: dc1-azure).
+18:02:23  dc1az-lnx-small (Linux) — OneAgent audit proof:
+          Version:    1.337.51.20260520-164208
+          Tenant:     https://ybz84624.live.dynatrace.com
+          Host group: dc1-azure
+          Connected:  yes
+18:05:03  dc1az-win-small (Windows) — OneAgent audit proof:
+          Version:    1.337.51.20260520-164208
+          Tenant:     https://ybz84624.live.dynatrace.com
+          Host group: dc1-azure
+          Connected:  yes
 ```
 
 ---

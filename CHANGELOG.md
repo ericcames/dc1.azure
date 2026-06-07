@@ -14,12 +14,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   first consumers.
 
 ### Changed
-- **Dynatrace audit proof → real-time SNow logging** — replaced the
+- **Dynatrace audit proof → real-time SNow logging** (AB#148) — replaced the
   `set_stats` → `update_ritm.yml` path with direct `snow_log` role calls in
   both OneAgent playbooks. Audit proof now posts to the RITM in real-time
   during the Dynatrace JT, not deferred to the final workflow summary.
   Removed the Dynatrace Jinja block from `update_ritm.yml`. Added
   `cred_servicenow` to both Dynatrace JTs.
+- **DT nodes moved parallel with config chain** (AB#148) — Dynatrace OneAgent
+  installs immediately after Provision VM, alongside Powershell Improvement /
+  Configure Linux / CMDB CI. Earlier monitoring coverage + more time for
+  host registration. Update RITM (success) now converges 4 always-parents.
+- **Audit proof format cleaned up** (AB#148) — replaced raw `oneagentctl
+  --get-server` CDN endpoint dump with tenant URL, host group, and connected
+  status.
+- **Host group set via `oneagentctl --set-host-group --restart-service`**
+  (AB#148) — explicit post-install step on both OS playbooks.
+
+### Removed
+- **Dynatrace tenant verification task** (AB#148) — the `/api/v2/entities`
+  API check never succeeded within the retry window (host registration takes
+  >6 min). The audit proof (version, tenant, host group, connected status)
+  is sufficient evidence. Removed from both OS playbooks.
 
 ### Added
 - **Phase 18 — Dynatrace OneAgent integration** (AB#147) — new
