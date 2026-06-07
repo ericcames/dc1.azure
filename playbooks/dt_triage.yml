@@ -37,18 +37,24 @@
     # ------------------------------------------------------------------
     # 1. Parse the Dynatrace event
     # ------------------------------------------------------------------
+    # The DT Workflow's "Send event to EDA" action wraps the payload inside an
+    # `eventData` key. A direct curl/mock sends flat fields. Handle both.
+    - name: Unwrap DT event (eventData envelope or flat)
+      ansible.builtin.set_fact:
+        _dt_event: "{{ dt_push_event.eventData | default(dt_push_event) }}"
+
     - name: Extract problem details from DT event
       ansible.builtin.set_fact:
-        dt_problem_id: "{{ dt_push_event.problemId | default(dt_push_event.ProblemID | default('unknown')) }}"
-        dt_problem_title: "{{ dt_push_event.problemTitle | default(dt_push_event.ProblemTitle | default(dt_push_event.title | default('Unknown problem'))) }}"
-        dt_problem_status: "{{ dt_push_event.status | default(dt_push_event.State | default('OPEN')) }}"
-        dt_impacted_entities: "{{ dt_push_event.impactedEntities | default(dt_push_event.ImpactedEntities | default([])) }}"
+        dt_problem_id: "{{ _dt_event.problemId | default(_dt_event.ProblemID | default('unknown')) }}"
+        dt_problem_title: "{{ _dt_event.problemTitle | default(_dt_event.ProblemTitle | default(_dt_event.title | default('Unknown problem'))) }}"
+        dt_problem_status: "{{ _dt_event.status | default(_dt_event.State | default('OPEN')) }}"
+        dt_impacted_entities: "{{ _dt_event.impactedEntities | default(_dt_event.ImpactedEntities | default([])) }}"
 
     - name: Determine affected entity name
       ansible.builtin.set_fact:
         dt_entity_name: >-
           {{ dt_impacted_entities[0].name
-             | default(dt_push_event.ImpactedEntity | default('unknown')) }}
+             | default(_dt_event.ImpactedEntity | default('unknown')) }}
 
     - name: Log received event
       ansible.builtin.debug:
