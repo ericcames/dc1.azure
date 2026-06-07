@@ -1,0 +1,18 @@
+---
+# ============================================================================
+# playbooks/webserver_manage_linux.yml — Phase 19 (Linux service management)
+# ============================================================================
+# Manages httpd service state on Linux VMs. Used by the
+# "DC1.Azure - Break Website (Linux)" JT.
+#
+# Survey / extra_vars:
+#   webserver_manage_action  — break | restart | verify | status
+# ============================================================================
+
+- name: Manage web service (Linux)
+  hosts: linuxweb
+  gather_facts: false
+  become: true
+
+  roles:
+    - role: webserver_manage

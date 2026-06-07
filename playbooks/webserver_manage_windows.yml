@@ -1,0 +1,17 @@
+---
+# ============================================================================
+# playbooks/webserver_manage_windows.yml — Phase 19 (Windows service management)
+# ============================================================================
+# Manages IIS (W3SVC) service state on Windows VMs. Used by the
+# "DC1.Azure - Break Website (Windows)" JT.
+#
+# Survey / extra_vars:
+#   webserver_manage_action  — break | restart | verify | status
+# ============================================================================
+
+- name: Manage web service (Windows)
+  hosts: windemo
+  gather_facts: false
+
+  roles:
+    - role: webserver_manage

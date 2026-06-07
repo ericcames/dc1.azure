@@ -317,7 +317,7 @@ controller_templates:
     organization: "{{ my_organization }}"
     inventory: "{{ inventory_name }}"
     project: "{{ project_name }}"
-    playbook: playbooks/webserver_manage.yml
+    playbook: playbooks/webserver_manage_linux.yml
     execution_environment: "{{ my_execution_environment }}"
     credentials:
       - "{{ cred_linux }}"
@@ -343,7 +343,7 @@ controller_templates:
     organization: "{{ my_organization }}"
     inventory: "{{ inventory_name }}"
     project: "{{ project_name }}"
-    playbook: playbooks/webserver_manage.yml
+    playbook: playbooks/webserver_manage_windows.yml
     execution_environment: "{{ my_execution_environment }}"
     credentials:
       - "{{ cred_windows }}"
