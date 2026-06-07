@@ -92,13 +92,12 @@
       servicenow.itsm.incident:
         number: "{{ incident_number }}"
         state: resolved
-        other:
-          close_code: Solved (Permanently)
-          close_notes: >-
-            Automated remediation by Ansible Automation Platform.
-            {{ remediated_service }} restarted on {{ remediated_host }}.
-            Triggered by Dynatrace problem {{ dt_problem_id | default('N/A') }}
-            ({{ dt_problem_title | default('N/A') }}).
+        close_code: "Solved (Permanently)"
+        close_notes: >-
+          Automated remediation by Ansible Automation Platform.
+          {{ remediated_service }} restarted on {{ remediated_host }}.
+          Triggered by Dynatrace problem {{ dt_problem_id | default('N/A') }}
+          ({{ dt_problem_title | default('N/A') }}).
 
     - name: Confirm incident resolved
       ansible.builtin.debug:

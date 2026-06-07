@@ -22,7 +22,9 @@
           servicenow.itsm.api_info:
             resource: "{{ snow_log_resource }}"
             sysparm_query: "numberSTARTSWITH{{ snow_log_ticket_number }}"
-            sysparm_fields: "sys_id,number"
+            columns:
+              - sys_id
+              - number
           register: _snow_log_lookup
 
         - name: Snow_log cache sys_id

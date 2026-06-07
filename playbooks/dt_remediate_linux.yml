@@ -121,11 +121,11 @@
           Disk Usage:
           {{ rca_disk.stdout | default('N/A') }}
 
-          Recent httpd journal (last hour, up to 50 lines):
-          {{ rca_httpd_logs.stdout_lines | default([]) | join('\n') }}
+          Recent httpd journal (last 10 lines):
+          {{ (rca_httpd_logs.stdout_lines | default([]))[-10:] | join('\n') }}
 
           Recent package changes (last 10):
-          {{ rca_packages.stdout_lines | default([]) | first(10) | join('\n') }}
+          {{ (rca_packages.stdout_lines | default([]))[:10] | join('\n') }}
         snow_log_ticket_number: "{{ incident_number | default('') }}"
         snow_log_resource: incident
 
