@@ -126,12 +126,52 @@ tasks delegate to localhost, so it works from plays targeting remote hosts.
 | [`playbooks/roles/snow_log/tasks/main.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/roles/snow_log/tasks/main.yml) | Guard → resolve sys_id → patch → rescue |
 | [`playbooks/roles/snow_log/meta/main.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/roles/snow_log/meta/main.yml) | Galaxy metadata |
 
-### First consumers (Dynatrace OneAgent playbooks)
+### Consumers
 
-| File | snow_log calls |
-|------|---------------|
-| [`playbooks/install_dynatrace_oneagent_linux.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_linux.yml) | 3 (install check, install result, audit proof) |
-| [`playbooks/install_dynatrace_oneagent_windows.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_windows.yml) | 3 (install check, install result, audit proof) |
+| File | snow_log calls | Ticket type |
+|------|---------------|-------------|
+| [`playbooks/install_dynatrace_oneagent_linux.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_linux.yml) | 3 (install check, install result, audit proof) | RITM |
+| [`playbooks/install_dynatrace_oneagent_windows.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_windows.yml) | 3 (install check, install result, audit proof) | RITM |
+| [`playbooks/dt_triage.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_triage.yml) | 1 (incident creation confirmation) | Incident |
+| [`playbooks/dt_remediate_linux.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_remediate_linux.yml) | 3 (remediation start, service restored, RCA data) | Incident |
+| [`playbooks/dt_remediate_windows.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_remediate_windows.yml) | 3 (remediation start, service restored, RCA data) | Incident |
+| [`playbooks/dt_close_incident.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_close_incident.yml) | 1 (executive summary) | Incident |
+
+### Incident ticket usage (Phase 19)
+
+Phase 19's EDA incident response workflow uses `snow_log` to build a
+real-time investigation narrative on the incident as the remediation unfolds.
+Each work note is timestamped and posted by the `AAP ServiceAccount` —
+auditors see the full story without reading Ansible job logs.
+
+**Live example (INC0011360, workflow #598):**
+
+```
+15:50:34  Incident INC0011360 created for Dynatrace problem P-26069
+          (Process unavailable) on dc1az-lnx-medium-2cpu-8gb-jhwyv.
+          Automated remediation in progress.
+15:50:36  Beginning automated remediation on dc1az-lnx-medium-2cpu-8gb-jhwyv.
+          Attempting service restoration for httpd.
+15:50:42  Service httpd restored. Website verified accessible (HTTP 200).
+15:50:48  Root Cause Analysis data for dc1az-lnx-medium-2cpu-8gb-jhwyv:
+          System Uptime: ... | httpd journal: ... | Recent packages: ...
+15:50:52  === EXECUTIVE SUMMARY ===
+          Dynatrace detected httpd process failure. No active change tickets.
+          Service restored. RCA data collected. Incident resolved.
+```
+
+**Key pattern differences from RITM usage:**
+
+| Aspect | RITM (provisioning) | Incident (remediation) |
+|--------|---------------------|----------------------|
+| `snow_log_resource` | `sc_req_item` (default) | `incident` |
+| `snow_log_ticket_number` | `{{ ticket_number }}` (from EDA) | `{{ incident_number }}` (from triage `set_stats`) |
+| Ticket lifecycle | Ticket exists before workflow starts | Triage *creates* the ticket mid-workflow |
+| Credential | Same `DC1.Azure - ServiceNow` | Same `DC1.Azure - ServiceNow` |
+
+The role's guard pattern (`no-op on empty ticket_number`) works for both:
+provisioning workflows that may not have a ticket, and remediation workflows
+where the incident doesn't exist until the triage node creates it.
 
 ## Related
 

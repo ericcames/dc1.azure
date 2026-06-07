@@ -568,6 +568,124 @@ any Davis problem) fires a Dynatrace Workflow that pushes the event to AAP EDA.
 
 ---
 
+## 12. EDA Incident Response — Dynatrace website-down demo (Phase 19)
+
+This is the "closing the loop" demo: Dynatrace detects a downed website,
+pushes an event to AAP's Event-Driven Ansible, which launches a remediation
+workflow that checks ServiceNow, fixes the problem, and documents everything.
+Fully automated — no manual steps.
+
+**Live-validated:** workflow #598, INC0011360, 2026-06-07.
+
+### Pre-flight
+
+- [ ] Both VMs provisioned and websites serving (run § 3 first, or confirm
+      from a previous provision)
+- [ ] Dynatrace OneAgent on both hosts (host group `dc1-azure`)
+- [ ] `DT-EDA-PUSH - Service Remediation` activation running (AAP → Automation
+      Decisions → Rulebook Activations, ID 5)
+- [ ] DT Workflow `DT-EDA-PUSH - Service Failure → AAP` is Live (Dynatrace →
+      Workflows)
+- [ ] DT process availability alerting configured for httpd
+      (`dtctl get settings --schema builtin:availability.process-group-alerting`)
+- [ ] Outbound allowlist includes the current AAP URL (Dynatrace → Settings →
+      General → External requests)
+
+### Demo motion (5 beats, ~3 minutes)
+
+**Beat 1 — Show the website is healthy**
+
+Open the Linux website in a browser:
+`http://dc1az-lnx-<tier>-<suffix>.eastus.cloudapp.azure.com`
+
+Show Dynatrace: Infrastructure → Hosts → the Linux host → Processes tab →
+Apache Web Server httpd at 100% availability.
+
+**Talk-track:** "This VM was provisioned by the same AAP workflow we just saw.
+Dynatrace OneAgent is monitoring it — you can see httpd is running, 100%
+available."
+
+**Beat 2 — Break the website**
+
+In AAP, run **DC1.Azure - Break Website (Linux)** with the survey set to
+`action: break`. This stops the httpd service.
+
+Refresh the browser — `ERR_CONNECTION_REFUSED`. Show Dynatrace — the
+availability chart drops.
+
+**Talk-track:** "I just stopped the web server. The site is down. Now watch
+what happens — I'm not touching anything else."
+
+**Beat 3 — Watch DT detect and EDA fire (60–90 seconds)**
+
+Dynatrace creates a Problem (P-xxxxx, "Process unavailable", Availability).
+The DT Workflow pushes the event to AAP's Event-Driven Ansible. Watch the
+AAP Jobs page — `DC1.Azure - Remediate Website` workflow launches
+automatically.
+
+**Talk-track:** "Dynatrace detected the process crash and pushed an alert to
+AAP's Event-Driven Ansible. EDA evaluated the event and launched the
+remediation workflow — completely automated, no human in the loop."
+
+**Beat 4 — Walk through the workflow nodes**
+
+Click into the running workflow. Four nodes:
+
+1. **Triage DT Alert** — parses the Dynatrace event, looks up the CMDB CI,
+   checks ServiceNow for open change requests in the Implement phase. If a
+   change ticket is found, it logs the correlation and stops (expected
+   maintenance). If not, it creates an incident.
+
+2. **Remediate Website (Linux)** — restarts httpd, verifies the website
+   returns HTTP 200, gathers root-cause data (system logs, uptime, recent
+   package changes, disk usage).
+
+3. **Remediate Website (Windows)** — skips cleanly (this was a Linux problem).
+
+4. **Close Incident** — posts an executive summary to the incident and
+   resolves it.
+
+**Talk-track:** "The triage checked the CMDB — is this server under a planned
+change? No — so it opened an incident. Then it restarted the web service,
+verified the site is back, gathered diagnostic data for root cause analysis,
+and resolved the incident. Every step is logged to ServiceNow as it happens."
+
+**Beat 5 — Show the results**
+
+1. **Refresh the website** — it's back. The branded AAP demo page loads.
+
+2. **Open the incident in ServiceNow** (INC-xxxxx). Show:
+   - Short description: `Dynatrace Alert: Process unavailable on <host>`
+   - Configuration item: the Linux VM CI (linked automatically)
+   - State: Resolved
+   - Work notes: timestamped narrative — triage, remediation start, service
+     restored, RCA data, executive summary
+   - Resolution Information tab: `Solved (Permanently)` with DT problem ID
+
+**Talk-track:** "From website down to fully resolved incident — under two
+minutes, fully automated, fully audited. The incident has the CI linked, the
+root cause data attached, and the resolution documented. No one typed a
+ticket. No one SSH'd into a server. Ansible did it all."
+
+### Pacing note
+
+DT takes ~60 seconds to detect the process crash and create a Problem (the
+process availability alerting delay is 1 × 10-second measurement cycle, plus
+DT Workflow "wait for root cause analysis" adds time). Factor this into the
+demo — use the pause to narrate what DT is doing: "Dynatrace is correlating
+the process crash with host metrics and determining root cause..."
+
+### Failure recovery
+
+| Symptom | Fix |
+|---------|-----|
+| DT never creates a Problem | Verify process availability alerting rule exists (`dtctl get settings --schema builtin:availability.process-group-alerting`). Verify outbound allowlist has the AAP URL. |
+| DT Workflow shows `403: Forbidden` | Update the connection token in DT → Workflows → connection settings to match `EDA_EVENT_STREAM_TOKEN` |
+| Triage shows "Unknown problem on unknown" | The event payload field mapping is wrong — check `dt_triage.yml` handles dot-notated keys (`event.name`, `host.name`) with bracket notation |
+| Website doesn't come back | Check the Remediate Linux job — does it have `become: true`? Is the Linux Machine credential attached to the JT? |
+
+---
+
 ## Appendix A — Failure modes & recovery
 
 | Symptom | Likely cause | Fix |
@@ -609,6 +727,9 @@ inline 📸 placeholders above with real `![alt](images/...)` embeds.
 | Workflow | `DC1.Azure - Provision and Configure` |
 | Nodes (Windows path) | Provision VM → Powershell Improvement → Website Setup / Provision Access → Patching → Install Dynatrace → Update RITM (success) |
 | Nodes (Linux path) | Provision VM → Configure Linux → Install Dynatrace → Update RITM (success) |
+| Remediation workflow | `DC1.Azure - Remediate Website` — Triage → Remediate Linux/Windows → Close Incident |
+| Remediation trigger | `DT-EDA-PUSH - Service Remediation` EDA activation (ID 5) |
+| Break Website JT | `DC1.Azure - Break Website (Linux)` / `(Windows)` — survey: `webserver_manage_action` |
 | Dynatrace | OneAgent installed on all VMs; host group `dc1-azure`; tenant `ybz84624.live.dynatrace.com` |
 | ServiceNow nodes (Demo v2) | CMDB (parallel, early): Provision VM→Create CMDB CI→Create CMDB Relationship; success: Patching `always`→Update RITM (success); failure: Provision VM→Create Incident→Update RITM (failure) — all no-op without `ticket_number` |
 | ServiceNow match string | catalog item Short description = `DC1.Azure Infrastructure Provisioning` |
