@@ -260,3 +260,4 @@ facts_template: "DC1.Azure - Gather and Display Facts (Windows)"
 # that doesn't exist yet (fresh env, first pass).
 dc1_launcher_jt_id: ""
 dc1_facts_jt_id: ""
+dc1_facts_linux_jt_id: ""

@@ -109,12 +109,14 @@
           loop:
             - "{{ launcher_template }}"
             - "{{ facts_template }}"
+            - "{{ facts_template_linux }}"
           register: dc1_ss_jt_lookups
 
         - name: Set the JT id facts (empty for any JT that does not exist yet)
           ansible.builtin.set_fact:
             dc1_launcher_jt_id: "{{ dc1_ss_jt_lookups.results[0].json.results[0].id if (dc1_ss_jt_lookups.results[0].json.results | length > 0) else '' }}"
             dc1_facts_jt_id: "{{ dc1_ss_jt_lookups.results[1].json.results[0].id if (dc1_ss_jt_lookups.results[1].json.results | length > 0) else '' }}"
+            dc1_facts_linux_jt_id: "{{ dc1_ss_jt_lookups.results[2].json.results[0].id if (dc1_ss_jt_lookups.results[2].json.results | length > 0) else '' }}"
 
         - name: Grant the Developers team Execute on the self-service JTs (Phase 9)
           ansible.builtin.include_role:
