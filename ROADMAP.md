@@ -151,7 +151,7 @@ Terraform `locals.tf`:
 > **Why B-series?** B-series (burstable) VMs are cheaper (~60-70% less than
 > DSv5), sufficient for demo workloads (IIS/Apache serving a landing page),
 > and — critically — use their **own separate vCPU quota** in RHDP open
-> environments. This frees the DSv5 quota for the Phase 19 F5 BIG-IP appliance.
+> environments. This frees the DSv5 quota for the Phase 20 F5 BIG-IP appliance.
 > `os_type=both` at `large-4cpu-16gb` = 8 vCPUs, well within the 10-vCPU
 > B-series quota. Nightly teardown caps a forgotten VM at one evening (~$1–5).
 
@@ -724,7 +724,53 @@ in the Dynatrace tenant's Hosts app under the `dc1-azure` host group. Filling a
 host's disk past 80% opens a "High Disk Usage" problem — which Dynatrace pushes to
 the `aap.eda.dynatrace.push` EDA event stream, firing the remediation workflow.
 
-### Phase 19 — F5 Load Balancing on Azure  ⬜
+### Phase 19 — EDA Incident Response (Dynatrace Website-Down)  🔄
+
+*Automated incident response demo: Dynatrace detects a downed website, pushes
+an alert to EDA, which launches a remediation workflow that checks ServiceNow
+for active change tickets, creates an incident if none found, restores the
+service, gathers root-cause data, and resolves the incident — all logged to
+ServiceNow in real time via `snow_log`. Linux first (customer ask), Windows
+parallel.*
+
+The `DT-EDA-PUSH - Service Remediation` EDA activation (from
+`aap.eda.dynatrace.push`) already receives Dynatrace push events. This phase
+builds the dc1.azure remediation workflow that EDA launches.
+
+- 🔄 **Role: `webserver_manage`** — service lifecycle management
+  (break/restart/verify/status) for both Linux (httpd) and Windows (IIS/W3SVC).
+  OS auto-detected via group membership (`linuxweb` → httpd, `windemo` → W3SVC).
+- 🔄 **Playbook: `dt_triage.yml`** — parse DT push event, determine affected host
+  and OS, CMDB CI lookup, query `task_ci` for change requests in Implement phase
+  linked to the CI (CHG lifecycle: only Implement = actively worked), create
+  incident if no active change found.
+- 🔄 **Playbook: `dt_remediate_linux.yml`** — restart httpd, verify HTTP 200,
+  gather RCA data (journal, uptime, packages, disk), `snow_log` all findings.
+- 🔄 **Playbook: `dt_remediate_windows.yml`** — restart IIS, verify, RCA data,
+  `snow_log`. Parallel pattern to Linux.
+- 🔄 **Playbook: `dt_close_incident.yml`** — executive summary, resolve incident.
+- 🔄 **Workflow: `DC1.Azure - Remediate Website`** — 4-node graph:
+  `dt-triage` → `remediate-linux` + `remediate-windows` (parallel) →
+  `close-incident` (converge).
+- 🔄 **JTs: Break Website (Linux/Windows)** — survey-driven: break/restart/verify/
+  status. Standalone (not in the remediation workflow) — the demo operator uses
+  this to intentionally stop the web service.
+- 🔄 **JT: Gather and Display Facts (Linux)** — mirrors the Windows version for
+  the `linuxweb` group. Existing Windows JT renamed to `(Windows)`.
+- ⬜ **DT webhook verification** — confirm the Dynatrace tenant pushes problem
+  events to the `DT-EDA-PUSH - Dynatrace Events` event stream on AAP.
+- ⬜ **`aap.eda.dynatrace.push` update** — change rulebook from `run_job_template`
+  (notify-only) to `run_workflow_template` → `DC1.Azure - Remediate Website`.
+- ⬜ **End-to-end validation** — break httpd → DT problem → EDA fires → INC
+  created → service restored → RCA on incident → INC resolved.
+
+**Exit criteria:** stopping httpd on a provisioned Linux VM triggers the full
+automated chain: Dynatrace detection → EDA → ServiceNow incident with real-time
+work notes (triage, restoration, RCA, executive summary, resolution). The change
+ticket check correctly identifies expected maintenance (CHG in Implement phase)
+and suppresses incident creation.
+
+### Phase 20 — F5 Load Balancing on Azure  ⬜
 
 *Deploys an F5 BIG-IP Virtual Edition on Azure and places the Linux web servers
 behind it — bringing the proven `aap.dailydemo.F5` load-balancing and patching
@@ -842,7 +888,7 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-06-04 | **Multi-OS provisioning: `os_type` survey (windows / linux / both)** — the workflow survey gains an `os_type` parameter; Terraform conditionally creates Windows, Linux, or both VMs in one launch. Linux = RHEL 9, SSH key, cloud-init. Same VNet/NSG, separate inventory groups (`windemo` / `linuxweb`). Backward compatible: default `os_type=windows` preserves existing behavior |
 | 2026-06-04 | **Linux web-server pattern from `aap.dailydemo.F5`** (not `aap.dailydemo.linux`) — the F5 daily demo's `rhsm` → `linux_post_install` → `website_setup` role chain is the better reference because it already builds the Apache web server that later sits behind the F5 pool. CDN registration direct to Red Hat (no Satellite) |
 | 2026-06-04 | **Dynatrace OneAgent as a standard workflow node** (not conditional/best-effort) — the Dynatrace SaaS tenant (`ybz84624.live.dynatrace.com`) is always on; OneAgent installs on every provisioned VM (Windows + Linux). Uses the **push model** (`aap.eda.dynatrace.push`) — Dynatrace pushes problem events to AAP EDA. Credential: `DC1.Azure - Dynatrace` (PaaS token from `docs/dev-environment.sh`). Hosts tagged into `dc1-azure` host group |
-| 2026-06-04 | **F5 BIG-IP on Azure added to roadmap (Phase 19)** — F5 BIG-IP VE is available in Azure Marketplace (PAYG GOOD tier = LTM, 30-day free trial). Deploys via Terraform; configured via `f5networks.f5_modules`. Linux web servers become pool members; the `aap.dailydemo.F5` patching workflow (disable → patch → re-enable) runs against them. Key risk: RHDP open-env term acceptance is subscription-scoped |
+| 2026-06-04 | **F5 BIG-IP on Azure added to roadmap (Phase 20, was 19)** — F5 BIG-IP VE is available in Azure Marketplace (PAYG GOOD tier = LTM, 30-day free trial). Deploys via Terraform; configured via `f5networks.f5_modules`. Linux web servers become pool members; the `aap.dailydemo.F5` patching workflow (disable → patch → re-enable) runs against them. Key risk: RHDP open-env term acceptance is subscription-scoped |
 | 2026-06-03 | **Phase 9: Self-Service Portal surfaces JOB templates only, not workflows → bridge with a launcher JT** (AB#107) | Proven live (identical team-level grant: a job template surfaced for `jr-dev`, the workflow did not; backend provider `AAPJobTemplateProvider`) and confirmed in RH 2.6 docs — a product-design choice, not a version gap (chart 2.2.0 doesn't add it). A thin launcher JT (`DC1.Azure - Request Windows VM`, `vm_size_tier` survey → `ansible.controller.workflow_launch`) fires the existing workflow, preserving "one core workflow, four triggers" and keeping everything in dc1.azure's scope (vs a portal-side custom Backstage template). NB: the portal catalog only refreshes per-user access on a `sync_portal_orgs.yml` run (it restarts the portal); the in-UI "Sync now" button does not |
 
 ---
@@ -864,8 +910,8 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 - **`aap.dailydemo.windows` role compatibility with Azure VMs** (Phase 4 reaffirmation) — roles assume an AWS-provisioned Windows box (likely AWS-specific tags or metadata service calls). Mitigation: review each of the 4 roles' tasks before importing; vendor + adapt locally if upstream isn't cloud-agnostic.
 - **RHEL 9 Azure Marketplace image licensing** (Phase 16 new) — RHEL PAYG images include the subscription cost in the compute price; BYOS (Bring Your Own Subscription) images use an existing RH subscription. For a demo, PAYG is simpler (no activation key needed), but CDN registration (Phase 17) with RHSM credentials on a PAYG image may conflict. Mitigation: test early; if PAYG already registers, skip the explicit RHSM step.
 - **Multi-OS Terraform state complexity** (Phase 16 new) — conditional `count` on VM resources means `terraform plan` output changes shape depending on `os_type`. Mitigation: use named resources (`azurerm_linux_virtual_machine.demo[0]`) and stable addressing so `os_type` changes don't force-replace the other OS's VM.
-- **F5 Marketplace term acceptance on RHDP** (Phase 19 new) — `az vm image terms accept` is a subscription-level operation; RHDP open environments typically grant Contributor on the RG only, not Owner on the subscription. If blocked, F5 deployment requires a more permissive environment or pre-accepted terms. Mitigation: test immediately after RHDP env activation; document the fallback.
-- **F5 vCPU quota alongside VMs** (Phase 19 new) — F5 BIG-IP VE needs ≥2 vCPUs on top of the Linux + Windows VMs. With `os_type=both` + F5, total vCPU demand could hit 12–18 depending on tiers. Mitigation: verify RHDP quota covers the sum; document a "demo-lite" tier set if not.
+- **F5 Marketplace term acceptance on RHDP** (Phase 20 new) — `az vm image terms accept` is a subscription-level operation; RHDP open environments typically grant Contributor on the RG only, not Owner on the subscription. If blocked, F5 deployment requires a more permissive environment or pre-accepted terms. Mitigation: test immediately after RHDP env activation; document the fallback.
+- **F5 vCPU quota alongside VMs** (Phase 20 new) — F5 BIG-IP VE needs ≥2 vCPUs on top of the Linux + Windows VMs. With `os_type=both` + F5, total vCPU demand could hit 12–18 depending on tiers. Mitigation: verify RHDP quota covers the sum; document a "demo-lite" tier set if not.
 
 ---
 

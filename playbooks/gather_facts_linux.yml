@@ -1,0 +1,69 @@
+---
+# ============================================================================
+# playbooks/gather_facts_linux.yml — Phase 19 (Linux Fact Caching)
+# ============================================================================
+# Linux counterpart to gather_facts.yml (Windows). Gathers Ansible facts from
+# the provisioned Linux VM(s) and surfaces them two ways:
+#
+#   1. STORED IN THE AAP DATABASE — the JT sets `use_fact_cache: true`, so AAP
+#      persists the full `ansible_facts` for each host after this run. View in
+#      Infrastructure → Hosts → <host> → Facts.
+#
+#   2. PRINTED TO THE JOB LOG — curated summary (OS, CPU, memory, IPs, uptime,
+#      kernel). Full facts are smaller on Linux than Windows but still hidden
+#      by default; flip `show_full_facts` to dump them.
+#
+# Target: the `linuxweb` group of the dc1-azure inventory, reached over SSH
+# with the "DC1.Azure - Linux Machine" credential.
+#
+# Required job-template credential:
+#   - DC1.Azure - Linux Machine  → SSH connection to the VM
+#
+# Optional input (survey / extra_var):
+#   - show_full_facts  (bool, default false) — also print the raw ansible_facts
+# ============================================================================
+
+- name: Gather and display Ansible facts from the DC1.Azure Linux VM
+  hosts: linuxweb
+  gather_facts: true
+
+  vars:
+    show_full_facts: false
+
+  tasks:
+    - name: Build a curated, narratable fact summary
+      ansible.builtin.set_fact:
+        dc1_fact_summary:
+          hostname: "{{ ansible_facts['hostname'] | default('n/a') }}"
+          fqdn: "{{ ansible_facts['fqdn'] | default('n/a') }}"
+          os: >-
+            {{ ansible_facts['distribution'] | default('n/a') }}
+            {{ ansible_facts['distribution_version'] | default('') }}
+          os_kernel: "{{ ansible_facts['kernel'] | default('n/a') }}"
+          architecture: "{{ ansible_facts['architecture'] | default('n/a') }}"
+          cpu_cores: "{{ ansible_facts['processor_cores'] | default('n/a') }}"
+          cpu_count: "{{ ansible_facts['processor_count'] | default('n/a') }}"
+          memory_mb: "{{ ansible_facts['memtotal_mb'] | default('n/a') }}"
+          ip_addresses: "{{ ansible_facts['all_ipv4_addresses'] | default([]) }}"
+          default_ipv4: "{{ ansible_facts['default_ipv4']['address'] | default('n/a') }}"
+          dns_servers: "{{ ansible_facts['dns']['nameservers'] | default([]) }}"
+          uptime_seconds: "{{ ansible_facts['uptime_seconds'] | default('n/a') }}"
+          selinux_status: "{{ ansible_facts['selinux']['status'] | default('n/a') }}"
+          product: "{{ ansible_facts['product_name'] | default('n/a') }}"
+          vendor: "{{ ansible_facts['system_vendor'] | default('n/a') }}"
+
+    - name: Print the curated fact summary to the job log
+      ansible.builtin.debug:
+        var: dc1_fact_summary
+
+    - name: Print the complete fact set (only when show_full_facts is true)
+      ansible.builtin.debug:
+        var: ansible_facts
+      when: show_full_facts | bool
+
+    - name: Note where the full facts are persisted
+      ansible.builtin.debug:
+        msg: >-
+          Full facts for {{ inventory_hostname }} are cached in the AAP database
+          (this JT uses fact storage). View them in the UI:
+          Infrastructure → Hosts → {{ inventory_hostname }} → Facts.

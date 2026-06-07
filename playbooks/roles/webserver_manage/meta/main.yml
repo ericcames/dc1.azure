@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Eric Ames
+  description: Manage web service lifecycle (break/restart/verify/status) for Linux httpd and Windows IIS
+  license: MIT
+  min_ansible_version: "2.15"
+
+dependencies: []

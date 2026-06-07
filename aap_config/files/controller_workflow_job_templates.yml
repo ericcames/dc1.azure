@@ -242,3 +242,66 @@ controller_workflows:
             type: job_template
             organization:
               name: "{{ my_organization }}"
+
+  # =========================================================================
+  # Phase 19: Remediation workflow — Dynatrace website-down incident response
+  # =========================================================================
+  # Launched by the DT-EDA-PUSH - Service Remediation activation (from
+  # aap.eda.dynatrace.push) when Dynatrace pushes a problem event.
+  #
+  #   dt-triage ──success──► remediate-linux ──always──┐
+  #       │                                            ▼
+  #       └──success──► remediate-windows ──always──► close-incident
+  #                                               (all_parents_must_converge)
+  #
+  # dt-triage parses the DT event, does CMDB lookup and change ticket check,
+  # creates an incident if no CHG in Implement phase is linked to the CI.
+  # Remediation nodes guard on affected_os_type (set_stats from triage) —
+  # the non-matching OS node skips cleanly. close-incident posts an executive
+  # summary and resolves the INC.
+  - name: "{{ remediate_workflow_name }}"
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    ask_variables_on_launch: true
+    related:
+      workflow_nodes:
+        - identifier: dt-triage
+          unified_job_template:
+            name: "{{ triage_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          related:
+            success_nodes:
+              - identifier: remediate-linux
+              - identifier: remediate-windows
+
+        - identifier: remediate-linux
+          unified_job_template:
+            name: "{{ remediate_linux_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: ""
+          related:
+            always_nodes:
+              - identifier: close-incident
+
+        - identifier: remediate-windows
+          unified_job_template:
+            name: "{{ remediate_windows_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: ""
+          related:
+            always_nodes:
+              - identifier: close-incident
+
+        - identifier: close-incident
+          unified_job_template:
+            name: "{{ close_incident_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          all_parents_must_converge: true

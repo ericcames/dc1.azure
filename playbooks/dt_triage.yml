@@ -1,0 +1,220 @@
+---
+# ============================================================================
+# playbooks/dt_triage.yml — Phase 19 (Dynatrace incident triage)
+# ============================================================================
+# First node in the DC1.Azure - Remediate Website workflow. Receives the
+# Dynatrace push event from EDA, determines the affected host and OS, looks
+# up the CMDB CI, checks for open change tickets linked to the CI, and either
+# logs the correlation (known maintenance) or creates a new incident.
+#
+# Consumed input (from EDA via run_workflow_template extra_vars):
+#   dt_push_event  — full Dynatrace problem event payload (dict)
+#
+# Published artifacts (via set_stats for downstream workflow nodes):
+#   incident_number, incident_sys_id  — INC ticket (empty if CHG found)
+#   affected_os_type                  — linux | windows
+#   affected_ci_sys_id                — CMDB CI sys_id
+#   affected_ci_name                  — CMDB CI name (FQDN)
+#   has_active_change                 — true if open CHG linked to CI
+#   dt_problem_id, dt_problem_title   — from the DT event
+#
+# Credential: DC1.Azure - ServiceNow (ServiceNow ITSM → SN_* env).
+# ============================================================================
+
+- name: Triage Dynatrace alert
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    dt_push_event: {}
+    incident_caller: service.ansible
+    incident_impact: high
+    incident_urgency: high
+    incident_support_group: "Ansible West Tigers"
+
+  tasks:
+    # ------------------------------------------------------------------
+    # 1. Parse the Dynatrace event
+    # ------------------------------------------------------------------
+    - name: Extract problem details from DT event
+      ansible.builtin.set_fact:
+        dt_problem_id: "{{ dt_push_event.problemId | default(dt_push_event.ProblemID | default('unknown')) }}"
+        dt_problem_title: "{{ dt_push_event.problemTitle | default(dt_push_event.ProblemTitle | default(dt_push_event.title | default('Unknown problem'))) }}"
+        dt_problem_status: "{{ dt_push_event.status | default(dt_push_event.State | default('OPEN')) }}"
+        dt_impacted_entities: "{{ dt_push_event.impactedEntities | default(dt_push_event.ImpactedEntities | default([])) }}"
+
+    - name: Determine affected entity name
+      ansible.builtin.set_fact:
+        dt_entity_name: >-
+          {{ dt_impacted_entities[0].name
+             | default(dt_push_event.ImpactedEntity | default('unknown')) }}
+
+    - name: Log received event
+      ansible.builtin.debug:
+        msg: >-
+          Dynatrace problem {{ dt_problem_id }}: {{ dt_problem_title }}
+          — affected entity: {{ dt_entity_name }}
+
+    # ------------------------------------------------------------------
+    # 2. Determine OS type from entity name (dc1.azure naming convention)
+    # ------------------------------------------------------------------
+    - name: Determine OS type from hostname
+      ansible.builtin.set_fact:
+        affected_os_type: >-
+          {{ 'linux' if 'lnx' in dt_entity_name else
+             'windows' if 'win' in dt_entity_name else
+             'unknown' }}
+
+    - name: Set CMDB CI class based on OS
+      ansible.builtin.set_fact:
+        cmdb_ci_class: >-
+          {{ 'cmdb_ci_linux_server' if affected_os_type == 'linux' else
+             'cmdb_ci_win_server' if affected_os_type == 'windows' else
+             'cmdb_ci_server' }}
+
+    # ------------------------------------------------------------------
+    # 3. CMDB lookup — find the CI by hostname
+    # ------------------------------------------------------------------
+    - name: Extract short hostname for CMDB query
+      ansible.builtin.set_fact:
+        dt_short_hostname: "{{ dt_entity_name.split('.')[0] }}"
+
+    - name: Query CMDB for the affected CI
+      servicenow.itsm.api_info:
+        resource: "{{ cmdb_ci_class }}"
+        sysparm_query: "nameLIKE{{ dt_short_hostname }}"
+      register: cmdb_result
+
+    - name: Set CI details
+      ansible.builtin.set_fact:
+        affected_ci_sys_id: "{{ cmdb_result.record[0].sys_id }}"
+        affected_ci_name: "{{ cmdb_result.record[0].name }}"
+      when: cmdb_result.record | length > 0
+
+    - name: Warn if CI not found in CMDB
+      ansible.builtin.debug:
+        msg: >-
+          No CMDB CI found matching '{{ dt_short_hostname }}' in {{ cmdb_ci_class }}.
+          Proceeding with incident creation without CI linkage.
+      when: cmdb_result.record | length == 0
+
+    - name: Default CI facts when not found
+      ansible.builtin.set_fact:
+        affected_ci_sys_id: ""
+        affected_ci_name: "{{ dt_entity_name }}"
+      when: cmdb_result.record | length == 0
+
+    # ------------------------------------------------------------------
+    # 4. Check for open change tickets linked to the CI
+    # ------------------------------------------------------------------
+    # CHG lifecycle: New → Assess → Authorize → Scheduled → Implement → Review → Closed
+    # Only a CHG in Implement (state=-1) is actively being worked — earlier states
+    # haven't started yet and wouldn't explain a service disruption. We check the
+    # task_ci table (Affected CIs relationship) — the same junction table shown on
+    # the CHG's "Affected CIs" tab.
+    - name: Query task_ci for change requests in Implement phase
+      servicenow.itsm.api_info:
+        resource: task_ci
+        sysparm_query: >-
+          ci_item={{ affected_ci_sys_id }}^task.sys_class_name=change_request^task.state=-1
+      register: task_ci_result
+      when: affected_ci_sys_id | length > 0
+
+    - name: Determine if active change exists
+      ansible.builtin.set_fact:
+        has_active_change: "{{ (task_ci_result.record | default([])) | length > 0 }}"
+
+    # ------------------------------------------------------------------
+    # 5a. Change ticket found — log correlation, skip incident
+    # ------------------------------------------------------------------
+    - name: Handle active change ticket
+      when: has_active_change | bool
+      block:
+        - name: Extract change ticket details
+          ansible.builtin.set_fact:
+            active_change_number: "{{ task_ci_result.record[0].task.display_value | default('CHG unknown') }}"
+
+        - name: Log change ticket correlation
+          ansible.builtin.debug:
+            msg: >-
+              Active change ticket {{ active_change_number }} found for
+              CI {{ affected_ci_name }}. Dynatrace problem {{ dt_problem_id }}
+              is likely related to scheduled maintenance. Skipping incident creation.
+
+        - name: Post correlation to the change ticket
+          ansible.builtin.include_role:
+            name: snow_log
+          vars:
+            snow_log_message: >-
+              Dynatrace detected a problem on {{ affected_ci_name }}
+              ({{ dt_problem_title }}). This CI has an active change ticket —
+              the alert may be expected maintenance. No incident created.
+              DT Problem ID: {{ dt_problem_id }}
+            snow_log_ticket_number: "{{ active_change_number }}"
+            snow_log_resource: change_request
+
+    # ------------------------------------------------------------------
+    # 5b. No change ticket — create incident
+    # ------------------------------------------------------------------
+    - name: Handle no change ticket — create incident
+      when: not (has_active_change | bool)
+      block:
+        - name: Create ServiceNow incident
+          servicenow.itsm.incident:
+            state: new
+            caller: "{{ incident_caller }}"
+            short_description: >-
+              Dynatrace Alert: {{ dt_problem_title }} on {{ affected_ci_name }}
+            description: |-
+              Automated incident created by Ansible Automation Platform via
+              Event-Driven Ansible (Dynatrace push integration).
+
+              Dynatrace Problem: {{ dt_problem_id }}
+              Problem Title:     {{ dt_problem_title }}
+              Affected Host:     {{ affected_ci_name }}
+              OS Type:           {{ affected_os_type }}
+
+              An active change ticket check was performed — no open change
+              requests are linked to this CI. Automated remediation is in
+              progress. Service restoration is the first priority.
+            impact: "{{ incident_impact }}"
+            urgency: "{{ incident_urgency }}"
+            other:
+              assignment_group: "{{ incident_support_group }}"
+              configuration_item: "{{ affected_ci_sys_id }}"
+          register: incident_info
+
+        - name: Show the incident number
+          ansible.builtin.debug:
+            msg: >-
+              Incident {{ incident_info.record.number }} created for
+              Dynatrace problem {{ dt_problem_id }}.
+
+        - name: Log incident creation
+          ansible.builtin.include_role:
+            name: snow_log
+          vars:
+            snow_log_message: >-
+              Incident {{ incident_info.record.number }} created for
+              Dynatrace problem {{ dt_problem_id }}
+              ({{ dt_problem_title }}) on {{ affected_ci_name }}.
+              Automated remediation in progress — service restoration first,
+              then root cause data collection.
+            snow_log_ticket_number: "{{ incident_info.record.number }}"
+            snow_log_resource: incident
+
+    # ------------------------------------------------------------------
+    # 6. Publish artifacts for downstream workflow nodes
+    # ------------------------------------------------------------------
+    - name: Publish triage results to the workflow
+      ansible.builtin.set_stats:
+        data:
+          incident_number: "{{ incident_info.record.number | default('') }}"
+          incident_sys_id: "{{ incident_info.record.sys_id | default('') }}"
+          affected_os_type: "{{ affected_os_type }}"
+          affected_ci_sys_id: "{{ affected_ci_sys_id }}"
+          affected_ci_name: "{{ affected_ci_name }}"
+          has_active_change: "{{ has_active_change }}"
+          dt_problem_id: "{{ dt_problem_id }}"
+          dt_problem_title: "{{ dt_problem_title }}"

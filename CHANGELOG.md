@@ -6,6 +6,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **Phase 19 — EDA incident response (Dynatrace website-down demo)** — new
+  `DC1.Azure - Remediate Website` workflow launched by the existing
+  `DT-EDA-PUSH - Service Remediation` EDA activation when Dynatrace pushes a
+  problem event. Four-node graph: Triage DT Alert → Remediate (Linux/Windows
+  parallel) → Close Incident. The triage node checks CMDB for the CI, queries
+  `task_ci` for change requests in the Implement phase, and creates an incident
+  if no active maintenance found. Remediation restarts the web service, verifies
+  HTTP 200, and gathers RCA data (journal, uptime, packages, disk). All actions
+  logged to the ServiceNow incident in real time via `snow_log`.
+- **`webserver_manage` role** — service lifecycle management for both Linux
+  (httpd) and Windows (IIS/W3SVC). Actions: break, restart, verify, status.
+  OS auto-detected via inventory group membership.
+- **`DC1.Azure - Break Website (Linux/Windows)` JTs** — survey-driven service
+  management for demo setup (intentionally stop the web service to trigger
+  Dynatrace).
+- **`DC1.Azure - Gather and Display Facts (Linux)` JT** — Linux counterpart
+  to the Windows gather_facts JT. Targets `linuxweb` group over SSH.
+
+### Changed
+- **Gather and Display Facts JT renamed** — `DC1.Azure - Gather and Display
+  Facts` → `DC1.Azure - Gather and Display Facts (Windows)` for OS clarity.
+- **F5 phase renumbered** — Phase 19 (F5 Load Balancing) → Phase 20 to make
+  room for the incident response demo.
+- **`.ansible-lint` mock_modules** — added `win_service_info` and
+  `win_powershell` for CI compatibility.
+
+### Added
 - **`snow_log` role** — reusable role for real-time ServiceNow ticket logging
   from any playbook. Posts work notes (or comments) to any ticket type (RITM,
   incident, change request). Guarded on `ticket_number` (no-ops on non-SNow

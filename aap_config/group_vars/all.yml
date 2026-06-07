@@ -224,6 +224,19 @@ dt_host_group: dc1-azure
 dynatrace_template_windows: "DC1.Azure - Install Dynatrace OneAgent (Windows)"
 dynatrace_template_linux: "DC1.Azure - Install Dynatrace OneAgent (Linux)"
 
+# --- Phase 19: EDA incident response — Dynatrace website-down demo ----------
+# Remediation workflow + JTs. The EDA event stream and activation live in the
+# aap.eda.dynatrace.push repo (DT-EDA-PUSH - Service Remediation, activation
+# ID 5); dc1.azure owns the remediation workflow that EDA launches.
+remediate_workflow_name: "DC1.Azure - Remediate Website"
+break_website_template_linux: "DC1.Azure - Break Website (Linux)"
+break_website_template_windows: "DC1.Azure - Break Website (Windows)"
+triage_template: "DC1.Azure - Triage DT Alert"
+remediate_linux_template: "DC1.Azure - Remediate Website (Linux)"
+remediate_windows_template: "DC1.Azure - Remediate Website (Windows)"
+close_incident_template: "DC1.Azure - Close Incident (DT)"
+facts_template_linux: "DC1.Azure - Gather and Display Facts (Linux)"
+
 # --- Phase 9: Self-Service Portal RBAC + launcher (AB#107) -------------------
 # The portal (RHDH, deployed by the aap.selfservice repo) surfaces JOB templates
 # only — NOT workflows (proven live + RH 2.6 docs). So the Self-Service entry point
@@ -241,7 +254,7 @@ jr_dev_password: "{{ lookup('ansible.builtin.env', 'DC1_AZURE_JR_DEV_PASSWORD') 
 launcher_template: "DC1.Azure - Request Infrastructure"
 # Phase 11 facts JT (already defined in controller_job_templates.yml) — the
 # Developers team also gets Execute on it so jr-dev can self-serve fact-gathering.
-facts_template: "DC1.Azure - Gather and Display Facts"
+facts_template: "DC1.Azure - Gather and Display Facts (Windows)"
 # Resolved at runtime by load.yml (JT ids are env-specific; never hardcode).
 # Defaulted empty so controller_role_team_assignments degrades to [] for any JT
 # that doesn't exist yet (fresh env, first pass).

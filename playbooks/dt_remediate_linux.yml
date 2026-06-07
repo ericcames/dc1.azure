@@ -1,0 +1,139 @@
+---
+# ============================================================================
+# playbooks/dt_remediate_linux.yml — Phase 19 (Linux service remediation)
+# ============================================================================
+# Workflow node: restarts httpd, verifies the website is accessible, gathers
+# root-cause analysis data, and logs everything to the ServiceNow incident via
+# snow_log. Guards on affected_os_type — skips cleanly when the DT alert is
+# for a Windows host.
+#
+# Consumed inputs (workflow artifacts from dt_triage.yml via set_stats):
+#   affected_os_type   — linux | windows (guard)
+#   incident_number    — INC ticket number (for snow_log)
+#   incident_sys_id    — INC sys_id
+#   affected_ci_name   — FQDN of the affected host
+#   dt_problem_id      — Dynatrace problem ID
+#   dt_problem_title   — Dynatrace problem title
+#   has_active_change  — true if CHG in Implement found (skip remediation)
+#
+# Credentials:
+#   - DC1.Azure - Linux Machine   → SSH connection
+#   - DC1.Azure - ServiceNow      → snow_log work notes
+# ============================================================================
+
+- name: Remediate Linux web service
+  hosts: linuxweb
+  gather_facts: false
+
+  tasks:
+    - name: Skip if not a Linux problem
+      ansible.builtin.meta: end_play
+      when: (affected_os_type | default('')) != 'linux'
+
+    - name: Skip if active change ticket (expected maintenance)
+      ansible.builtin.meta: end_play
+      when: has_active_change | default(false) | bool
+
+    # ------------------------------------------------------------------
+    # Service restoration (priority 1)
+    # ------------------------------------------------------------------
+    - name: Log remediation start
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          Beginning automated remediation on {{ inventory_hostname }}.
+          Dynatrace problem {{ dt_problem_id | default('') }}:
+          {{ dt_problem_title | default('') }}.
+          Attempting service restoration for httpd.
+        snow_log_ticket_number: "{{ incident_number | default('') }}"
+        snow_log_resource: incident
+
+    - name: Restart httpd
+      ansible.builtin.include_role:
+        name: webserver_manage
+      vars:
+        webserver_manage_action: restart
+
+    - name: Verify website is accessible
+      ansible.builtin.include_role:
+        name: webserver_manage
+      vars:
+        webserver_manage_action: verify
+
+    - name: Log service restoration
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          Service httpd restored on {{ inventory_hostname }}.
+          Website verified accessible (HTTP 200).
+        snow_log_ticket_number: "{{ incident_number | default('') }}"
+        snow_log_resource: incident
+
+    # ------------------------------------------------------------------
+    # Root cause analysis data (priority 2)
+    # ------------------------------------------------------------------
+    - name: Gather RCA data
+      block:
+        - name: Get recent httpd journal entries
+          ansible.builtin.command:
+            cmd: journalctl -u httpd --since "1 hour ago" --no-pager -n 50
+          register: rca_httpd_logs
+          changed_when: false
+
+        - name: Get system uptime
+          ansible.builtin.command:
+            cmd: uptime
+          register: rca_uptime
+          changed_when: false
+
+        - name: Get httpd service status
+          ansible.builtin.command:
+            cmd: systemctl status httpd --no-pager
+          register: rca_service_status
+          changed_when: false
+
+        - name: Get recent package changes  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            cmd: rpm -qa --last
+          register: rca_packages
+          changed_when: false
+
+        - name: Get disk usage
+          ansible.builtin.command:
+            cmd: df -h
+          register: rca_disk
+          changed_when: false
+
+    - name: Log RCA data to incident
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |-
+          Root Cause Analysis data for {{ inventory_hostname }}:
+
+          System Uptime: {{ rca_uptime.stdout | default('N/A') }}
+
+          Service Status (post-restart):
+          {{ rca_service_status.stdout_lines | default([]) | join('\n') }}
+
+          Disk Usage:
+          {{ rca_disk.stdout | default('N/A') }}
+
+          Recent httpd journal (last hour, up to 50 lines):
+          {{ rca_httpd_logs.stdout_lines | default([]) | join('\n') }}
+
+          Recent package changes (last 10):
+          {{ rca_packages.stdout_lines | default([]) | first(10) | join('\n') }}
+        snow_log_ticket_number: "{{ incident_number | default('') }}"
+        snow_log_resource: incident
+
+    # ------------------------------------------------------------------
+    # Publish results for downstream close-incident node
+    # ------------------------------------------------------------------
+    - name: Publish remediation results
+      ansible.builtin.set_stats:
+        data:
+          linux_remediation_host: "{{ inventory_hostname }}"
+          linux_remediation_status: success

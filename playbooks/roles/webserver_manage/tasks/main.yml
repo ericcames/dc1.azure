@@ -1,0 +1,14 @@
+---
+- name: Validate webserver_manage_action
+  ansible.builtin.assert:
+    that:
+      - webserver_manage_action in ['break', 'restart', 'verify', 'status']
+    fail_msg: "webserver_manage_action must be one of: break, restart, verify, status (got '{{ webserver_manage_action }}')"
+
+- name: Include Linux tasks
+  ansible.builtin.include_tasks: linux.yml
+  when: "'linuxweb' in group_names"
+
+- name: Include Windows tasks
+  ansible.builtin.include_tasks: windows.yml
+  when: "'windemo' in group_names"

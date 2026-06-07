@@ -1,0 +1,48 @@
+---
+# Windows (W3SVC / IIS) web service management tasks.
+# Dispatches on webserver_manage_action: break | restart | verify | status
+
+- name: Windows — stop IIS
+  when: webserver_manage_action == 'break'
+  ansible.windows.win_service:
+    name: "{{ webserver_manage_windows_service }}"
+    state: stopped
+
+- name: Windows — start IIS
+  when: webserver_manage_action == 'restart'
+  ansible.windows.win_service:
+    name: "{{ webserver_manage_windows_service }}"
+    state: started
+
+- name: Windows — verify website responds
+  when: webserver_manage_action == 'verify'
+  block:
+    - name: Wait for IIS to serve content
+      ansible.windows.win_uri:
+        url: "http://{{ inventory_hostname }}"
+        status_code: 200
+        timeout: 30
+      register: webserver_manage_verify_result
+      retries: 6
+      delay: 10
+      until: webserver_manage_verify_result is success
+
+    - name: Report verification result
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: website verified — HTTP {{ webserver_manage_verify_result.status_code }}
+
+- name: Windows — report IIS status
+  when: webserver_manage_action == 'status'
+  block:
+    - name: Get service info
+      ansible.windows.win_service_info:
+        name: "{{ webserver_manage_windows_service }}"
+      register: webserver_manage_status_result
+
+    - name: Report service state
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ webserver_manage_windows_service }}
+          state={{ webserver_manage_status_result.services[0].state | default('unknown') }}
+          start_mode={{ webserver_manage_status_result.services[0].start_mode | default('unknown') }}

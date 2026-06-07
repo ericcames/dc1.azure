@@ -309,6 +309,139 @@ controller_templates:
     extra_vars:
       dt_host_group: "{{ dt_host_group }}"
 
+  # --- Phase 19: EDA incident response — Dynatrace website-down demo ----------
+  # Service management JTs (break/restart/verify for demo setup + remediation).
+  # Split by OS: AAP doesn't allow multiple Machine credentials per JT.
+  - name: "{{ break_website_template_linux }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/webserver_manage.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_linux }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Manage the Linux web service (httpd)"
+      spec:
+        - question_name: Action
+          question_description: "break = stop service, restart = start service, verify = check HTTP 200, status = report state"
+          variable: webserver_manage_action
+          type: multiplechoice
+          required: true
+          default: status
+          choices:
+            - break
+            - restart
+            - verify
+            - status
+
+  - name: "{{ break_website_template_windows }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/webserver_manage.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Manage the Windows web service (IIS)"
+      spec:
+        - question_name: Action
+          question_description: "break = stop service, restart = start service, verify = check HTTP 200, status = report state"
+          variable: webserver_manage_action
+          type: multiplechoice
+          required: true
+          default: status
+          choices:
+            - break
+            - restart
+            - verify
+            - status
+
+  # Triage node — parse DT event, CMDB lookup, change ticket check, create INC.
+  # Runs on control inventory (localhost). ask_variables_on_launch lets the
+  # workflow pass dt_push_event from EDA.
+  - name: "{{ triage_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/dt_triage.yml
+    execution_environment: "{{ my_execution_environment }}"
+    ask_variables_on_launch: true
+    credentials:
+      - "{{ cred_servicenow }}"
+
+  # Remediation nodes — restart service, verify, gather RCA, snow_log.
+  # Split by OS for Machine credential separation.
+  - name: "{{ remediate_linux_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/dt_remediate_linux.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_linux }}"
+      - "{{ cred_servicenow }}"
+
+  - name: "{{ remediate_windows_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/dt_remediate_windows.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+      - "{{ cred_servicenow }}"
+
+  # Close incident node — executive summary, resolve INC. Runs on control
+  # inventory (localhost).
+  - name: "{{ close_incident_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/dt_close_incident.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_servicenow }}"
+
+  # Linux gather_facts — mirrors the Windows version for the linuxweb group.
+  - name: "{{ facts_template_linux }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/gather_facts_linux.yml
+    execution_environment: "{{ my_execution_environment }}"
+    use_fact_cache: true
+    credentials:
+      - "{{ cred_linux }}"
+    survey_enabled: true
+    survey_spec:
+      name: ""
+      description: "Optionally dump the complete fact set to the job log"
+      spec:
+        - question_name: Show full facts
+          question_description: >-
+            Also print the entire ansible_facts dict to the job log.
+            The full set is stored in the AAP DB regardless.
+          variable: show_full_facts
+          type: multiplechoice
+          required: false
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+
   # Phase 12 (AB#144): automate the ADO trigger setup. Mints an AAP token,
   # creates/updates the dc1-azure-aap Variable Group in ADO Library, and
   # authorizes the launch pipeline.

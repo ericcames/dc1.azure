@@ -1,0 +1,130 @@
+---
+# ============================================================================
+# playbooks/dt_remediate_windows.yml — Phase 19 (Windows service remediation)
+# ============================================================================
+# Workflow node: restarts IIS (W3SVC), verifies the website is accessible,
+# gathers root-cause analysis data, and logs everything to the ServiceNow
+# incident via snow_log. Guards on affected_os_type — skips cleanly when the
+# DT alert is for a Linux host.
+#
+# Consumed inputs (workflow artifacts from dt_triage.yml via set_stats):
+#   affected_os_type   — linux | windows (guard)
+#   incident_number    — INC ticket number (for snow_log)
+#   incident_sys_id    — INC sys_id
+#   affected_ci_name   — FQDN of the affected host
+#   dt_problem_id      — Dynatrace problem ID
+#   dt_problem_title   — Dynatrace problem title
+#   has_active_change  — true if CHG in Implement found (skip remediation)
+#
+# Credentials:
+#   - DC1.Azure - Windows Machine  → WinRM connection
+#   - DC1.Azure - ServiceNow       → snow_log work notes
+# ============================================================================
+
+- name: Remediate Windows web service
+  hosts: windemo
+  gather_facts: false
+
+  tasks:
+    - name: Skip if not a Windows problem
+      ansible.builtin.meta: end_play
+      when: (affected_os_type | default('')) != 'windows'
+
+    - name: Skip if active change ticket (expected maintenance)
+      ansible.builtin.meta: end_play
+      when: has_active_change | default(false) | bool
+
+    # ------------------------------------------------------------------
+    # Service restoration (priority 1)
+    # ------------------------------------------------------------------
+    - name: Log remediation start
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          Beginning automated remediation on {{ inventory_hostname }}.
+          Dynatrace problem {{ dt_problem_id | default('') }}:
+          {{ dt_problem_title | default('') }}.
+          Attempting service restoration for IIS (W3SVC).
+        snow_log_ticket_number: "{{ incident_number | default('') }}"
+        snow_log_resource: incident
+
+    - name: Restart IIS
+      ansible.builtin.include_role:
+        name: webserver_manage
+      vars:
+        webserver_manage_action: restart
+
+    - name: Verify website is accessible
+      ansible.builtin.include_role:
+        name: webserver_manage
+      vars:
+        webserver_manage_action: verify
+
+    - name: Log service restoration
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          Service W3SVC (IIS) restored on {{ inventory_hostname }}.
+          Website verified accessible (HTTP 200).
+        snow_log_ticket_number: "{{ incident_number | default('') }}"
+        snow_log_resource: incident
+
+    # ------------------------------------------------------------------
+    # Root cause analysis data (priority 2)
+    # ------------------------------------------------------------------
+    - name: Gather RCA data
+      block:
+        - name: Get IIS service status
+          ansible.windows.win_service_info:
+            name: W3SVC
+          register: rca_service_status
+
+        - name: Get system uptime
+          ansible.windows.win_command:
+            cmd: systeminfo
+          register: rca_systeminfo
+          changed_when: false
+
+        - name: Get recent Windows event log entries (System)
+          ansible.windows.win_powershell:
+            script: |
+              Get-EventLog -LogName System -Newest 20 |
+                Format-Table -Property TimeGenerated, EntryType, Source, Message -AutoSize -Wrap |
+                Out-String -Width 200
+          register: rca_event_log
+
+        - name: Get disk usage
+          ansible.windows.win_powershell:
+            script: |
+              Get-PSDrive -PSProvider FileSystem |
+                Format-Table -Property Name, Used, Free, @{N='Total';E={$_.Used+$_.Free}} -AutoSize |
+                Out-String -Width 120
+          register: rca_disk
+
+    - name: Log RCA data to incident
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |-
+          Root Cause Analysis data for {{ inventory_hostname }}:
+
+          IIS Service State: {{ rca_service_status.services[0].state | default('unknown') }}
+
+          Disk Usage:
+          {{ rca_disk.output | default(['N/A']) | join('') }}
+
+          Recent System Event Log (last 20 entries):
+          {{ rca_event_log.output | default(['N/A']) | join('') }}
+        snow_log_ticket_number: "{{ incident_number | default('') }}"
+        snow_log_resource: incident
+
+    # ------------------------------------------------------------------
+    # Publish results for downstream close-incident node
+    # ------------------------------------------------------------------
+    - name: Publish remediation results
+      ansible.builtin.set_stats:
+        data:
+          windows_remediation_host: "{{ inventory_hostname }}"
+          windows_remediation_status: success

@@ -1,0 +1,20 @@
+---
+# ============================================================================
+# playbooks/webserver_manage.yml — Phase 19 (service lifecycle management)
+# ============================================================================
+# Manages web service state on Linux (httpd) and/or Windows (IIS/W3SVC).
+# Used by the "DC1.Azure - Break Website" JT and by the remediation workflow.
+#
+# Survey / extra_vars:
+#   webserver_manage_action  — break | restart | verify | status
+#
+# The JT's limit controls which hosts are targeted. The role auto-detects
+# OS via group membership (linuxweb → httpd, windemo → W3SVC).
+# ============================================================================
+
+- name: Manage web service
+  hosts: all
+  gather_facts: false
+
+  roles:
+    - role: webserver_manage

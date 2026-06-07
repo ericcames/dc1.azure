@@ -1,0 +1,5 @@
+---
+webserver_manage_action: status
+
+webserver_manage_linux_service: httpd
+webserver_manage_windows_service: W3SVC

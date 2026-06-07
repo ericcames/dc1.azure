@@ -1,0 +1,49 @@
+---
+# Linux (httpd) web service management tasks.
+# Dispatches on webserver_manage_action: break | restart | verify | status
+
+- name: Linux — stop httpd
+  when: webserver_manage_action == 'break'
+  ansible.builtin.systemd:
+    name: "{{ webserver_manage_linux_service }}"
+    state: stopped
+
+- name: Linux — start httpd
+  when: webserver_manage_action == 'restart'
+  ansible.builtin.systemd:
+    name: "{{ webserver_manage_linux_service }}"
+    state: started
+
+- name: Linux — verify website responds
+  when: webserver_manage_action == 'verify'
+  block:
+    - name: Wait for httpd to serve content
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}"
+        status_code: 200
+        timeout: 30
+      register: webserver_manage_verify_result
+      retries: 6
+      delay: 10
+      until: webserver_manage_verify_result is success
+
+    - name: Report verification result
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: website verified — HTTP {{ webserver_manage_verify_result.status }}
+          ({{ webserver_manage_verify_result.elapsed }}s)
+
+- name: Linux — report httpd status
+  when: webserver_manage_action == 'status'
+  block:
+    - name: Get service status
+      ansible.builtin.systemd:
+        name: "{{ webserver_manage_linux_service }}"
+      register: webserver_manage_status_result
+
+    - name: Report service state
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ webserver_manage_linux_service }}
+          state={{ webserver_manage_status_result.status.ActiveState | default('unknown') }}
+          sub={{ webserver_manage_status_result.status.SubState | default('unknown') }}

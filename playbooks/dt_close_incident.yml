@@ -1,0 +1,107 @@
+---
+# ============================================================================
+# playbooks/dt_close_incident.yml — Phase 19 (incident resolution)
+# ============================================================================
+# Final node in the DC1.Azure - Remediate Website workflow. Posts an executive
+# summary to the incident and updates its state to resolved. Skips if no
+# incident was created (has_active_change = true).
+#
+# Consumed inputs (workflow artifacts via set_stats):
+#   incident_number         — INC ticket number
+#   incident_sys_id         — INC sys_id
+#   has_active_change       — true = CHG found, no INC created
+#   affected_os_type        — linux | windows
+#   affected_ci_name        — FQDN of the affected host
+#   dt_problem_id           — Dynatrace problem ID
+#   dt_problem_title        — Dynatrace problem title
+#   linux_remediation_host  — hostname (from remediate-linux node)
+#   windows_remediation_host — hostname (from remediate-windows node)
+#
+# Credential: DC1.Azure - ServiceNow (ServiceNow ITSM → SN_* env).
+# ============================================================================
+
+- name: Close the ServiceNow incident with executive summary
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Skip if no incident was created (change ticket was found)
+      ansible.builtin.meta: end_play
+      when: has_active_change | default(false) | bool
+
+    - name: Skip if no incident number available
+      ansible.builtin.meta: end_play
+      when: (incident_number | default('')) | length == 0
+
+    # ------------------------------------------------------------------
+    # Determine remediation host
+    # ------------------------------------------------------------------
+    - name: Set remediation host
+      ansible.builtin.set_fact:
+        remediated_host: >-
+          {{ linux_remediation_host
+             | default(windows_remediation_host
+             | default(affected_ci_name | default('unknown'))) }}
+        remediated_service: >-
+          {{ 'httpd' if (affected_os_type | default('')) == 'linux' else
+             'IIS (W3SVC)' if (affected_os_type | default('')) == 'windows' else
+             'web service' }}
+
+    # ------------------------------------------------------------------
+    # Post executive summary
+    # ------------------------------------------------------------------
+    - name: Post executive summary to incident
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |-
+          === EXECUTIVE SUMMARY ===
+
+          Dynatrace detected {{ remediated_service }} process failure on
+          {{ remediated_host }}.
+
+          TRIAGE:
+          - Checked CMDB for affected Configuration Item
+          - Queried ServiceNow for change requests in Implement phase
+            linked to this CI
+          - No active change tickets found — this is NOT scheduled maintenance
+          - Incident {{ incident_number }} created automatically
+
+          REMEDIATION:
+          - {{ remediated_service }} service restarted on {{ remediated_host }}
+          - Website verified accessible (HTTP 200)
+
+          ROOT CAUSE ANALYSIS:
+          - System logs, service status, disk usage, and recent package
+            changes collected and posted to this incident as work notes
+          - Data available for post-incident review
+
+          RESOLUTION:
+          - Service restored via automated remediation
+          - Dynatrace Problem ID: {{ dt_problem_id | default('N/A') }}
+          - All actions performed by Ansible Automation Platform
+            (Event-Driven Ansible → Remediation Workflow)
+        snow_log_ticket_number: "{{ incident_number }}"
+        snow_log_resource: incident
+
+    # ------------------------------------------------------------------
+    # Resolve the incident
+    # ------------------------------------------------------------------
+    - name: Update incident to resolved
+      servicenow.itsm.incident:
+        number: "{{ incident_number }}"
+        state: resolved
+        other:
+          close_code: Solved (Permanently)
+          close_notes: >-
+            Automated remediation by Ansible Automation Platform.
+            {{ remediated_service }} restarted on {{ remediated_host }}.
+            Triggered by Dynatrace problem {{ dt_problem_id | default('N/A') }}
+            ({{ dt_problem_title | default('N/A') }}).
+
+    - name: Confirm incident resolved
+      ansible.builtin.debug:
+        msg: >-
+          Incident {{ incident_number }} resolved. Dynatrace problem
+          {{ dt_problem_id | default('N/A') }} remediated on {{ remediated_host }}.
