@@ -37,34 +37,52 @@
     # ------------------------------------------------------------------
     # 1. Parse the Dynatrace event
     # ------------------------------------------------------------------
-    # The DT Workflow's "Send event to EDA" action wraps the payload inside an
-    # `eventData` key. A direct curl/mock sends flat fields. Handle both.
+    # The DT Workflow wraps the payload in `eventData`. Real Davis problem
+    # events use dot-notated keys (e.g. `event.name`, `host.name`) that
+    # require bracket notation in Jinja. Mock/curl events use camelCase.
+    # Handle both with fallback chains.
     - name: Unwrap DT event (eventData envelope or flat)
       ansible.builtin.set_fact:
         _dt_event: "{{ dt_push_event.eventData | default(dt_push_event) }}"
 
     - name: Extract problem details from DT event
       ansible.builtin.set_fact:
-        dt_problem_id: "{{ _dt_event.problemId | default(_dt_event.ProblemID | default('unknown')) }}"
-        dt_problem_title: "{{ _dt_event.problemTitle | default(_dt_event.ProblemTitle | default(_dt_event.title | default('Unknown problem'))) }}"
-        dt_problem_status: "{{ _dt_event.status | default(_dt_event.State | default('OPEN')) }}"
-        dt_impacted_entities: "{{ _dt_event.impactedEntities | default(_dt_event.ImpactedEntities | default([])) }}"
+        dt_problem_id: >-
+          {{ _dt_event.display_id
+             | default(_dt_event.problemId
+             | default(_dt_event.ProblemID
+             | default('unknown'))) }}
+        dt_problem_title: >-
+          {{ _dt_event['event.name']
+             | default(_dt_event.problemTitle
+             | default(_dt_event.ProblemTitle
+             | default(_dt_event.title
+             | default('Unknown problem')))) }}
+        dt_problem_status: >-
+          {{ _dt_event['event.status']
+             | default(_dt_event.status
+             | default(_dt_event.State
+             | default('OPEN'))) }}
 
-    - name: Determine affected entity name
+    - name: Determine affected hostname from DT event
       ansible.builtin.set_fact:
         dt_entity_name: >-
-          {{ dt_impacted_entities[0].name
-             | default(_dt_event.ImpactedEntity | default('unknown')) }}
+          {{ (_dt_event['host.name'] | default([]))[0]
+             | default((_dt_event.impactedEntities | default([{}]))[0].name
+             | default(_dt_event.ImpactedEntity
+             | default('unknown'))) }}
 
     - name: Log received event
       ansible.builtin.debug:
         msg: >-
           Dynatrace problem {{ dt_problem_id }}: {{ dt_problem_title }}
-          — affected entity: {{ dt_entity_name }}
+          — affected host: {{ dt_entity_name }}
 
     # ------------------------------------------------------------------
-    # 2. Determine OS type from entity name (dc1.azure naming convention)
+    # 2. Determine OS type from hostname (dc1.azure naming convention)
     # ------------------------------------------------------------------
+    # host.name contains the FQDN (with lnx/win hint), not the process
+    # group name. Use it for OS detection and CMDB lookup.
     - name: Determine OS type from hostname
       ansible.builtin.set_fact:
         affected_os_type: >-
