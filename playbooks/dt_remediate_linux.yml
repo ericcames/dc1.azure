@@ -24,6 +24,7 @@
 - name: Remediate Linux web service
   hosts: linuxweb
   gather_facts: false
+  become: true
 
   tasks:
     - name: Skip if not a Linux problem

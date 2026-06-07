@@ -12,8 +12,16 @@
 # OS via group membership (linuxweb → httpd, windemo → W3SVC).
 # ============================================================================
 
-- name: Manage web service
-  hosts: all
+- name: Manage web service (Linux)
+  hosts: linuxweb
+  gather_facts: false
+  become: true
+
+  roles:
+    - role: webserver_manage
+
+- name: Manage web service (Windows)
+  hosts: windemo
   gather_facts: false
 
   roles:
