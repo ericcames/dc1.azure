@@ -182,7 +182,7 @@
             urgency: "{{ incident_urgency }}"
             other:
               assignment_group: "{{ incident_support_group }}"
-              configuration_item: "{{ affected_ci_sys_id }}"
+              cmdb_ci: "{{ affected_ci_sys_id }}"
           register: incident_info
 
         - name: Show the incident number
