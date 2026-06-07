@@ -127,7 +127,7 @@
         validate_certs: true
       register: dt_host_check
       until: (dt_host_check.json.entities | default([]) | length) > 0
-      retries: 6
+      retries: 12
       delay: 30
       failed_when: false
       delegate_to: localhost
@@ -141,4 +141,4 @@
           {{ inventory_hostname }} (Linux): Dynatrace tenant verification —
           {{ 'host confirmed in tenant ' ~ dt_api_host ~ '.'
              if (dt_host_check.json.entities | default([]) | length) > 0
-             else 'host not visible after 3 min of retries.' }}
+             else 'host not visible after 6 min of retries.' }}
