@@ -119,29 +119,3 @@
           Tenant:     {{ dt_api_host }}
           Host group: {{ dt_host_group }}
           Connected:  {{ 'yes' if dt_server.stdout | trim | length > 0 else 'no' }}
-
-    - name: Confirm host in Dynatrace tenant
-      ansible.builtin.uri:
-        url: >-
-          {{ dt_api_host }}/api/v2/entities?entitySelector=type(%22HOST%22),
-          entityName.startsWith(%22{{ inventory_hostname_short }}%22)&from=now-10m
-        headers:
-          Authorization: "Api-Token {{ dt_paas_token }}"
-        validate_certs: true
-      register: dt_host_check
-      until: (dt_host_check.json.entities | default([]) | length) > 0
-      retries: 12
-      delay: 30
-      failed_when: false
-      delegate_to: localhost
-      become: false
-
-    - name: Log tenant verification to ServiceNow
-      ansible.builtin.include_role:
-        name: snow_log
-      vars:
-        snow_log_message: >-
-          {{ inventory_hostname }} (Windows): Dynatrace tenant verification —
-          {{ 'host confirmed in tenant ' ~ dt_api_host ~ '.'
-             if (dt_host_check.json.entities | default([]) | length) > 0
-             else 'host not visible after 6 min of retries.' }}
