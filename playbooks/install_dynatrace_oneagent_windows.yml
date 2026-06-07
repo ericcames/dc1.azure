@@ -124,7 +124,7 @@
       ansible.builtin.uri:
         url: >-
           {{ dt_api_host }}/api/v2/entities?entitySelector=type(%22HOST%22),
-          entityName(%22{{ inventory_hostname_short }}%22)&from=now-10m
+          entityName.startsWith(%22{{ inventory_hostname_short }}%22)&from=now-10m
         headers:
           Authorization: "Api-Token {{ dt_paas_token }}"
         validate_certs: true
