@@ -4,8 +4,8 @@
 # ============================================================================
 # Standalone "DC1.Azure - Teardown" job template. Destroys all Azure VMs (and
 # all resources Terraform created), removes hosts from the dc1-azure AAP
-# inventory, and hard-deletes their host_metrics entries so decommissioned
-# VMs stop counting against the Red Hat managed-node subscription.
+# inventory, and deletes their host_metrics entries so decommissioned VMs
+# stop counting against the Red Hat managed-node subscription.
 #
 # os_type defaults to "both" so teardown always destroys everything regardless
 # of what was provisioned. Terraform handles count=0 on resources that don't
@@ -172,9 +172,9 @@
           failed_when: false
           when: win_fqdn is defined and win_fqdn is string
 
-        - name: Hard-delete Windows host from host_metrics
+        - name: Delete Windows host from host_metrics
           ansible.builtin.uri:
-            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/{{ win_metrics.json.results[0].id }}/?soft_delete=false"
+            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/{{ win_metrics.json.results[0].id }}/"
             method: DELETE
             headers:
               Authorization: "Bearer {{ td_token.ansible_facts.aap_token.token }}"
@@ -200,9 +200,9 @@
           failed_when: false
           when: linux_fqdn is defined and linux_fqdn is string
 
-        - name: Hard-delete Linux host from host_metrics
+        - name: Delete Linux host from host_metrics
           ansible.builtin.uri:
-            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/{{ linux_metrics.json.results[0].id }}/?soft_delete=false"
+            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/{{ linux_metrics.json.results[0].id }}/"
             method: DELETE
             headers:
               Authorization: "Bearer {{ td_token.ansible_facts.aap_token.token }}"
