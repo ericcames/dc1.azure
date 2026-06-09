@@ -404,7 +404,7 @@ controller_templates:
 
   # Close incident node — queries DT Problems API for Davis root cause
   # analysis, posts executive summary with RCA + AAP job URL, resolves INC.
-  # Runs on control inventory (localhost). AB#154 added cred_dynatrace
+  # Runs on control inventory (localhost). AB#154 added cred_dynatrace_api
   # (DT_API_TOKEN for RCA query) and cred_controller (CONTROLLER_HOST for
   # the AAP workflow job URL).
   - name: "{{ close_incident_template }}"
@@ -417,6 +417,7 @@ controller_templates:
     credentials:
       - "{{ cred_servicenow }}"
       - "{{ cred_dynatrace }}"
+      - "{{ cred_dynatrace_api }}"
       - "{{ cred_controller }}"
 
   # Confirm resolution — receives a DT CLOSED event from EDA, finds the
@@ -433,6 +434,7 @@ controller_templates:
     credentials:
       - "{{ cred_servicenow }}"
       - "{{ cred_dynatrace }}"
+      - "{{ cred_dynatrace_api }}"
 
   # Linux gather_facts — mirrors the Windows version for the linuxweb group.
   - name: "{{ facts_template_linux }}"

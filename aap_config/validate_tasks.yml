@@ -50,6 +50,7 @@
           - "{{ cred_servicenow }}"
           - "{{ cred_linux }}"
           - "{{ cred_dynatrace }}"
+          - "{{ cred_dynatrace_api }}"
       - endpoint: execution_environments
         names: ["{{ ee_name }}"]
       - endpoint: job_templates

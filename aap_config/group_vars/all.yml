@@ -143,6 +143,7 @@ cred_servicenow: "DC1.Azure - ServiceNow"
 # Dynatrace credential (Phase 18) — injects DT_API_HOST + DT_PAAS_TOKEN as
 # env vars for the OneAgent installer download.
 cred_dynatrace: "DC1.Azure - Dynatrace"
+cred_dynatrace_api: "DC1.Azure - Dynatrace API"
 hub_registry_host: "{{ ah_hostname }}"
 hub_registry_username: "{{ controller_cred_username }}"
 hub_registry_password: "{{ controller_cred_password }}"
