@@ -107,6 +107,25 @@
           register: rca_disk
           changed_when: false
 
+        - name: Get who stopped httpd (verbose journal with UID/PID)
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              journalctl -u httpd --output=verbose --since "1 hour ago"
+              --no-pager -n 30 | grep -E '(_UID|_COMM|_CMDLINE|MESSAGE|_PID|_SYSTEMD_UNIT|Stopped)'
+              || true
+          register: rca_who_stopped
+          changed_when: false
+
+        - name: Check audit log for service stop events
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              ausearch -m SERVICE_STOP -ts recent 2>/dev/null
+              | grep -i httpd || echo "No audit entries found for httpd stop"
+          register: rca_audit_stop
+          changed_when: false
+
     - name: Log RCA data to incident
       ansible.builtin.include_role:
         name: snow_log
@@ -118,6 +137,12 @@
 
           Service Status (post-restart):
           {{ rca_service_status.stdout_lines | default([]) | join('\n') }}
+
+          WHO STOPPED THE SERVICE:
+          {{ rca_who_stopped.stdout | default('N/A') }}
+
+          AUDIT LOG (SERVICE_STOP):
+          {{ rca_audit_stop.stdout | default('N/A') }}
 
           Disk Usage:
           {{ rca_disk.stdout | default('N/A') }}
