@@ -106,6 +106,13 @@ for collection install (seed `~/.ansible.cfg` from
 > from the AAP UI, the Self-Service Portal, ServiceNow, or an Azure DevOps
 > pipeline. The `os_type` survey parameter controls which VMs are created.
 > ServiceNow runs additionally auto-fulfil the RITM and create the CMDB CI.
+> **Incident response** (Phase 19): Dynatrace detects a downed website, pushes to
+> Event-Driven Ansible, which launches a remediation workflow — service restored,
+> forensics gathered, Davis AI root cause analysis posted to the ServiceNow
+> incident, and Dynatrace independently confirms recovery (closed-loop:
+> Detect → Remediate → Confirm). See
+> [`docs/demo-talk-track-incident-response.md`](docs/demo-talk-track-incident-response.md)
+> for the full story with screenshots.
 > `load.yml` creates the execution environment via CaC, so a fresh AAP needs only
 > the credentials/env vars in `docs/INSTALL.md`. See [`ROADMAP.md`](ROADMAP.md)
 > for the per-phase detail.

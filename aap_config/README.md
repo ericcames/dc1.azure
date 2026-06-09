@@ -14,10 +14,10 @@ collection (pinned **4.4.0**). This is the canonical install path.
 | `inventory/aap.yml` | localhost only — CaC runs locally and talks to AAP over the API |
 | `group_vars/all.yml` | Connection + secret references (env-var lookups) + object names |
 | `files/controller_settings.yml` | Platform-wide Controller settings — enables Automation Analytics / Insights (the **Automation Calculator** data feed); var is `controller_settings` |
-| `files/controller_credentials.yml` | 8 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password) |
+| `files/controller_credentials.yml` | 9 credentials (Vault, Azure RM, ADO SCM, Windows Machine, Controller, Hub Registry, Windows Admin Password, Demo Account Password, Dynatrace API) |
 | `files/controller_projects.yml` | `DC1.Azure` (ADO) + reused `aap.dailydemo.windows` (pinned v1.0.1) + `aap.dailydemo.F5` (Linux configure roles) |
 | `files/controller_inventories.yml` | `dc1-azure` inventory (`windemo` group for WinRM, `linuxweb` group for SSH; hosts added at runtime) + `dc1-azure-control` (empty; the Teardown JT runs here so it can deregister `dc1-azure` hosts) |
-| `files/controller_job_templates.yml` | 16 JTs (provision, 4 Windows configure, 1 Linux configure, facts, launcher, teardown, 5 ServiceNow callbacks, start notice, ADO trigger config) — var is `controller_templates` |
+| `files/controller_job_templates.yml` | 24 JTs (provision, 4 Windows configure, 1 Linux configure, 2 facts, launcher, teardown, 5 ServiceNow callbacks, start notice, ADO trigger config, 2 Dynatrace OneAgent install, 2 Break Website, triage, 2 remediate, close incident, confirm resolution) — var is `controller_templates` |
 | `files/controller_workflow_job_templates.yml` | The core workflow — var is `controller_workflows` |
 
 > **File-naming convention:** each `files/controller_*.yml` is named after the

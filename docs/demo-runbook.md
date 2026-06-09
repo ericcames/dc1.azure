@@ -655,25 +655,57 @@ and resolved the incident. Every step is logged to ServiceNow as it happens."
 1. **Refresh the website** — it's back. The branded AAP demo page loads.
 
 2. **Open the incident in ServiceNow** (INC-xxxxx). Show:
-   - Short description: `Dynatrace Alert: Process unavailable on <host>`
+   - Short description: `Dynatrace Alert [P-xxxxx]: Process unavailable on <host>`
    - Configuration item: the Linux VM CI (linked automatically)
    - State: Resolved
-   - Work notes: timestamped narrative — triage, remediation start, service
-     restored, RCA data, executive summary
+   - Work notes (8 timestamped entries):
+     1. Incident created — remediation in progress
+     2. Davis AI Analysis — Dynatrace's plain-English narrative + clickable
+        DT problem URL
+     3. Remediation started
+     4. Service restored, website verified (HTTP 200)
+     5. Local forensics — who stopped the service (audit log, journal,
+        logged-in users), disk usage, recent packages
+     6. Dynatrace Root Cause Analysis — root cause entity, evidence items
+        (posted after polling the DT Problems API v2)
+     7. Executive summary — triage/remediation/RCA recap + clickable links
+        to both Dynatrace problem and AAP workflow job
+     8. **Dynatrace Confirmation** — posted ~2-5 min later when Davis AI
+        independently confirms the problem is resolved (closed-loop)
    - Resolution Information tab: `Solved (Permanently)` with DT problem ID
 
-**Talk-track:** "From website down to fully resolved incident — under two
+**Talk-track:** "From website down to fully resolved incident — under three
 minutes, fully automated, fully audited. The incident has the CI linked, the
-root cause data attached, and the resolution documented. No one typed a
-ticket. No one SSH'd into a server. Ansible did it all."
+Davis AI root cause analysis, local forensics showing who stopped the service,
+and clickable links to both Dynatrace and the AAP workflow. No one typed a
+ticket. No one SSH'd into a server. And a few minutes later, Dynatrace
+independently confirmed the fix — that's the closed loop."
+
+3. **Wait for the Dynatrace confirmation** (if time allows, ~2-5 min).
+   Refresh the incident — Work Note 8 appears:
+   `=== DYNATRACE CONFIRMATION === ... Full closed-loop: Detect → Remediate → Confirm`
+
+**Talk-track:** "That last note wasn't from Ansible — it was from Dynatrace.
+The monitoring system independently verified the service recovered. Three
+systems agree: Dynatrace detected it, Ansible fixed it, Dynatrace confirmed
+it. Zero human intervention."
+
+> **Tip:** For the full business talk track with before/after comparison and
+> common questions, see
+> [`docs/demo-talk-track-incident-response.md`](demo-talk-track-incident-response.md).
 
 ### Pacing note
 
-DT takes ~60 seconds to detect the process crash and create a Problem (the
-process availability alerting delay is 1 × 10-second measurement cycle, plus
-DT Workflow "wait for root cause analysis" adds time). Factor this into the
-demo — use the pause to narrate what DT is doing: "Dynatrace is correlating
-the process crash with host metrics and determining root cause..."
+DT takes ~2 minutes to detect the process crash and push to EDA
+(`analysisReady: false` — fires immediately, no waiting for Davis RCA). The
+remediation workflow runs in ~60s. The Close Incident node polls the DT
+Problems API for Davis RCA data (up to 5 min retry). Total: ~3-5 min from
+break to resolved incident. Use the pause to narrate: "Dynatrace detected the
+failure and pushed the event to Ansible. The workflow is checking ServiceNow
+for change tickets, creating an incident, restarting the service..."
+
+The Dynatrace confirmation (CLOSED event) arrives ~2-5 min after the service
+restarts. If you have time, wait for it — it's the demo's strongest moment.
 
 ### Failure recovery
 

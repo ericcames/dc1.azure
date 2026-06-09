@@ -82,6 +82,10 @@ adds the interactive checking and reporting around them.
    to `<ah_hostname>/dc1_azure_ee:latest`), `AH_HOSTNAME` (defaults to gateway
    hostname — correct for AAP 2.5 unified platform), `WINDOWS_ADMIN_USERNAME`
    (demoadmin), `AZURE_LOCATION` (eastus), `AAP_CONTROLLER_USERNAME` (admin).
+   Optional — Dynatrace (Phase 18/19): `DT_API_HOST` (tenant URL),
+   `DT_PAAS_TOKEN` (OneAgent installer), `DT_API_TOKEN` (classic `dt0c01.*`
+   with `problems.read` scope — enables Davis AI root cause analysis on
+   incident tickets; without it, incidents resolve but without RCA data).
 
    Note: `CONTROLLER_HOST` = same value as `AAP_HOSTNAME`, and
    `CONTROLLER_OAUTH_TOKEN` = same value as `AAP_TOKEN`. These are required

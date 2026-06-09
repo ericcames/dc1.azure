@@ -132,10 +132,11 @@ tasks delegate to localhost, so it works from plays targeting remote hosts.
 |------|---------------|-------------|
 | [`playbooks/install_dynatrace_oneagent_linux.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_linux.yml) | 3 (install check, install result, audit proof) | RITM |
 | [`playbooks/install_dynatrace_oneagent_windows.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/install_dynatrace_oneagent_windows.yml) | 3 (install check, install result, audit proof) | RITM |
-| [`playbooks/dt_triage.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_triage.yml) | 1 (incident creation confirmation) | Incident |
+| [`playbooks/dt_triage.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_triage.yml) | 2 (incident creation, Davis AI narrative) | Incident |
 | [`playbooks/dt_remediate_linux.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_remediate_linux.yml) | 3 (remediation start, service restored, RCA data) | Incident |
 | [`playbooks/dt_remediate_windows.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_remediate_windows.yml) | 3 (remediation start, service restored, RCA data) | Incident |
-| [`playbooks/dt_close_incident.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_close_incident.yml) | 1 (executive summary) | Incident |
+| [`playbooks/dt_close_incident.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_close_incident.yml) | 2 (DT root cause analysis, executive summary) | Incident |
+| [`playbooks/dt_confirm_resolution.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/dt_confirm_resolution.yml) | 1 (Dynatrace closed-loop confirmation) | Incident |
 
 ### Incident ticket usage (Phase 19)
 

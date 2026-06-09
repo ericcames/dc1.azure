@@ -201,6 +201,9 @@ in the repo.
 | `DC1_AZURE_EE` | — | `DC1.Azure - EE` | EE name the JTs reference — `load.yml` creates this EE automatically via CaC; only override if you want JTs to use a different EE |
 | `DC1_AZURE_EE_IMAGE` | — | `<AH_HOSTNAME>/dc1_azure_ee:latest` | Container image for the EE — defaults to the **Private Automation Hub** copy (`load.yml` syncs it there from quay.io and Controller pulls it via the `DC1.Azure - Hub Registry` credential). Override with the public quay.io image (`quay.io/zigfreed/dc1-azure-ee:latest`) only for a Hub-less smoke test |
 | `AH_HOSTNAME` | — | gateway hostname | Private Automation Hub hostname for EE image URLs. On AAP 2.5 unified platform, Hub is at the same host as the gateway — leave unset unless Hub is on a separate host |
+| `DT_API_HOST` | — | — | Dynatrace SaaS tenant URL (`https://<env-id>.live.dynatrace.com`). Required for Dynatrace OneAgent install (Phase 18) and incident enrichment (Phase 19). |
+| `DT_PAAS_TOKEN` | — | — | Dynatrace PaaS token (OneAgent installer download). Generate in Dynatrace UI: Deploy > Download OneAgent > Create token. |
+| `DT_API_TOKEN` | — | — | Dynatrace classic access token (`dt0c01.*`) with `problems.read` scope. Required for Phase 19 Davis AI root cause analysis enrichment on incidents. Generate in Dynatrace UI: Settings > Access tokens. Without this, incidents still resolve but without Davis RCA data. |
 | `REDHAT_SUBSCRIPTIONS_CLIENT_ID` | — | — | Automation Analytics / Insights upload auth (the **Automation Calculator** data feed). Red Hat **service account** client ID from [console.redhat.com/iam/service-accounts](https://console.redhat.com/iam/service-accounts). Leave unset to skip analytics — tracking still flips on but uploads won't authenticate. |
 | `REDHAT_SUBSCRIPTIONS_CLIENT_SECRET` | — | — | Service account client secret (pairs with `REDHAT_SUBSCRIPTIONS_CLIENT_ID`). |
 
