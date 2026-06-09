@@ -33,6 +33,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   remediation workflow logs a real-time investigation narrative.
 
 ### Changed
+- **Teardown cleans up host_metrics** — `teardown.yml` now hard-deletes
+  host_metrics entries for destroyed VMs so they stop counting against the
+  Red Hat managed-node subscription. Also migrated `ansible.controller.host`
+  → `ansible.platform.host` per project conventions.
 - **Gather and Display Facts JT renamed** — `DC1.Azure - Gather and Display
   Facts` → `DC1.Azure - Gather and Display Facts (Windows)` for OS clarity.
 - **F5 phase renumbered** — Phase 19 (F5 Load Balancing) → Phase 20 to make

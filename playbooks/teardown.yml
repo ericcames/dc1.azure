@@ -3,8 +3,9 @@
 # playbooks/teardown.yml — Phase 4 (+ Phase 16 multi-OS)
 # ============================================================================
 # Standalone "DC1.Azure - Teardown" job template. Destroys all Azure VMs (and
-# all resources Terraform created) and removes hosts from the dc1-azure AAP
-# inventory so the next provision starts clean.
+# all resources Terraform created), removes hosts from the dc1-azure AAP
+# inventory, and hard-deletes their host_metrics entries so decommissioned
+# VMs stop counting against the Red Hat managed-node subscription.
 #
 # os_type defaults to "both" so teardown always destroys everything regardless
 # of what was provisioned. Terraform handles count=0 on resources that don't
@@ -138,24 +139,80 @@
           register: td_token
 
         - name: Remove the Windows host from the inventory
-          ansible.controller.host:
-            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
-            controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
-            validate_certs: false
+          ansible.platform.host:
+            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            aap_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
+            aap_validate_certs: false
             name: "{{ win_fqdn }}"
             inventory: "{{ dc1_azure_inventory }}"
             state: absent
           when: win_fqdn is defined and win_fqdn is string
 
         - name: Remove the Linux host from the inventory
-          ansible.controller.host:
-            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
-            controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
-            validate_certs: false
+          ansible.platform.host:
+            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            aap_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
+            aap_validate_certs: false
             name: "{{ linux_fqdn }}"
             inventory: "{{ dc1_azure_inventory }}"
             state: absent
           when: linux_fqdn is defined and linux_fqdn is string
+
+        - name: Look up Windows host in host_metrics
+          ansible.builtin.uri:
+            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/?hostname={{ win_fqdn }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            status_code: [200, 404]
+            return_content: true
+          register: win_metrics
+          changed_when: false
+          failed_when: false
+          when: win_fqdn is defined and win_fqdn is string
+
+        - name: Hard-delete Windows host from host_metrics
+          ansible.builtin.uri:
+            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/{{ win_metrics.json.results[0].id }}/?soft_delete=false"
+            method: DELETE
+            headers:
+              Authorization: "Bearer {{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            status_code: [204, 404]
+          changed_when: true
+          failed_when: false
+          when:
+            - win_fqdn is defined and win_fqdn is string
+            - win_metrics.json.count | default(0) | int > 0
+
+        - name: Look up Linux host in host_metrics
+          ansible.builtin.uri:
+            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/?hostname={{ linux_fqdn }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            status_code: [200, 404]
+            return_content: true
+          register: linux_metrics
+          changed_when: false
+          failed_when: false
+          when: linux_fqdn is defined and linux_fqdn is string
+
+        - name: Hard-delete Linux host from host_metrics
+          ansible.builtin.uri:
+            url: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/api/controller/v2/host_metrics/{{ linux_metrics.json.results[0].id }}/?soft_delete=false"
+            method: DELETE
+            headers:
+              Authorization: "Bearer {{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
+            status_code: [204, 404]
+          changed_when: true
+          failed_when: false
+          when:
+            - linux_fqdn is defined and linux_fqdn is string
+            - linux_metrics.json.count | default(0) | int > 0
 
       always:
         - name: Delete the short-lived controller token
