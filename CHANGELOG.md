@@ -24,6 +24,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`DC1.Azure - Gather and Display Facts (Linux)` JT** — Linux counterpart
   to the Windows gather_facts JT. Targets `linuxweb` group over SSH.
 
+- **Demo runbook** (`docs/demo-runbook.md`) — full SE script covering all four
+  trigger variants (AAP UI, ServiceNow, Self-Service Portal, ADO), pre-flight
+  checklists, talk-tracks, EDA incident response demo (Phase 19), Automation
+  Calculator, failure recovery, and screenshot appendix.
+- **`snow_log` docs expanded** (`docs/snow-log.md`) — added incident ticket
+  usage patterns (Phase 19) with live INC0011360 example, showing how the
+  remediation workflow logs a real-time investigation narrative.
+
 ### Changed
 - **Gather and Display Facts JT renamed** — `DC1.Azure - Gather and Display
   Facts` → `DC1.Azure - Gather and Display Facts (Windows)` for OS clarity.
