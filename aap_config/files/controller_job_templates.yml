@@ -377,6 +377,7 @@ controller_templates:
     ask_variables_on_launch: true
     credentials:
       - "{{ cred_servicenow }}"
+      - "{{ cred_dynatrace }}"
 
   # Remediation nodes — restart service, verify, gather RCA, snow_log.
   # Split by OS for Machine credential separation.

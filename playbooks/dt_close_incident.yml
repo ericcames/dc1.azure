@@ -124,7 +124,7 @@
             _dt_problem_result is failed
             or (_dt_problem_result.json.problems | default([])) | length == 0
           ansible.builtin.set_fact:
-            dt_root_cause_entity: "Davis AI analysis not available (API query timed out or returned no data)"
+            dt_root_cause_entity: "Davis AI analysis still in progress — root cause data will be added to this ticket when available via the Dynatrace confirmation update"
             dt_evidence_items: ""
             dt_impacted_entities: ""
 

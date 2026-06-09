@@ -72,7 +72,7 @@
     - name: Query ServiceNow for the incident
       servicenow.itsm.api_info:
         resource: incident
-        sysparm_query: "short_descriptionLIKE{{ dt_problem_id }}^stateNOT IN6,7,8"
+        sysparm_query: "short_descriptionLIKE{{ dt_problem_id }}^stateNOT IN7,8"
         columns:
           - sys_id
           - number

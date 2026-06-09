@@ -107,23 +107,35 @@
           register: rca_disk
           changed_when: false
 
-        - name: Get who stopped httpd (verbose journal with UID/PID)
+        - name: Get logged-in users at time of service stop
           ansible.builtin.shell:
             cmd: >-
               set -o pipefail;
-              journalctl -u httpd --output=verbose --since "1 hour ago"
-              --no-pager -n 30 | grep -E '(_UID|_COMM|_CMDLINE|MESSAGE|_PID|_SYSTEMD_UNIT|Stopped)'
-              || true
-          register: rca_who_stopped
+              echo "=== Currently logged in ===" &&
+              who 2>/dev/null || true &&
+              echo "" &&
+              echo "=== Recent logins ===" &&
+              last -w -n 10 2>/dev/null || true
+          register: rca_logged_in_users
           changed_when: false
 
-        - name: Check audit log for service stop events
+        - name: Check audit log for who stopped httpd
           ansible.builtin.shell:
             cmd: >-
               set -o pipefail;
-              ausearch -m SERVICE_STOP -ts recent 2>/dev/null
-              | grep -i httpd || echo "No audit entries found for httpd stop"
+              ausearch -m SERVICE_STOP -ts recent -i 2>/dev/null
+              | grep -i httpd || echo "No audit entries found for httpd SERVICE_STOP"
           register: rca_audit_stop
+          changed_when: false
+
+        - name: Check systemd journal for stop request origin
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              journalctl --since "1 hour ago" --no-pager
+              -g "Stopped.*Apache|Stopping.*Apache|httpd.*stop" -n 10
+              || echo "No stop entries found in journal"
+          register: rca_stop_journal
           changed_when: false
 
     - name: Log RCA data to incident
@@ -131,27 +143,31 @@
         name: snow_log
       vars:
         snow_log_message: |-
-          Root Cause Analysis data for {{ inventory_hostname }}:
+          === LOCAL ROOT CAUSE ANALYSIS — {{ inventory_hostname }} ===
 
-          System Uptime: {{ rca_uptime.stdout | default('N/A') }}
+          INVESTIGATION: Who stopped the service?
+          {{ rca_audit_stop.stdout | default('No audit data') }}
 
-          Service Status (post-restart):
-          {{ rca_service_status.stdout_lines | default([]) | join('\n') }}
+          Stop request in system journal:
+          {{ rca_stop_journal.stdout | default('No journal entries') }}
 
-          WHO STOPPED THE SERVICE:
-          {{ rca_who_stopped.stdout | default('N/A') }}
+          Users logged in at time of incident:
+          {{ rca_logged_in_users.stdout | default('N/A') }}
 
-          AUDIT LOG (SERVICE_STOP):
-          {{ rca_audit_stop.stdout | default('N/A') }}
+          SYSTEM STATE:
+          Uptime: {{ rca_uptime.stdout | default('N/A') }}
 
           Disk Usage:
           {{ rca_disk.stdout | default('N/A') }}
 
-          Recent httpd journal (last 10 lines):
+          Recent httpd journal (last 10 entries):
           {{ (rca_httpd_logs.stdout_lines | default([]))[-10:] | join('\n') }}
 
-          Recent package changes (last 10):
-          {{ (rca_packages.stdout_lines | default([]))[:10] | join('\n') }}
+          Recent package changes (last 5):
+          {{ (rca_packages.stdout_lines | default([]))[:5] | join('\n') }}
+
+          Note: Dynatrace Davis AI root cause analysis will be posted
+          separately when available (typically 3-5 minutes).
         snow_log_ticket_number: "{{ incident_number | default('') }}"
         snow_log_resource: incident
 
