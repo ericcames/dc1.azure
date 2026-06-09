@@ -1,0 +1,148 @@
+---
+# ============================================================================
+# playbooks/dt_confirm_resolution.yml — AB#154 (closed-loop confirmation)
+# ============================================================================
+# Launched by the EDA rulebook (aap.eda.dynatrace.push) when Dynatrace sends
+# a CLOSED event — the problem has been resolved and Davis AI confirms
+# recovery. Finds the corresponding ServiceNow incident by DT problem ID in
+# the short_description, posts a confirmation work note.
+#
+# This closes the loop: Detect → Remediate → Confirm. The incident tells the
+# complete story with zero human intervention.
+#
+# Consumed input (from EDA via run_job_template extra_vars):
+#   dt_push_event  — full Dynatrace problem CLOSED event payload (dict)
+#
+# Credentials:
+#   - DC1.Azure - ServiceNow  (SN_* env)
+#   - DC1.Azure - Dynatrace   (DT_API_HOST env for problem URL)
+# ============================================================================
+
+- name: Confirm Dynatrace problem resolution on ServiceNow incident
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    dt_push_event: {}
+
+  tasks:
+    # ------------------------------------------------------------------
+    # 1. Parse the Dynatrace CLOSED event
+    # ------------------------------------------------------------------
+    - name: Unwrap DT event (eventData envelope or flat)
+      ansible.builtin.set_fact:
+        _dt_event: "{{ dt_push_event.eventData | default(dt_push_event) }}"
+
+    - name: Extract problem details from DT close event
+      ansible.builtin.set_fact:
+        dt_problem_id: >-
+          {{ _dt_event.display_id
+             | default(_dt_event.problemId
+             | default('unknown')) }}
+        dt_problem_title: >-
+          {{ _dt_event['event.name']
+             | default(_dt_event.problemTitle
+             | default('Unknown problem')) }}
+        dt_problem_status: >-
+          {{ _dt_event['event.status']
+             | default(_dt_event.status
+             | default('CLOSED')) }}
+        dt_event_id: >-
+          {{ _dt_event['event.id']
+             | default(_dt_event.eventId
+             | default('')) }}
+
+    - name: Determine affected hostname from DT event
+      ansible.builtin.set_fact:
+        dt_entity_name: >-
+          {{ (_dt_event['host.name'] | default([]))[0]
+             | default((_dt_event.impactedEntities | default([{}]))[0].name
+             | default('unknown')) }}
+
+    - name: Log received close event
+      ansible.builtin.debug:
+        msg: >-
+          Dynatrace problem {{ dt_problem_id }} CLOSED:
+          {{ dt_problem_title }} on {{ dt_entity_name }}
+
+    # ------------------------------------------------------------------
+    # 2. Find the ServiceNow incident by DT problem ID
+    # ------------------------------------------------------------------
+    - name: Query ServiceNow for the incident
+      servicenow.itsm.api_info:
+        resource: incident
+        sysparm_query: "short_descriptionLIKE{{ dt_problem_id }}^stateNOT IN6,7,8"
+        columns:
+          - sys_id
+          - number
+          - state
+          - short_description
+      register: incident_lookup
+
+    - name: Handle incident not found
+      when: incident_lookup.record | length == 0
+      block:
+        - name: Log no incident found
+          ansible.builtin.debug:
+            msg: >-
+              No open/resolved incident found matching DT problem
+              {{ dt_problem_id }}. The incident may have already been
+              closed or was not created (change ticket suppressed it).
+              Skipping confirmation.
+        - name: End play when no incident found
+          ansible.builtin.meta: end_play
+
+    - name: Set incident details
+      ansible.builtin.set_fact:
+        target_incident_number: "{{ incident_lookup.record[0].number }}"
+        target_incident_sys_id: "{{ incident_lookup.record[0].sys_id }}"
+
+    - name: Log matched incident
+      ansible.builtin.debug:
+        msg: >-
+          Matched incident {{ target_incident_number }} for DT problem
+          {{ dt_problem_id }}. Posting confirmation.
+
+    # ------------------------------------------------------------------
+    # 3. Build DT problem URL
+    # ------------------------------------------------------------------
+    - name: Build Dynatrace problem URL
+      ansible.builtin.set_fact:
+        dt_problem_url: >-
+          {{ (lookup('ansible.builtin.env', 'DT_API_HOST')
+              | regex_replace('\.live\.dynatrace\.com.*', '.apps.dynatrace.com'))
+             ~ '/ui/apps/dynatrace.classic.problems/#problems/problemdetails;pid='
+             ~ dt_event_id }}
+      when: dt_event_id | length > 0
+
+    # ------------------------------------------------------------------
+    # 4. Post confirmation to the incident
+    # ------------------------------------------------------------------
+    - name: Post Dynatrace confirmation to incident
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |-
+          === DYNATRACE CONFIRMATION ===
+
+          Dynatrace has confirmed that problem {{ dt_problem_id }}
+          ({{ dt_problem_title }}) is now RESOLVED.
+
+          The {{ dt_entity_name }} has recovered and is healthy.
+          This confirms the automated remediation was successful.
+
+          Full closed-loop: Detect → Remediate → Confirm
+          (zero human intervention)
+
+          Dynatrace Problem URL: {{ dt_problem_url | default('N/A') }}
+        snow_log_ticket_number: "{{ target_incident_number }}"
+        snow_log_ticket_sys_id: "{{ target_incident_sys_id }}"
+        snow_log_resource: incident
+
+    - name: Confirm resolution posted
+      ansible.builtin.debug:
+        msg: >-
+          Dynatrace confirmation posted to incident
+          {{ target_incident_number }}. Closed-loop complete for
+          problem {{ dt_problem_id }}.

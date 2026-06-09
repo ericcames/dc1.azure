@@ -220,6 +220,11 @@ servicenow_password: "{{ lookup('ansible.builtin.env', 'SN_PASSWORD') }}"
 # credential type injects these as env vars; the playbook reads them.
 dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
 dt_paas_token: "{{ lookup('ansible.builtin.env', 'DT_PAAS_TOKEN') }}"
+# Classic access token (dt0c01.*) for Problems API v2 — problems.read scope.
+# Required by dt_close_incident.yml (root cause analysis) and
+# dt_confirm_resolution.yml (closed-loop confirmation). Optional — leave
+# unset if not using incident enrichment features.
+dt_api_token: "{{ lookup('ansible.builtin.env', 'DT_API_TOKEN') | default('', true) }}"
 dt_host_group: dc1-azure
 dynatrace_template_windows: "DC1.Azure - Install Dynatrace OneAgent (Windows)"
 dynatrace_template_linux: "DC1.Azure - Install Dynatrace OneAgent (Linux)"
@@ -235,6 +240,7 @@ triage_template: "DC1.Azure - Triage DT Alert"
 remediate_linux_template: "DC1.Azure - Remediate Website (Linux)"
 remediate_windows_template: "DC1.Azure - Remediate Website (Windows)"
 close_incident_template: "DC1.Azure - Close Incident (DT)"
+confirm_resolution_template: "DC1.Azure - Confirm Resolution (DT)"
 facts_template_linux: "DC1.Azure - Gather and Display Facts (Linux)"
 
 # --- Phase 9: Self-Service Portal RBAC + launcher (AB#107) -------------------

@@ -402,8 +402,11 @@ controller_templates:
       - "{{ cred_windows }}"
       - "{{ cred_servicenow }}"
 
-  # Close incident node — executive summary, resolve INC. Runs on control
-  # inventory (localhost).
+  # Close incident node — queries DT Problems API for Davis root cause
+  # analysis, posts executive summary with RCA + AAP job URL, resolves INC.
+  # Runs on control inventory (localhost). AB#154 added cred_dynatrace
+  # (DT_API_TOKEN for RCA query) and cred_controller (CONTROLLER_HOST for
+  # the AAP workflow job URL).
   - name: "{{ close_incident_template }}"
     job_type: run
     organization: "{{ my_organization }}"
@@ -413,6 +416,23 @@ controller_templates:
     execution_environment: "{{ my_execution_environment }}"
     credentials:
       - "{{ cred_servicenow }}"
+      - "{{ cred_dynatrace }}"
+      - "{{ cred_controller }}"
+
+  # Confirm resolution — receives a DT CLOSED event from EDA, finds the
+  # ServiceNow incident by problem ID, posts a confirmation work note.
+  # Launched by the aap.eda.dynatrace.push rulebook's CLOSED-event rule.
+  - name: "{{ confirm_resolution_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/dt_confirm_resolution.yml
+    execution_environment: "{{ my_execution_environment }}"
+    ask_variables_on_launch: true
+    credentials:
+      - "{{ cred_servicenow }}"
+      - "{{ cred_dynatrace }}"
 
   # Linux gather_facts — mirrors the Windows version for the linuxweb group.
   - name: "{{ facts_template_linux }}"

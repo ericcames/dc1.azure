@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#154 — Dynatrace incident enrichment + closed-loop confirmation**
+  - Credential type `DC1.Azure - Dynatrace` gains an optional `dt_api_token`
+    field (classic `dt0c01.*` access token with `problems.read` scope) for
+    Problems API v2 queries.
+  - `dt_triage.yml` enrichments: Davis AI narrative (`event.description`) and
+    Dynatrace problem URL posted to incident at creation; problem ID added to
+    incident `short_description` for reliable cross-reference.
+  - `dt_close_incident.yml` enrichments: polls Dynatrace Problems API v2 for
+    Davis root cause analysis (root cause entity, evidence, impacted entities)
+    with 5-minute retry window; adds AAP workflow job URL and Dynatrace problem
+    URL to executive summary.
+  - New playbook `dt_confirm_resolution.yml` and JT
+    `DC1.Azure - Confirm Resolution (DT)` — receives Dynatrace CLOSED events
+    via EDA, finds the corresponding ServiceNow incident, posts a confirmation
+    work note closing the detect→remediate→confirm loop.
+  - Close Incident JT gains `cred_dynatrace` and `cred_controller` credentials.
+  - `validate_tasks.yml` now asserts all Phase 19 JTs + the remediation workflow.
+
 - **Phase 19 — EDA incident response (Dynatrace website-down demo)** — new
   `DC1.Azure - Remediate Website` workflow launched by the existing
   `DT-EDA-PUSH - Service Remediation` EDA activation when Dynatrace pushes a

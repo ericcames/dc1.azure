@@ -2,9 +2,14 @@
 # ============================================================================
 # playbooks/dt_close_incident.yml — Phase 19 (incident resolution)
 # ============================================================================
-# Final node in the DC1.Azure - Remediate Website workflow. Posts an executive
-# summary to the incident and updates its state to resolved. Skips if no
-# incident was created (has_active_change = true).
+# Final node in the DC1.Azure - Remediate Website workflow. Queries the
+# Dynatrace Problems API v2 for Davis AI root cause analysis, posts it to the
+# incident, then posts an executive summary and resolves the incident.
+#
+# The DT RCA query retries for up to 5 minutes — Davis AI analysis takes a
+# few minutes to become available after problem open. If the API is
+# unreachable or the token is not configured, the playbook continues
+# gracefully with "N/A" placeholders.
 #
 # Consumed inputs (workflow artifacts via set_stats):
 #   incident_number         — INC ticket number
@@ -12,12 +17,17 @@
 #   has_active_change       — true = CHG found, no INC created
 #   affected_os_type        — linux | windows
 #   affected_ci_name        — FQDN of the affected host
-#   dt_problem_id           — Dynatrace problem ID
+#   dt_problem_id           — Dynatrace problem ID (display_id, e.g. P-26069)
 #   dt_problem_title        — Dynatrace problem title
+#   dt_problem_url          — Dynatrace problem deep link
+#   dt_event_id             — Dynatrace internal event ID
 #   linux_remediation_host  — hostname (from remediate-linux node)
 #   windows_remediation_host — hostname (from remediate-windows node)
 #
-# Credential: DC1.Azure - ServiceNow (ServiceNow ITSM → SN_* env).
+# Credentials:
+#   - DC1.Azure - ServiceNow    (SN_* env)
+#   - DC1.Azure - Dynatrace     (DT_API_HOST, DT_API_TOKEN env)
+#   - DC1.Azure - Controller    (CONTROLLER_HOST env)
 # ============================================================================
 
 - name: Close the ServiceNow incident with executive summary
@@ -49,6 +59,114 @@
              'web service' }}
 
     # ------------------------------------------------------------------
+    # Build AAP workflow job URL
+    # ------------------------------------------------------------------
+    - name: Build AAP workflow job URL
+      ansible.builtin.set_fact:
+        aap_workflow_url: >-
+          {{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}/execution/jobs/workflow/{{ awx_workflow_job_id | default(tower_workflow_job_id | default('')) }}/output
+
+    # ------------------------------------------------------------------
+    # Query Dynatrace Problems API v2 for root cause analysis
+    # ------------------------------------------------------------------
+    - name: Read Dynatrace API credentials
+      ansible.builtin.set_fact:
+        _dt_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+        _dt_api_token: "{{ lookup('ansible.builtin.env', 'DT_API_TOKEN') }}"
+
+    - name: Query DT Problems API for root cause analysis
+      when:
+        - (_dt_api_token | default('')) | length > 0
+        - (dt_problem_id | default('')) | length > 0
+        - dt_problem_id != 'unknown'
+      block:
+        - name: Poll for Davis root cause analysis
+          ansible.builtin.uri:
+            url: >-
+              {{ _dt_api_host }}/api/v2/problems?problemSelector=displayId(%22{{ dt_problem_id }}%22)&fields=%2BevidenceDetails,%2BimpactAnalysis,%2BrootCauseEntity
+            method: GET
+            headers:
+              Authorization: "Api-Token {{ _dt_api_token }}"
+            return_content: true
+            status_code: [200]
+          register: _dt_problem_result
+          until: >-
+            (_dt_problem_result.json.problems | default([])) | length > 0
+            and (_dt_problem_result.json.problems[0].rootCauseEntity | default(none)) is not none
+          retries: 10
+          delay: 30
+          ignore_errors: true
+
+        - name: Extract root cause details
+          when:
+            - _dt_problem_result is not failed
+            - (_dt_problem_result.json.problems | default([])) | length > 0
+          ansible.builtin.set_fact:
+            dt_root_cause_entity: >-
+              {{ _dt_problem_result.json.problems[0].rootCauseEntity.name
+                 | default('Not yet determined by Davis AI') }}
+            dt_evidence_items: >-
+              {{ _dt_problem_result.json.problems[0].evidenceDetails.details
+                 | default([])
+                 | map(attribute='displayName')
+                 | list
+                 | join(', ') }}
+            dt_impacted_entities: >-
+              {{ _dt_problem_result.json.problems[0].impactAnalysis.impacts
+                 | default([])
+                 | map(attribute='impactedEntity')
+                 | map(attribute='name')
+                 | list
+                 | join(', ') }}
+
+        - name: Default RCA facts when API returned no data
+          when: >-
+            _dt_problem_result is failed
+            or (_dt_problem_result.json.problems | default([])) | length == 0
+          ansible.builtin.set_fact:
+            dt_root_cause_entity: "Davis AI analysis not available (API query timed out or returned no data)"
+            dt_evidence_items: ""
+            dt_impacted_entities: ""
+
+      rescue:
+        - name: Default RCA facts on API error (non-fatal)
+          ansible.builtin.set_fact:
+            dt_root_cause_entity: "Davis AI analysis not available (API error)"
+            dt_evidence_items: ""
+            dt_impacted_entities: ""
+
+        - name: Log RCA query failure
+          ansible.builtin.debug:
+            msg: >-
+              Dynatrace Problems API query failed (non-fatal). Continuing
+              with incident resolution without Davis root cause data.
+
+    - name: Default RCA facts when API token not configured
+      when: (_dt_api_token | default('')) | length == 0
+      ansible.builtin.set_fact:
+        dt_root_cause_entity: "N/A (DT_API_TOKEN not configured)"
+        dt_evidence_items: ""
+        dt_impacted_entities: ""
+
+    # ------------------------------------------------------------------
+    # Post Dynatrace root cause analysis to incident
+    # ------------------------------------------------------------------
+    - name: Post Dynatrace root cause analysis to incident
+      when: (dt_root_cause_entity | default('')) | length > 0
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: |-
+          === DYNATRACE ROOT CAUSE ANALYSIS ===
+          Root Cause Entity: {{ dt_root_cause_entity }}
+          Evidence Items:    {{ dt_evidence_items | default('None identified') }}
+          Impacted Entities: {{ dt_impacted_entities | default('None identified') }}
+
+          Dynatrace Problem URL: {{ dt_problem_url | default('N/A') }}
+        snow_log_ticket_number: "{{ incident_number }}"
+        snow_log_resource: incident
+
+    # ------------------------------------------------------------------
     # Post executive summary
     # ------------------------------------------------------------------
     - name: Post executive summary to incident
@@ -72,14 +190,22 @@
           - {{ remediated_service }} service restarted on {{ remediated_host }}
           - Website verified accessible (HTTP 200)
 
-          ROOT CAUSE ANALYSIS:
+          DAVIS AI ROOT CAUSE ANALYSIS:
+          - Root Cause Entity: {{ dt_root_cause_entity | default('N/A') }}
+          - Evidence: {{ dt_evidence_items | default('N/A') }}
+          - Impacted Entities: {{ dt_impacted_entities | default('N/A') }}
+
+          LOCAL ROOT CAUSE ANALYSIS:
           - System logs, service status, disk usage, and recent package
             changes collected and posted to this incident as work notes
           - Data available for post-incident review
 
+          LINKS:
+          - Dynatrace Problem: {{ dt_problem_url | default('N/A') }} ({{ dt_problem_id | default('N/A') }})
+          - AAP Workflow Job: {{ aap_workflow_url | default('N/A') }}
+
           RESOLUTION:
           - Service restored via automated remediation
-          - Dynatrace Problem ID: {{ dt_problem_id | default('N/A') }}
           - All actions performed by Ansible Automation Platform
             (Event-Driven Ansible → Remediation Workflow)
         snow_log_ticket_number: "{{ incident_number }}"

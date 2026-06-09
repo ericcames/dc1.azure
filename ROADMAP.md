@@ -748,7 +748,9 @@ builds the dc1.azure remediation workflow that EDA launches.
   gather RCA data (journal, uptime, packages, disk), `snow_log` all findings.
 - 🔄 **Playbook: `dt_remediate_windows.yml`** — restart IIS, verify, RCA data,
   `snow_log`. Parallel pattern to Linux.
-- 🔄 **Playbook: `dt_close_incident.yml`** — executive summary, resolve incident.
+- 🔄 **Playbook: `dt_close_incident.yml`** — queries Dynatrace Problems API v2
+  for Davis AI root cause analysis (retry loop, up to 5 min), posts RCA + AAP
+  job URL + DT problem URL to executive summary, resolves incident.
 - 🔄 **Workflow: `DC1.Azure - Remediate Website`** — 4-node graph:
   `dt-triage` → `remediate-linux` + `remediate-windows` (parallel) →
   `close-incident` (converge).
@@ -757,18 +759,31 @@ builds the dc1.azure remediation workflow that EDA launches.
   this to intentionally stop the web service.
 - 🔄 **JT: Gather and Display Facts (Linux)** — mirrors the Windows version for
   the `linuxweb` group. Existing Windows JT renamed to `(Windows)`.
+- 🔄 **Incident enrichment (AB#154)** — DT problem URL, Davis AI narrative
+  (`event.description`), and problem ID in `short_description` at creation;
+  Davis root cause analysis (root cause entity, evidence, impacted entities)
+  and AAP workflow job URL in the executive summary. Credential type extended
+  with optional `DT_API_TOKEN` for Problems API v2 access.
+- 🔄 **Closed-loop confirmation (AB#154)** — new `dt_confirm_resolution.yml`
+  playbook + `DC1.Azure - Confirm Resolution (DT)` JT. When Dynatrace sends a
+  CLOSED event (problem resolved), EDA fires this JT to post a confirmation
+  work note on the ServiceNow incident. Requires `onProblemClose: true` +
+  CLOSED-event rule in `aap.eda.dynatrace.push`.
 - ⬜ **DT webhook verification** — confirm the Dynatrace tenant pushes problem
   events to the `DT-EDA-PUSH - Dynatrace Events` event stream on AAP.
 - ⬜ **`aap.eda.dynatrace.push` update** — change rulebook from `run_job_template`
   (notify-only) to `run_workflow_template` → `DC1.Azure - Remediate Website`.
 - ⬜ **End-to-end validation** — break httpd → DT problem → EDA fires → INC
-  created → service restored → RCA on incident → INC resolved.
+  created → service restored → DT RCA on incident → INC resolved → DT confirms
+  problem closed → confirmation posted to incident.
 
 **Exit criteria:** stopping httpd on a provisioned Linux VM triggers the full
 automated chain: Dynatrace detection → EDA → ServiceNow incident with real-time
-work notes (triage, restoration, RCA, executive summary, resolution). The change
-ticket check correctly identifies expected maintenance (CHG in Implement phase)
-and suppresses incident creation.
+work notes (triage, Davis narrative, restoration, local RCA, Davis root cause
+analysis, executive summary, resolution). The change ticket check correctly
+identifies expected maintenance (CHG in Implement phase) and suppresses incident
+creation. When Dynatrace confirms recovery, a confirmation work note closes the
+detect→remediate→confirm loop.
 
 ### Phase 20 — F5 Load Balancing on Azure  ⬜
 

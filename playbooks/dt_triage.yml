@@ -64,6 +64,17 @@
              | default(_dt_event.State
              | default('OPEN'))) }}
 
+    - name: Extract additional fields for enrichment
+      ansible.builtin.set_fact:
+        dt_event_description: >-
+          {{ _dt_event['event.description']
+             | default(_dt_event.description
+             | default('')) }}
+        dt_event_id: >-
+          {{ _dt_event['event.id']
+             | default(_dt_event.eventId
+             | default('')) }}
+
     - name: Determine affected hostname from DT event
       ansible.builtin.set_fact:
         dt_entity_name: >-
@@ -71,6 +82,15 @@
              | default((_dt_event.impactedEntities | default([{}]))[0].name
              | default(_dt_event.ImpactedEntity
              | default('unknown'))) }}
+
+    - name: Build Dynatrace problem URL
+      ansible.builtin.set_fact:
+        dt_problem_url: >-
+          {{ (lookup('ansible.builtin.env', 'DT_API_HOST')
+              | regex_replace('\.live\.dynatrace\.com.*', '.apps.dynatrace.com'))
+             ~ '/ui/apps/dynatrace.classic.problems/#problems/problemdetails;pid='
+             ~ dt_event_id }}
+      when: dt_event_id | length > 0
 
     - name: Log received event
       ansible.builtin.debug:
@@ -189,7 +209,7 @@
             state: new
             caller: "{{ incident_caller }}"
             short_description: >-
-              Dynatrace Alert: {{ dt_problem_title }} on {{ affected_ci_name }}
+              Dynatrace Alert [{{ dt_problem_id }}]: {{ dt_problem_title }} on {{ affected_ci_name }}
             description: |-
               Automated incident created by Ansible Automation Platform via
               Event-Driven Ansible (Dynatrace push integration).
@@ -198,6 +218,10 @@
               Problem Title:     {{ dt_problem_title }}
               Affected Host:     {{ affected_ci_name }}
               OS Type:           {{ affected_os_type }}
+              Dynatrace URL:     {{ dt_problem_url | default('N/A') }}
+
+              Davis AI Narrative:
+              {{ dt_event_description | default('N/A') }}
 
               An active change ticket check was performed — no open change
               requests are linked to this CI. Automated remediation is in
@@ -228,6 +252,19 @@
             snow_log_ticket_number: "{{ incident_info.record.number }}"
             snow_log_resource: incident
 
+        - name: Post Dynatrace Davis narrative to incident
+          when: (dt_event_description | default('')) | length > 0
+          ansible.builtin.include_role:
+            name: snow_log
+          vars:
+            snow_log_message: |-
+              === DAVIS AI ANALYSIS ===
+              {{ dt_event_description }}
+
+              Dynatrace Problem URL: {{ dt_problem_url | default('N/A') }}
+            snow_log_ticket_number: "{{ incident_info.record.number }}"
+            snow_log_resource: incident
+
     # ------------------------------------------------------------------
     # 6. Publish artifacts for downstream workflow nodes
     # ------------------------------------------------------------------
@@ -242,3 +279,5 @@
           has_active_change: "{{ has_active_change }}"
           dt_problem_id: "{{ dt_problem_id }}"
           dt_problem_title: "{{ dt_problem_title }}"
+          dt_problem_url: "{{ dt_problem_url | default('') }}"
+          dt_event_id: "{{ dt_event_id | default('') }}"
