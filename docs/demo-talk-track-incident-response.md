@@ -426,22 +426,22 @@ connected properly.
 All screenshots captured from the live validation run (INC0011372 / P-260618,
 June 9, 2026). Stored in `docs/images/`.
 
-| File | Content |
-|------|---------|
-| `demo-13-dt-problem-active.png` | Dynatrace Problems — P-260618 Active alongside AAP jobs |
-| `demo-14-aap-remediation-workflow.png` | AAP workflow graph: triage → remediate → close |
-| `demo-15a-inc-header.png` | INC0011372 header: CI, description, DT URL, Davis narrative |
-| `demo-15b-inc-confirmation-and-resolution.png` | DT Confirmation + resolution field changes |
-| `demo-15c-inc-executive-summary.png` | Executive summary + DT RCA work notes |
-| `demo-15d-inc-remediation-notes.png` | Service restored, remediation start, Davis AI, creation |
-| `demo-15e-inc-creation-details.png` | Incident creation field changes — CI, Priority 1-Critical |
-| `demo-15f-inc-affected-cis.png` | Affected CIs tab — linked CMDB CI |
-| `demo-16-inc-davis-narrative.png` | Close-up: Davis AI Analysis work note |
-| `demo-17a-inc-rca-forensics.png` | Close-up: Local RCA — investigation + who stopped it |
-| `demo-17b-inc-rca-forensics.png` | Close-up: Local RCA — system state + disk + journal |
-| `demo-18-inc-executive-summary.png` | Close-up: Executive Summary with DT + AAP links |
-| `demo-19-dt-problem-closed.png` | Dynatrace Problems — P-260618 Closed, root cause identified |
-| `demo-20-inc-dt-confirmation.png` | Close-up: Dynatrace Confirmation work note |
+| Screenshot | Content |
+|------------|---------|
+| [![DT Problem Active](images/demo-13-dt-problem-active.png)](images/demo-13-dt-problem-active.png) | Dynatrace Problems — P-260618 Active alongside AAP jobs |
+| [![AAP Workflow](images/demo-14-aap-remediation-workflow.png)](images/demo-14-aap-remediation-workflow.png) | AAP workflow graph: triage → remediate → close |
+| [![INC Header](images/demo-15a-inc-header.png)](images/demo-15a-inc-header.png) | INC0011372 header: CI, description, DT URL, Davis narrative |
+| [![DT Confirmation + Resolution](images/demo-15b-inc-confirmation-and-resolution.png)](images/demo-15b-inc-confirmation-and-resolution.png) | DT Confirmation + resolution field changes |
+| [![Executive Summary](images/demo-15c-inc-executive-summary.png)](images/demo-15c-inc-executive-summary.png) | Executive summary + DT RCA work notes |
+| [![Remediation Notes](images/demo-15d-inc-remediation-notes.png)](images/demo-15d-inc-remediation-notes.png) | Service restored, remediation start, Davis AI, creation |
+| [![Creation Details](images/demo-15e-inc-creation-details.png)](images/demo-15e-inc-creation-details.png) | Incident creation field changes — CI, Priority 1-Critical |
+| [![Affected CIs](images/demo-15f-inc-affected-cis.png)](images/demo-15f-inc-affected-cis.png) | Affected CIs tab — linked CMDB CI |
+| [![Davis AI Narrative](images/demo-16-inc-davis-narrative.png)](images/demo-16-inc-davis-narrative.png) | Close-up: Davis AI Analysis work note |
+| [![Local RCA — Investigation](images/demo-17a-inc-rca-forensics.png)](images/demo-17a-inc-rca-forensics.png) | Close-up: Local RCA — investigation + who stopped it |
+| [![Local RCA — System State](images/demo-17b-inc-rca-forensics.png)](images/demo-17b-inc-rca-forensics.png) | Close-up: Local RCA — system state + disk + journal |
+| [![Executive Summary Close-up](images/demo-18-inc-executive-summary.png)](images/demo-18-inc-executive-summary.png) | Close-up: Executive Summary with DT + AAP links |
+| [![DT Problem Closed](images/demo-19-dt-problem-closed.png)](images/demo-19-dt-problem-closed.png) | Dynatrace Problems — P-260618 Closed, root cause identified |
+| [![DT Confirmation](images/demo-20-inc-dt-confirmation.png)](images/demo-20-inc-dt-confirmation.png) | Close-up: Dynatrace Confirmation work note |
 
 ---
 
