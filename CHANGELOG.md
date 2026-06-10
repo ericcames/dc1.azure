@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#160 — `dt_web_availability` role: codify Dynatrace web-tier availability
+  alerting (OS-symmetric self-heal detection).** Dynatrace only raises a Davis
+  "process unavailable" *problem* (which fires the DT→EDA self-heal) for a
+  process group that has a `builtin:availability.process-group-alerting` rule.
+  That rule was a manual runbook step done only for Apache `httpd`, so the
+  Windows/IIS self-heal silently never fired. New reusable, environment-agnostic
+  role (`playbooks/roles/dt_web_availability/`) + playbook
+  (`playbooks/configure_dt_web_availability.yml`) that, via the Dynatrace API
+  only (no host access), resolves the web process groups by name
+  (`Apache Web Server httpd` + `IIS app pool DefaultAppPool`) scoped to host
+  group `dc1-azure`, and idempotently ensures an `ON_PGI_UNAVAILABILITY` rule on
+  each. Entity IDs are resolved at run time (never hardcoded) and scoped to the
+  host group so a shared tenant's other `httpd`/`IIS` groups are untouched.
+  `docs/demo-runbook.md` updated to mark the formerly-manual checklist item as
+  codified and covering IIS. (Wiring into the provision workflow is a separate
+  follow-up.) Complements AB#161 (unique Windows DT host identity).
 - **`/ado-workflow` skill + `open_pr.py` helper — repeatable ADO PR flow across
   models.** New repo-based skill (`.claude/skills/ado-workflow/`) that
   consolidates the Azure DevOps PR procedure (branch → PR → link work item →

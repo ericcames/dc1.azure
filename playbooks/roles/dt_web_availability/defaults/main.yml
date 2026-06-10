@@ -1,0 +1,43 @@
+---
+# ============================================================================
+# dt_web_availability — default variables
+# ============================================================================
+# Ensure Dynatrace raises a Davis "process unavailable" PROBLEM (not just an
+# informational event) when a web process group goes down — which is what fires
+# the DT->EDA self-heal push. Without a process-group availability alerting rule
+# for each web tier, the self-heal loop silently never triggers. Pure Dynatrace
+# API — no host access required. See README.md and AB#160.
+# ============================================================================
+
+# --- Connection -------------------------------------------------------------
+# Dynatrace SaaS tenant URL (e.g. https://abc12345.live.dynatrace.com) and a
+# classic access token (dt0c01.*) with settings.read/write + entities.read.
+# Default to the same env vars the other dc1.azure Dynatrace playbooks read, so
+# the role is drop-in inside AAP.
+dt_web_availability_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+dt_web_availability_api_token: "{{ lookup('ansible.builtin.env', 'DT_API_TOKEN') }}"
+# Dynatrace SaaS presents valid certificates — keep verification on. (The
+# validate_certs:false seen elsewhere in this repo targets the self-signed AAP
+# controller, not Dynatrace.)
+dt_web_availability_validate_certs: true
+
+# --- Scope ------------------------------------------------------------------
+# Restrict to this Dynatrace host group so the rule is only enabled on THIS
+# demo's process groups — never on another tenant user's httpd/IIS (the names
+# below are generic and shared tenants have many). Process groups are resolved
+# via the PROCESS_GROUP_INSTANCE -> HOST relationship, scoped to this group.
+dt_web_availability_host_group: "dc1-azure"
+
+# Web process-group display names to enable availability alerting on, by OS.
+# Linux = Apache httpd; Windows = the IIS app-pool worker that serves content
+# (the analog of the httpd daemon). Resolved to PROCESS_GROUP entity IDs at run
+# time — never hardcode IDs (they are environment-specific).
+dt_web_availability_process_group_names:
+  - "Apache Web Server httpd"
+  - "IIS app pool DefaultAppPool"
+
+# --- Behavior ---------------------------------------------------------------
+# ON_PGI_UNAVAILABILITY raises a problem when a process-group instance that was
+# running becomes unavailable — exactly the "website down" signal the demo
+# self-heals on.
+dt_web_availability_alerting_mode: "ON_PGI_UNAVAILABILITY"

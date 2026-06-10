@@ -1,0 +1,126 @@
+---
+# ============================================================================
+# dt_web_availability — tasks
+# ============================================================================
+# 1. Guard / skip when Dynatrace is not configured.
+# 2. Resolve each web process-group NAME -> PROCESS_GROUP entity id, scoped to
+#    the host group (via the PROCESS_GROUP_INSTANCE -> HOST relationship, the
+#    same relationship dt_decommission uses, so it stays inside this demo's
+#    hosts and never touches another tenant user's httpd/IIS).
+# 3. Idempotently ensure a builtin:availability.process-group-alerting object
+#    (ON_PGI_UNAVAILABILITY) exists for each resolved PROCESS_GROUP — skip any
+#    that already have one.
+# ============================================================================
+
+- name: "Dt_web_availability | Determine whether the role can run"
+  ansible.builtin.set_fact:
+    _dt_web_availability_enabled: "{{ (dt_web_availability_api_host | default('') | length > 0)
+                                      and (dt_web_availability_api_token | default('') | length > 0) }}"
+
+- name: "Dt_web_availability | Skip notice (Dynatrace not configured)"
+  ansible.builtin.debug:
+    msg: >-
+      DT_API_HOST/DT_API_TOKEN not set — skipping Dynatrace web availability alerting.
+  when: not _dt_web_availability_enabled
+
+- name: "Dt_web_availability | Ensure availability alerting on the web process groups"
+  when: _dt_web_availability_enabled
+  block:
+    # ----------------------------------------------------------------------
+    # Step 2 — resolve web PG names -> PROCESS_GROUP ids within the host group.
+    # Query the PROCESS_GROUP_INSTANCEs (by exact name, on hosts in the group)
+    # and read each one's parent PROCESS_GROUP via fromRelationships.isInstanceOf
+    # (the rule scopes to PROCESS_GROUP, not the instance).
+    # NB: `fields=fromRelationships` IS valid; `fields=entityId` is NOT (it 400s).
+    # ----------------------------------------------------------------------
+    - name: "Dt_web_availability | Resolve matching web process-group instances in the host group"
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_web_availability_api_host }}/api/v2/entities?entitySelector={{
+            ('type("PROCESS_GROUP_INSTANCE"),entityName.equals("' ~ item ~ '"),'
+             ~ 'fromRelationships.isProcessOf(type("HOST"),hostGroupName("'
+             ~ dt_web_availability_host_group ~ '"))') | urlencode
+          }}&fields=fromRelationships&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_web_availability_api_token }}"
+        validate_certs: "{{ dt_web_availability_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      loop: "{{ dt_web_availability_process_group_names }}"
+      loop_control:
+        label: "{{ item }}"
+      register: _dt_web_availability_pgi_lookup
+
+    - name: "Dt_web_availability | Collect target PROCESS_GROUP ids"
+      ansible.builtin.set_fact:
+        _dt_web_availability_pg_ids: >-
+          {{ _dt_web_availability_pgi_lookup.results
+             | map(attribute='json.entities') | flatten
+             | map(attribute='fromRelationships.isInstanceOf') | flatten
+             | map(attribute='id') | unique | list }}
+
+    - name: "Dt_web_availability | Note when no web process groups resolved"
+      ansible.builtin.debug:
+        msg: >-
+          No web process groups matched names {{ dt_web_availability_process_group_names }}
+          in host group '{{ dt_web_availability_host_group }}'. Is the web service
+          running and OneAgent reporting? (Dynatrace must have detected the process
+          group before alerting can be enabled.)
+      when: _dt_web_availability_pg_ids | length == 0
+
+    # ----------------------------------------------------------------------
+    # Step 3 — ensure an availability alerting rule for each PROCESS_GROUP
+    # (idempotent: skip those that already have one).
+    # ----------------------------------------------------------------------
+    - name: "Dt_web_availability | List existing availability-alerting settings objects"
+      when: _dt_web_availability_pg_ids | length > 0
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_web_availability_api_host }}/api/v2/settings/objects?schemaIds=builtin:availability.process-group-alerting&fields=objectId,scope&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_web_availability_api_token }}"
+        validate_certs: "{{ dt_web_availability_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      register: _dt_web_availability_existing
+
+    - name: "Dt_web_availability | Compute which process groups still need a rule"
+      when: _dt_web_availability_pg_ids | length > 0
+      ansible.builtin.set_fact:
+        _dt_web_availability_missing: >-
+          {{ _dt_web_availability_pg_ids
+             | difference(_dt_web_availability_existing.json['items'] | default([])
+                          | map(attribute='scope') | list) }}
+
+    - name: "Dt_web_availability | Enable availability alerting on each missing web process group"
+      when: _dt_web_availability_missing | default([]) | length > 0
+      ansible.builtin.uri:
+        url: "{{ dt_web_availability_api_host }}/api/v2/settings/objects"
+        method: POST
+        headers:
+          Authorization: "Api-Token {{ dt_web_availability_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          - schemaId: "builtin:availability.process-group-alerting"
+            scope: "{{ item }}"
+            value:
+              enabled: true
+              alertingMode: "{{ dt_web_availability_alerting_mode }}"
+        validate_certs: "{{ dt_web_availability_validate_certs }}"
+        status_code: [200]
+      loop: "{{ _dt_web_availability_missing }}"
+      loop_control:
+        label: "{{ item }}"
+      register: _dt_web_availability_created
+
+    - name: "Dt_web_availability | Summary"
+      ansible.builtin.debug:
+        msg: >-
+          Web availability alerting ensured —
+          process groups resolved: {{ _dt_web_availability_pg_ids | length }};
+          already had a rule: {{ (_dt_web_availability_pg_ids | length)
+                                 - (_dt_web_availability_missing | default([]) | length) }};
+          rules created this run: {{ _dt_web_availability_missing | default([]) | length }}.

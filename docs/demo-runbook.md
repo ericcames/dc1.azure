@@ -586,8 +586,13 @@ Fully automated — no manual steps.
       Decisions → Rulebook Activations, ID 5)
 - [ ] DT Workflow `DT-EDA-PUSH - Service Failure → AAP` is Live (Dynatrace →
       Workflows)
-- [ ] DT process availability alerting configured for httpd
-      (`dtctl get settings --schema builtin:availability.process-group-alerting`)
+- [ ] DT process availability alerting configured for **both** httpd (Linux)
+      **and** IIS app pool (Windows) — now codified by the `dt_web_availability`
+      role / `playbooks/configure_dt_web_availability.yml` (AB#160), so no longer
+      a manual per-host step. Verify with
+      `dtctl get settings --schema builtin:availability.process-group-alerting`
+      (expect one rule per web process group). A missing IIS rule is the #1
+      reason Windows self-heal never fires.
 - [ ] Outbound allowlist includes the current AAP URL (Dynatrace → Settings →
       General → External requests)
 

@@ -1,0 +1,27 @@
+---
+# ============================================================================
+# playbooks/configure_dt_web_availability.yml — Phase 19 (AB#160)
+# ============================================================================
+# Ensure Dynatrace process-group availability alerting is enabled for the web
+# tier (Apache httpd + IIS app pool) so a process outage raises a Davis problem
+# and fires the DT->EDA self-heal. Pure Dynatrace API — runs on the control
+# node, no host access. Idempotent and OS-symmetric.
+#
+# Codifies what used to be a manual runbook step that was done only for httpd,
+# which is why the Windows/IIS self-heal silently never fired (AB#160).
+#
+# Run AFTER OneAgent install + website setup, so Dynatrace has detected the web
+# process groups. Skips cleanly if DT_API_HOST/DT_API_TOKEN are unset.
+#
+# Required credential:
+#   - DC1.Azure - Dynatrace API  → DT_API_HOST, DT_API_TOKEN
+#     (classic dt0c01.* token with settings.read/write + entities.read)
+# ============================================================================
+
+- name: Configure Dynatrace web process-availability alerting
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - role: dt_web_availability

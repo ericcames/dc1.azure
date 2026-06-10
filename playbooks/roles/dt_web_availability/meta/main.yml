@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: dt_web_availability
+  author: Eric Ames
+  description: >-
+    Ensure Dynatrace process-group availability alerting is enabled for the web
+    tier (Apache httpd + IIS app pool) so a process outage raises a Davis
+    problem and fires the DT->EDA self-heal — driven entirely via the Dynatrace
+    API. No host access required. Idempotent and OS-symmetric.
+  license: MIT
+  min_ansible_version: "2.15"
+  galaxy_tags:
+    - dynatrace
+    - monitoring
+    - availability
+    - alerting
+    - selfheal
+
+dependencies: []
