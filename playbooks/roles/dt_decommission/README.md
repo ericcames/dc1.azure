@@ -15,12 +15,15 @@ unreachable.
 1. **Garbage-collects** its own expired maintenance windows (so they don't pile
    up in *Settings → Maintenance* over repeated runs).
 2. **Resolves** your scope (host group / hostnames / tags / raw selector) to
-   concrete Dynatrace `HOST` entity IDs.
+   concrete Dynatrace `HOST` entity IDs **and the `PROCESS_GROUP_INSTANCE`
+   entities running on those hosts**. (A host-only window does **not** suppress
+   process-group *availability* problems — e.g. "Apache process unavailable" —
+   so the process groups must be in the filter too.)
 3. **Opens a maintenance window** (suppression `DONT_DETECT_PROBLEMS`) scoped to
    exactly those entity IDs, so Dynatrace does **not** open new problems for them
-   while they go away. The window is filtered by **entity ID only** — never by
-   host group or tag — so it can never accidentally suppress a *future* host
-   that reuses the same group/tag/name.
+   (or their processes) while they go away. The window is filtered by **entity
+   ID only** — never by host group or tag — so it can never accidentally
+   suppress a *future* host that reuses the same group/tag/name.
 4. **Closes** any problems already open for the in-scope entities. Scoped — it
    never does a blanket close-all.
 

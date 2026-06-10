@@ -29,6 +29,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   placeholders for MCP server configuration.
 
 ### Fixed
+- **AB#157 — `dt_decommission` now suppresses process-group problems, not just
+  host problems.** Live teardown proved a HOST-scoped `DONT_DETECT_PROBLEMS`
+  window does **not** suppress process-group-instance *availability* problems
+  (the Phase 19 "Apache process unavailable" alert), so destroying a web VM
+  still opened a problem and triggered the EDA remediation workflow. The role
+  now also resolves the `PROCESS_GROUP_INSTANCE` entities running on the
+  in-scope hosts (`fromRelationships.isProcessOf`) and includes them in both the
+  maintenance-window filter and the scoped problem-close. Still entity-ID-based,
+  so a future provision (new IDs) is never suppressed.
 - **AB#156 — Teardown JT aborted at load: `ansible.platform.host` is not a
   valid module.** `teardown.yml` deregistered hosts with
   `ansible.platform.host`, but `ansible.platform` (the gateway collection) has

@@ -126,21 +126,49 @@
         _dt_decommission_entity_ids: >-
           {{ _dt_decommission_entities.json.entities | default([]) | map(attribute='entityId') | list }}
 
+    # A HOST-scoped DONT_DETECT_PROBLEMS window does NOT suppress the
+    # process-group-instance availability problems the Phase 19 demo alerts on
+    # (proven live: teardown opened "Process unavailable" on the Apache PGI and
+    # triggered the EDA remediation). Resolve the hosts' process groups and
+    # include them in the window filter too — still entity-ID-based, so a future
+    # provision (new IDs) is never suppressed. AB#157.
+    - name: "Dt_decommission | Resolve process groups running on the in-scope hosts"
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_decommission_api_host }}/api/v2/entities?entitySelector={{
+            ('type("PROCESS_GROUP_INSTANCE"),fromRelationships.isProcessOf(' ~ _dt_decommission_selector ~ ')') | urlencode
+          }}&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      register: _dt_decommission_pgis
+
+    - name: "Dt_decommission | Collect process-group entity IDs"
+      ansible.builtin.set_fact:
+        _dt_decommission_pgi_ids: >-
+          {{ _dt_decommission_pgis.json.entities | default([]) | map(attribute='entityId') | list }}
+
     # ----------------------------------------------------------------------
-    # Step 4 — open the maintenance window (filtered by entity IDs only)
+    # Step 4 — open the maintenance window (HOST + process-group IDs only)
     # ----------------------------------------------------------------------
-    - name: "Dt_decommission | Build window entity filters (IDs only — never group/tag)"
+    - name: "Dt_decommission | Build window entity filters (HOST + process groups; IDs only)"
       ansible.builtin.set_fact:
         _dt_decommission_filters: >-
-          {{ _dt_decommission_entity_ids
-             | map('regex_replace', '^(.*)$', '{"entityType": "HOST", "entityId": "\1"}')
-             | map('from_json') | list }}
-      when: _dt_decommission_entity_ids | length > 0
+          {{ (_dt_decommission_entity_ids
+                | map('regex_replace', '^(.*)$', '{"entityType": "HOST", "entityId": "\1"}')
+                | map('from_json') | list)
+             + (_dt_decommission_pgi_ids
+                | map('regex_replace', '^(.*)$', '{"entityType": "PROCESS_GROUP_INSTANCE", "entityId": "\1"}')
+                | map('from_json') | list) }}
+      when: (_dt_decommission_entity_ids | length > 0) or (_dt_decommission_pgi_ids | length > 0)
 
     - name: "Dt_decommission | Open maintenance window (DONT_DETECT_PROBLEMS)"
       when:
         - dt_decommission_create_window | bool
-        - _dt_decommission_entity_ids | length > 0
+        - _dt_decommission_filters | default([]) | length > 0
       ansible.builtin.uri:
         url: "{{ dt_decommission_api_host }}/api/v2/settings/objects"
         method: POST
@@ -177,11 +205,14 @@
       when:
         - dt_decommission_create_window | bool
         - _dt_decommission_entity_ids | length == 0
+        - _dt_decommission_pgi_ids | length == 0
 
     # ----------------------------------------------------------------------
-    # Step 5 — close already-open in-scope problems (scoped, never close-all)
+    # Step 5 — close already-open in-scope problems (scoped, never close-all).
+    # Cover BOTH the hosts and their process groups (the PGI is where the
+    # availability problem actually lands — AB#157).
     # ----------------------------------------------------------------------
-    - name: "Dt_decommission | List open problems in scope"
+    - name: "Dt_decommission | List open problems on the in-scope hosts"
       when: dt_decommission_close_problems | bool
       ansible.builtin.uri:
         url: >-
@@ -194,10 +225,33 @@
         status_code: [200]
       register: _dt_decommission_open_problems
 
+    - name: "Dt_decommission | List open problems on the in-scope process groups"
+      when: dt_decommission_close_problems | bool
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_decommission_api_host }}/api/v2/problems?problemSelector=status(%22OPEN%22)&entitySelector={{
+            ('type("PROCESS_GROUP_INSTANCE"),fromRelationships.isProcessOf(' ~ _dt_decommission_selector ~ ')') | urlencode
+          }}&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      register: _dt_decommission_open_pgi_problems
+
+    - name: "Dt_decommission | Combine open problems (unique by id)"
+      when: dt_decommission_close_problems | bool
+      ansible.builtin.set_fact:
+        _dt_decommission_problems: >-
+          {{ ((_dt_decommission_open_problems.json.problems | default([]))
+              + (_dt_decommission_open_pgi_problems.json.problems | default([])))
+             | unique(attribute='problemId') | list }}
+
     - name: "Dt_decommission | Close each open in-scope problem"
       when:
         - dt_decommission_close_problems | bool
-        - _dt_decommission_open_problems.json.problems | default([]) | length > 0
+        - _dt_decommission_problems | default([]) | length > 0
       ansible.builtin.uri:
         url: "{{ dt_decommission_api_host }}/api/v2/problems/{{ item.problemId }}/close"
         method: POST
@@ -210,7 +264,7 @@
         validate_certs: "{{ dt_decommission_validate_certs }}"
         # 400/404 = the problem is already closing or gone — treat as success.
         status_code: [200, 201, 204, 400, 404]
-      loop: "{{ _dt_decommission_open_problems.json.problems | default([]) }}"
+      loop: "{{ _dt_decommission_problems | default([]) }}"
       loop_control:
         label: "{{ item.displayId | default(item.problemId) }} — {{ item.title | default('') }}"
       register: _dt_decommission_closed
@@ -219,11 +273,12 @@
       ansible.builtin.debug:
         msg: >-
           Dynatrace decommission cleanup complete —
-          entities matched: {{ _dt_decommission_entity_ids | length }};
+          hosts matched: {{ _dt_decommission_entity_ids | length }};
+          process groups matched: {{ _dt_decommission_pgi_ids | length }};
           window: {{ ('created (' ~ _dt_decommission_start ~ ' to ' ~ _dt_decommission_end ~ ' UTC)')
-                      if (dt_decommission_create_window | bool and _dt_decommission_entity_ids | length > 0)
+                      if (dt_decommission_create_window | bool and _dt_decommission_filters | default([]) | length > 0)
                       else 'not created' }};
           expired windows GC'd: {{ _dt_decommission_gc.results | default([]) | length }};
           open problems closed:
-          {{ (_dt_decommission_open_problems.json.problems | default([]) | length)
+          {{ (_dt_decommission_problems | default([]) | length)
              if (dt_decommission_close_problems | bool) else 0 }}.
