@@ -105,9 +105,12 @@
     # Step 3 — resolve scope to concrete HOST entity IDs
     # ----------------------------------------------------------------------
     - name: "Dt_decommission | Resolve scope to HOST entity IDs"
+      # No `fields=` — entityId is returned by default and is NOT a valid
+      # `fields` value (the Dynatrace entities API rejects it with HTTP 400,
+      # validated live against the tenant for AB#153).
       ansible.builtin.uri:
         url: >-
-          {{ dt_decommission_api_host }}/api/v2/entities?entitySelector={{ _dt_decommission_selector | urlencode }}&fields=entityId&pageSize=500
+          {{ dt_decommission_api_host }}/api/v2/entities?entitySelector={{ _dt_decommission_selector | urlencode }}&pageSize=500
         method: GET
         headers:
           Authorization: "Api-Token {{ dt_decommission_api_token }}"
