@@ -835,6 +835,40 @@ infrastructure.
 
 ---
 
+### Phase 21 — MCP Write Path: RBAC-Scoped Agentic Execution  ⬜
+
+*Promotes the AAP MCP server from read-only (Phase 15) to a controlled
+**execution** capability, so AI agents (Claude Code, Cursor) can launch approved
+automation — bounded by AAP RBAC, not granted free rein. This makes the "trusted
+execution layer for agentic AI" story concrete and demoable: the agent can run,
+but the platform decides what it's allowed to run.*
+
+The MCP server today is read-only by two gates — flip both to enable execution:
+
+- ⬜ **Server flag** — set `allow_write_operations: true` on the
+  `AnsibleMCPServer` CR (currently `false`, see Decisions Log 2026-06-09).
+- ⬜ **Dedicated MCP service account** — a non-admin AAP user (never the operator
+  SA, see token-hygiene notes), with RBAC limited to **executing specific
+  `DC1.Azure -` job templates / the provision workflow** — not org admin. The
+  whole point is least-privilege: the agent can launch the provision workflow but
+  cannot, say, delete credentials or run arbitrary playbooks.
+- ⬜ **Write-scope OAuth token** for that SA, stored in `docs/dev-environment.sh`
+  as `AAP_MCP_TOKEN` and `.mcp.json` (gitignored). Rotatable; documented.
+- ⬜ **Guardrail review** — blast radius (an agent can now trigger real jobs,
+  including destructive ones like Teardown), prompt-injection exposure, and
+  auditability (jobs attributable to the MCP SA). Decide which JTs are in-scope
+  for agent execution and which stay human-only.
+- ⬜ **Documentation** — capture the setup in the `/mcp-server` skill so it's
+  repeatable per RHDP env, and add a demo-runbook section showing an agent
+  launching a workflow within RBAC bounds.
+
+**Exit criteria:** an AI agent can launch an approved DC1.Azure job template via
+the MCP server using a dedicated, RBAC-scoped service account, while attempts to
+perform out-of-scope actions are refused by AAP — demonstrating governed agentic
+execution rather than unbounded access.
+
+---
+
 ## Naming Conventions
 
 To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP instances:

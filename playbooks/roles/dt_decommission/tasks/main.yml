@@ -88,8 +88,10 @@
           Authorization: "Api-Token {{ dt_decommission_api_token }}"
         validate_certs: "{{ dt_decommission_validate_certs }}"
         status_code: [200, 204, 404]
+      # NB: ['items'] subscript, NOT .items — Jinja resolves `.items` to the
+      # dict's built-in items() method, not the response's "items" key.
       loop: >-
-        {{ _dt_decommission_mw_list.json.items | default([])
+        {{ _dt_decommission_mw_list.json['items'] | default([])
            | selectattr('value.generalProperties.name', 'defined')
            | selectattr('value.generalProperties.name', 'string')
            | selectattr('value.generalProperties.name', 'match', '^' ~ dt_decommission_window_name_prefix)
