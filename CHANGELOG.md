@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **`/ado-workflow` skill + `open_pr.py` helper — repeatable ADO PR flow across
+  models.** New repo-based skill (`.claude/skills/ado-workflow/`) that
+  consolidates the Azure DevOps PR procedure (branch → PR → link work item →
+  self-approve → arm auto-complete → verify merge) into a vetted, stdlib-only
+  helper so every Claude model and anyone who clones gets identical, gotcha-free
+  behavior. Bakes in the hard-won gotchas: the WI→PR artifact link must use the
+  project/repo **GUIDs** (the name form silently links zero work items), and
+  *Work item linking* is a hard merge gate even on a green, approved PR.
+  Complements the conventions already in `CLAUDE.md`. First skill in this repo to
+  bundle an executable script alongside its `SKILL.md`.
 - **AB#153 — `dt_decommission` role: prevent stale Dynatrace problems during
   teardown.** New reusable, environment-agnostic role
   (`playbooks/roles/dt_decommission/`) that, via the Dynatrace API only (no host
