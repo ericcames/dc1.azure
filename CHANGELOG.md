@@ -28,6 +28,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/dev-environment.sh.example` gains `AAP_MCP_URL` and `AAP_MCP_TOKEN`
   placeholders for MCP server configuration.
 
+### Fixed
+- **AB#156 — Teardown JT aborted at load: `ansible.platform.host` is not a
+  valid module.** `teardown.yml` deregistered hosts with
+  `ansible.platform.host`, but `ansible.platform` (the gateway collection) has
+  no `host` module — inventory hosts are a Controller resource. The play failed
+  to compile (`couldn't resolve module/action ansible.platform.host`) so
+  teardown never ran. Switched both deregister tasks to `ansible.controller.host`
+  (matching `provision_vm.yml`). Removed the misleading `ansible.platform.host`
+  entry from `.ansible-lint` `mock_modules` — it had been masking the bad module
+  reference in offline CI.
+
 ### Changed
 - **AB#153 — `DT_API_TOKEN` now needs broader scopes.** The classic Dynatrace
   access token must add `settings.read`, `settings.write`, and `entities.read`

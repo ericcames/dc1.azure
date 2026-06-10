@@ -160,21 +160,24 @@
             state: present
           register: td_token
 
+        # Inventory hosts are a Controller resource — ansible.platform (gateway)
+        # has no host module, so use ansible.controller.host (matches
+        # provision_vm.yml). AB#156.
         - name: Remove the Windows host from the inventory
-          ansible.platform.host:
-            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
-            aap_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
-            aap_validate_certs: false
+          ansible.controller.host:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
             name: "{{ win_fqdn }}"
             inventory: "{{ dc1_azure_inventory }}"
             state: absent
           when: win_fqdn is defined and win_fqdn is string
 
         - name: Remove the Linux host from the inventory
-          ansible.platform.host:
-            aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
-            aap_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
-            aap_validate_certs: false
+          ansible.controller.host:
+            controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+            controller_oauthtoken: "{{ td_token.ansible_facts.aap_token.token }}"
+            validate_certs: false
             name: "{{ linux_fqdn }}"
             inventory: "{{ dc1_azure_inventory }}"
             state: absent
