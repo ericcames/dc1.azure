@@ -29,6 +29,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   placeholders for MCP server configuration.
 
 ### Fixed
+- **AB#158 — `ansible.platform.token` no longer dies on an empty request
+  timeout.** The `DC1.Azure - Controller` credential injects `AAP_REQUEST_TIMEOUT=''`
+  into the job env. `ansible.platform.token`'s `gateway_request_timeout` is a
+  float with an `env_fallback` on `AAP_REQUEST_TIMEOUT`, so the empty string was
+  picked up and failed to coerce (`'' cannot be converted to a float`). In
+  teardown this aborted the deregistration `block:` *after* `terraform destroy`
+  — VMs were gone but their inventory hosts and `host_metrics` were left behind
+  (job 701). The same module is used in provision, so a fresh build would
+  likewise fail at inventory registration (VM created but never registered,
+  starving the downstream configure nodes). Both `playbooks/teardown.yml` and
+  `playbooks/provision_vm.yml` now pass `aap_request_timeout` explicitly (new
+  `request_timeout` extra-var, default 30) to every token task, bypassing the
+  env_fallback. In teardown this also unblocks the already-merged host removal
+  (AB#156) and `host_metrics` cleanup (AB#152), which sit after the failing token
+  step and had therefore never run.
 - **AB#157 — `dt_decommission` now suppresses process-group problems, not just
   host problems.** Live teardown proved a HOST-scoped `DONT_DETECT_PROBLEMS`
   window does **not** suppress process-group-instance *availability* problems

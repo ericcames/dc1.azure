@@ -42,6 +42,13 @@
     dc1_azure_os_type: "{{ os_type | default('windows') }}"
     dc1_azure_tf_container: "{{ tf_container | default('tfstate') }}"
     dc1_azure_tf_key: "{{ tf_key | default('dc1.azure.tfstate') }}"
+    # AB#158: the DC1.Azure - Controller credential injects AAP_REQUEST_TIMEOUT=''
+    # into the job env. ansible.platform.token's gateway_request_timeout is a
+    # float with an env_fallback on AAP_REQUEST_TIMEOUT, so the empty string is
+    # picked up and fails to coerce ("'' cannot be converted to a float").
+    # Passing the value explicitly bypasses the env_fallback. Override with the
+    # `request_timeout` extra-var if a slower gateway needs more headroom.
+    dc1_azure_request_timeout: "{{ request_timeout | default(30) }}"
     arm_env:
       ARM_CLIENT_ID: "{{ lookup('ansible.builtin.env', 'AZURE_CLIENT_ID') }}"
       ARM_CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'AZURE_SECRET') }}"
@@ -150,6 +157,7 @@
                 aap_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') }}"
                 aap_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') }}"
                 aap_validate_certs: false
+                aap_request_timeout: "{{ dc1_azure_request_timeout }}"  # AB#158
                 description: "dc1.azure provision_vm inventory registration"
                 scope: write
                 state: present
@@ -277,6 +285,7 @@
                 aap_hostname: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
                 aap_token: "{{ prov_token.ansible_facts.aap_token.token }}"
                 aap_validate_certs: false
+                aap_request_timeout: "{{ dc1_azure_request_timeout }}"  # AB#158
                 existing_token: "{{ prov_token.ansible_facts.aap_token }}"
                 state: absent
               when:
