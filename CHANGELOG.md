@@ -39,6 +39,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   placeholders for MCP server configuration.
 
 ### Fixed
+- **AB#161 — Windows hosts now get a unique Dynatrace identity (NetBIOS
+  truncation fix).** Windows caps the OS computer name at 15 chars, so
+  `dc1az-win-small-2cpu-4gb-<suffix>` truncated to `dc1az-win-small` and every
+  small Windows build collided on one Dynatrace host identity — a self-heal
+  problem/incident then resolved the affected host to a *stale prior instance*
+  (e.g. an `iuhd2` host torn down days earlier), even though remediation
+  correctly fixed the live host. `install_dynatrace_oneagent_windows.yml` now
+  passes `--set-host-name={{ inventory_hostname }}` (the full Azure FQDN, mirroring
+  Linux) to both the installer and `oneagentctl` (the latter runs every time, so
+  already-installed agents are corrected). Linux was unaffected. Discovered while
+  validating the Windows self-heal path end-to-end (DT P-260621 → EDA → IIS
+  restart on the live host).
 - **AB#158 — empty request-timeout no longer breaks AAP-API tasks (token *and*
   controller modules).** The `DC1.Azure - Controller` credential injects empty
   `CONTROLLER_REQUEST_TIMEOUT` / `AAP_REQUEST_TIMEOUT` into the job env. Both

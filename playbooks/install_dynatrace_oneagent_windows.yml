@@ -67,6 +67,8 @@
         path: "{{ dt_installer_path }}"
         arguments:
           - --set-host-group={{ dt_host_group }}
+          # AB#161: pin a unique DT host name (see oneagentctl task below).
+          - --set-host-name={{ inventory_hostname }}
           - --set-infra-only=false
         state: present
       register: dt_install
@@ -80,9 +82,20 @@
           {{ inventory_hostname }} (Windows): OneAgent installed successfully
           (host group: {{ dt_host_group }}).
 
-    - name: Set host group via oneagentctl
+    # AB#161: Windows truncates the OS computer name to the 15-char NetBIOS limit
+    # (dc1az-win-small-2cpu-4gb-<suffix> -> "dc1az-win-small"), so every Windows
+    # build collides on a single Dynatrace host identity and a problem/incident
+    # resolves the affected host to a STALE prior instance. Pin a unique DT host
+    # name = the full Azure FQDN (mirrors how Linux already appears), so problem
+    # attribution and self-heal target the correct host per build. Runs on every
+    # execution (no `when:`) so already-installed agents get corrected too.
+    - name: Set host group and unique host name via oneagentctl
       ansible.windows.win_command:
-        cmd: '"C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe" --set-host-group={{ dt_host_group }} --restart-service'
+        cmd: >-
+          "C:\Program Files\dynatrace\oneagent\agent\tools\oneagentctl.exe"
+          --set-host-group={{ dt_host_group }}
+          --set-host-name={{ inventory_hostname }}
+          --restart-service
       changed_when: true
 
     - name: Verify Dynatrace OneAgent service
