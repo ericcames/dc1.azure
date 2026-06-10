@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#162 — `scripts/cleanup-aap-tokens.sh`: prune stale AAP gateway tokens.**
+  Ad-hoc AAP gateway OAuth2 tokens accumulate (51 found 2026-06-10) and slow the
+  gateway. Keep-list-based helper that deletes every token except the in-use set
+  (MCP, `aap-selfservice-portal` service + jr-dev portal tokens), reads creds
+  from `docs/dev-environment.sh`, and self-verifies the remaining count.
 - **AB#160 — `dt_web_availability` role: codify Dynatrace web-tier availability
   alerting (OS-symmetric self-heal detection).** Dynatrace only raises a Davis
   "process unavailable" *problem* (which fires the DT→EDA self-heal) for a
