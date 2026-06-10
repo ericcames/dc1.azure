@@ -264,9 +264,11 @@ controller_templates:
     playbook: playbooks/teardown.yml
     execution_environment: "{{ my_execution_environment }}"
     credentials:
-      - "{{ cred_azure_rm }}"     # ARM_* for Terraform
-      - "{{ cred_controller }}"   # CONTROLLER_* for host deregistration
-      - "{{ cred_vault }}"        # decrypts the vaulted admin-password var
+      - "{{ cred_azure_rm }}"       # ARM_* for Terraform
+      - "{{ cred_controller }}"     # CONTROLLER_* for host deregistration
+      - "{{ cred_vault }}"          # decrypts the vaulted admin-password var
+      - "{{ cred_dynatrace }}"      # DT_API_HOST (AB#153 dt_decommission)
+      - "{{ cred_dynatrace_api }}"  # DT_API_TOKEN — settings/entities/problems
     extra_vars:
       dc1_azure_resource_group: "{{ azure_resource_group }}"
       dc1_azure_location: "{{ azure_location }}"

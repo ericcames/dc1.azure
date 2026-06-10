@@ -1,0 +1,44 @@
+---
+# ============================================================================
+# dt_decommission — default variables
+# ============================================================================
+# Suppress and clean up Dynatrace monitoring for hosts being decommissioned so
+# teardown does not leave stale "host/process unavailable" problems open
+# forever. Pure Dynatrace API — no SSH/WinRM access to the target hosts needed.
+# See README.md and AB#153.
+# ============================================================================
+
+# --- Connection -------------------------------------------------------------
+# Dynatrace SaaS tenant URL (e.g. https://abc12345.live.dynatrace.com) and a
+# classic access token (dt0c01.*). Default to the same env vars the other
+# dc1.azure Dynatrace playbooks read, so the role is drop-in inside AAP.
+dt_decommission_api_host: "{{ lookup('ansible.builtin.env', 'DT_API_HOST') }}"
+dt_decommission_api_token: "{{ lookup('ansible.builtin.env', 'DT_API_TOKEN') }}"
+# Dynatrace SaaS presents valid certificates — keep verification on. (The
+# validate_certs:false seen elsewhere in this repo targets the self-signed AAP
+# controller, not Dynatrace.)
+dt_decommission_validate_certs: true
+
+# --- Scope (provide at least one) -------------------------------------------
+# Precedence: entity_selector > host_group > hostnames > entity_tags.
+# entity_selector is an advanced raw Dynatrace entity selector and overrides
+# the rest. The others are convenience builders.
+dt_decommission_entity_selector: ""
+dt_decommission_host_group: ""
+dt_decommission_hostnames: []
+dt_decommission_entity_tags: []
+
+# --- Behavior ---------------------------------------------------------------
+# Maintenance-window length. The window only needs to outlast Dynatrace's
+# host-loss detection lag after the VMs are destroyed; the post-destroy
+# close-only sweep (create_window:false) is the real safety net.
+dt_decommission_window_minutes: 30
+# Set false for a close-only sweep (no maintenance window) — used post-destroy.
+dt_decommission_create_window: true
+# Close any already-open problems for the in-scope entities.
+dt_decommission_close_problems: true
+
+# --- Internal ---------------------------------------------------------------
+# All maintenance windows this role creates are named with this prefix so the
+# garbage collector can find and delete its own expired windows.
+dt_decommission_window_name_prefix: "Decommission - "

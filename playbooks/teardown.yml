@@ -97,6 +97,17 @@
             linux_fqdn: "{{ _linux_inv.host | default(omit) }}"
           when: _win_inv is mapping or _linux_inv is mapping
 
+    # AB#153: open a scoped Dynatrace maintenance window (and close any already-
+    # open problems) BEFORE destroy so the VMs vanishing doesn't leave stale
+    # "host/process unavailable" problems open forever. Pure DT API — no host
+    # access. Gated on DT_API_TOKEN so non-Dynatrace installs still tear down.
+    - name: Suppress Dynatrace monitoring for hosts being decommissioned
+      ansible.builtin.include_role:
+        name: dt_decommission
+      vars:
+        dt_decommission_host_group: "{{ dt_host_group | default('dc1-azure') }}"
+      when: lookup('ansible.builtin.env', 'DT_API_TOKEN') | default('') | length > 0
+
     - name: Destroy Terraform-managed resources
       ansible.builtin.command:
         cmd: >-
@@ -123,6 +134,17 @@
       when: tf_destroy_result is failed
       ansible.builtin.fail:
         msg: "terraform destroy exited {{ tf_destroy_result.rc | default('?') }}"
+
+    # AB#153: close-only sweep AFTER destroy — mop up any problem Dynatrace
+    # opened in the gap between the window starting and the hosts disappearing.
+    # create_window:false so this never opens a new window.
+    - name: Sweep any Dynatrace problems opened during teardown (close-only)
+      ansible.builtin.include_role:
+        name: dt_decommission
+      vars:
+        dt_decommission_host_group: "{{ dt_host_group | default('dc1-azure') }}"
+        dt_decommission_create_window: false
+      when: lookup('ansible.builtin.env', 'DT_API_TOKEN') | default('') | length > 0
 
     - name: Deregister hosts from the AAP inventory
       when: (win_fqdn is defined and win_fqdn is string) or (linux_fqdn is defined and linux_fqdn is string)

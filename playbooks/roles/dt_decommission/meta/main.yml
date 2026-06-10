@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: dt_decommission
+  author: Eric Ames
+  description: >-
+    Suppress and clean up Dynatrace monitoring for hosts being decommissioned
+    (maintenance window + scoped problem close), driven entirely via the
+    Dynatrace API. No host access required.
+  license: MIT
+  min_ansible_version: "2.15"
+  galaxy_tags:
+    - dynatrace
+    - monitoring
+    - teardown
+    - decommission
+    - maintenance
+
+dependencies: []

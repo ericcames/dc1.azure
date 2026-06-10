@@ -100,10 +100,14 @@ export DT_API_HOST=https://REPLACE_ME_ENV_ID.live.dynatrace.com
 # This is NOT the API token or OAuth client secret — it's a separate token type
 # scoped only to installer downloads.
 export DT_PAAS_TOKEN=REPLACE_ME_DT_PAAS_TOKEN
-# Classic access token (dt0c01.*) for Problems API v2 — generate in Dynatrace UI:
-#   Settings > Access tokens > Generate new token > scope: problems.read
-# This is NOT the PaaS token — it's a separate token type for API v2 access
-# (root cause analysis, problem management). See AB#154.
+# Classic access token (dt0c01.*) for Dynatrace API v2 — generate in Dynatrace UI:
+#   Settings > Access tokens > Generate new token. Required scopes:
+#     problems.read, problems.write   (RCA + problem management — AB#154)
+#     settings.read, settings.write   (maintenance windows — AB#153 teardown)
+#     entities.read                   (resolve host group -> entity IDs — AB#153)
+# This is NOT the PaaS token — it's a separate token type for API v2 access.
+# NOTE: settings.write is tenant-wide; on a shared/production tenant prefer a
+# dedicated least-privilege token (see playbooks/roles/dt_decommission/README.md).
 export DT_API_TOKEN=REPLACE_ME_DT_API_TOKEN
 
 # --- AAP MCP Server (AI agent integration) -----------------------------------

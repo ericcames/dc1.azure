@@ -1,0 +1,224 @@
+---
+# ============================================================================
+# dt_decommission — tasks
+# ============================================================================
+# Order (mitigations from the AB#153 review are folded in):
+#   1. Guard / skip when Dynatrace is not configured.
+#   2. Garbage-collect *our own* expired maintenance windows (risk 3).
+#   3. Resolve the caller's scope to concrete HOST entity IDs.
+#   4. Open a maintenance window (DONT_DETECT_PROBLEMS) filtered by those IDs
+#      — never by host group/tag, so an old window can't suppress the next
+#      provision (risk 2). Skipped on zero entities (risk 4) and in sweep mode.
+#   5. Close any already-open problems for the in-scope entities (scoped —
+#      never a blanket close-all).
+# ============================================================================
+
+- name: "Dt_decommission | Determine whether Dynatrace cleanup can run"
+  ansible.builtin.set_fact:
+    _dt_decommission_enabled: "{{ (dt_decommission_api_host | default('') | length > 0)
+                                  and (dt_decommission_api_token | default('') | length > 0) }}"
+
+- name: "Dt_decommission | Skip notice (Dynatrace not configured)"
+  ansible.builtin.debug:
+    msg: >-
+      DT_API_HOST/DT_API_TOKEN not set — skipping Dynatrace decommission cleanup.
+  when: not _dt_decommission_enabled
+
+- name: "Dt_decommission | Run Dynatrace decommission cleanup"
+  when: _dt_decommission_enabled
+  block:
+    - name: "Dt_decommission | Assert a scope was provided"
+      ansible.builtin.assert:
+        that:
+          - >-
+            (dt_decommission_entity_selector | length > 0)
+            or (dt_decommission_host_group | length > 0)
+            or (dt_decommission_hostnames | length > 0)
+            or (dt_decommission_entity_tags | length > 0)
+        fail_msg: >-
+          dt_decommission needs a scope: set one of
+          dt_decommission_entity_selector, dt_decommission_host_group,
+          dt_decommission_hostnames, or dt_decommission_entity_tags.
+        quiet: true
+
+    - name: "Dt_decommission | Build the entity selector (precedence-ordered)"
+      ansible.builtin.set_fact:
+        _dt_decommission_selector: >-
+          {{
+            dt_decommission_entity_selector
+            if (dt_decommission_entity_selector | length > 0)
+            else 'type("HOST"),hostGroupName("' ~ dt_decommission_host_group ~ '")'
+            if (dt_decommission_host_group | length > 0)
+            else 'type("HOST"),entityName.in(' ~
+                 (dt_decommission_hostnames | map('regex_replace', '^(.*)$', '"\1"') | join(',')) ~ ')'
+            if (dt_decommission_hostnames | length > 0)
+            else 'type("HOST"),' ~
+                 (dt_decommission_entity_tags | map('regex_replace', '^(.*)$', 'tag("\1")') | join(','))
+          }}
+        _dt_decommission_scope_label: "{{ dt_decommission_host_group
+                                          if (dt_decommission_host_group | length > 0) else 'hosts' }}"
+
+    - name: "Dt_decommission | Compute UTC window time bounds"
+      ansible.builtin.set_fact:
+        _dt_decommission_start: "{{ '%Y-%m-%dT%H:%M:%S' | strftime(now(utc=true).timestamp() | int, utc=true) }}"
+        _dt_decommission_end: "{{ '%Y-%m-%dT%H:%M:%S'
+                                  | strftime((now(utc=true).timestamp() | int)
+                                             + (dt_decommission_window_minutes | int) * 60, utc=true) }}"
+
+    # ----------------------------------------------------------------------
+    # Step 2 — garbage-collect our own expired maintenance windows (risk 3)
+    # ----------------------------------------------------------------------
+    - name: "Dt_decommission | List existing maintenance-window settings objects"
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_decommission_api_host }}/api/v2/settings/objects?schemaIds=builtin:alerting.maintenance-window&fields=objectId,value&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      register: _dt_decommission_mw_list
+
+    - name: "Dt_decommission | Garbage-collect our expired windows"
+      ansible.builtin.uri:
+        url: "{{ dt_decommission_api_host }}/api/v2/settings/objects/{{ item.objectId }}"
+        method: DELETE
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        status_code: [200, 204, 404]
+      loop: >-
+        {{ _dt_decommission_mw_list.json.items | default([])
+           | selectattr('value.generalProperties.name', 'defined')
+           | selectattr('value.generalProperties.name', 'string')
+           | selectattr('value.generalProperties.name', 'match', '^' ~ dt_decommission_window_name_prefix)
+           | selectattr('value.schedule.scheduleType', 'equalto', 'ONCE')
+           | selectattr('value.schedule.onceRecurrence.endTime', 'defined')
+           | selectattr('value.schedule.onceRecurrence.endTime', 'lt', _dt_decommission_start)
+           | list }}
+      loop_control:
+        label: "{{ item.objectId }} ({{ item.value.generalProperties.name }})"
+      register: _dt_decommission_gc
+
+    # ----------------------------------------------------------------------
+    # Step 3 — resolve scope to concrete HOST entity IDs
+    # ----------------------------------------------------------------------
+    - name: "Dt_decommission | Resolve scope to HOST entity IDs"
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_decommission_api_host }}/api/v2/entities?entitySelector={{ _dt_decommission_selector | urlencode }}&fields=entityId&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      register: _dt_decommission_entities
+
+    - name: "Dt_decommission | Collect entity IDs"
+      ansible.builtin.set_fact:
+        _dt_decommission_entity_ids: >-
+          {{ _dt_decommission_entities.json.entities | default([]) | map(attribute='entityId') | list }}
+
+    # ----------------------------------------------------------------------
+    # Step 4 — open the maintenance window (filtered by entity IDs only)
+    # ----------------------------------------------------------------------
+    - name: "Dt_decommission | Build window entity filters (IDs only — never group/tag)"
+      ansible.builtin.set_fact:
+        _dt_decommission_filters: >-
+          {{ _dt_decommission_entity_ids
+             | map('regex_replace', '^(.*)$', '{"entityType": "HOST", "entityId": "\1"}')
+             | map('from_json') | list }}
+      when: _dt_decommission_entity_ids | length > 0
+
+    - name: "Dt_decommission | Open maintenance window (DONT_DETECT_PROBLEMS)"
+      when:
+        - dt_decommission_create_window | bool
+        - _dt_decommission_entity_ids | length > 0
+      ansible.builtin.uri:
+        url: "{{ dt_decommission_api_host }}/api/v2/settings/objects"
+        method: POST
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          - schemaId: "builtin:alerting.maintenance-window"
+            scope: environment
+            value:
+              enabled: true
+              generalProperties:
+                name: "{{ dt_decommission_window_name_prefix }}{{ _dt_decommission_scope_label }} - {{ _dt_decommission_start }}"
+                description: "Opened by the dt_decommission role during host teardown (AB#153)."
+                maintenanceType: PLANNED
+                suppression: DONT_DETECT_PROBLEMS
+                disableSyntheticMonitorExecution: false
+              schedule:
+                scheduleType: ONCE
+                onceRecurrence:
+                  startTime: "{{ _dt_decommission_start }}"
+                  endTime: "{{ _dt_decommission_end }}"
+                  timeZone: UTC
+              filters: "{{ _dt_decommission_filters }}"
+        status_code: [200]
+      register: _dt_decommission_window
+
+    - name: "Dt_decommission | Note skipped window (no entities resolved)"
+      ansible.builtin.debug:
+        msg: >-
+          0 entities matched selector [{{ _dt_decommission_selector }}] — skipping
+          window creation (hosts already gone). Still attempting scoped problem close.
+      when:
+        - dt_decommission_create_window | bool
+        - _dt_decommission_entity_ids | length == 0
+
+    # ----------------------------------------------------------------------
+    # Step 5 — close already-open in-scope problems (scoped, never close-all)
+    # ----------------------------------------------------------------------
+    - name: "Dt_decommission | List open problems in scope"
+      when: dt_decommission_close_problems | bool
+      ansible.builtin.uri:
+        url: >-
+          {{ dt_decommission_api_host }}/api/v2/problems?problemSelector=status(%22OPEN%22)&entitySelector={{ _dt_decommission_selector | urlencode }}&pageSize=500
+        method: GET
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        return_content: true
+        status_code: [200]
+      register: _dt_decommission_open_problems
+
+    - name: "Dt_decommission | Close each open in-scope problem"
+      when:
+        - dt_decommission_close_problems | bool
+        - _dt_decommission_open_problems.json.problems | default([]) | length > 0
+      ansible.builtin.uri:
+        url: "{{ dt_decommission_api_host }}/api/v2/problems/{{ item.problemId }}/close"
+        method: POST
+        headers:
+          Authorization: "Api-Token {{ dt_decommission_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          message: "Host decommissioned by dc1.azure teardown (AB#153)."
+        validate_certs: "{{ dt_decommission_validate_certs }}"
+        # 400/404 = the problem is already closing or gone — treat as success.
+        status_code: [200, 201, 204, 400, 404]
+      loop: "{{ _dt_decommission_open_problems.json.problems | default([]) }}"
+      loop_control:
+        label: "{{ item.displayId | default(item.problemId) }} — {{ item.title | default('') }}"
+      register: _dt_decommission_closed
+
+    - name: "Dt_decommission | Summary"
+      ansible.builtin.debug:
+        msg: >-
+          Dynatrace decommission cleanup complete —
+          entities matched: {{ _dt_decommission_entity_ids | length }};
+          window: {{ ('created (' ~ _dt_decommission_start ~ ' to ' ~ _dt_decommission_end ~ ' UTC)')
+                      if (dt_decommission_create_window | bool and _dt_decommission_entity_ids | length > 0)
+                      else 'not created' }};
+          expired windows GC'd: {{ _dt_decommission_gc.results | default([]) | length }};
+          open problems closed:
+          {{ (_dt_decommission_open_problems.json.problems | default([]) | length)
+             if (dt_decommission_close_problems | bool) else 0 }}.

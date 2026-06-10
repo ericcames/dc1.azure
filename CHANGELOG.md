@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#153 — `dt_decommission` role: prevent stale Dynatrace problems during
+  teardown.** New reusable, environment-agnostic role
+  (`playbooks/roles/dt_decommission/`) that, via the Dynatrace API only (no host
+  access), opens a scoped maintenance window (`DONT_DETECT_PROBLEMS`) and closes
+  any already-open problems for the hosts being decommissioned — so destroyed
+  VMs stop leaving "host/process unavailable" problems open forever. Designed as
+  a drop-in artifact customers can use in their own environments (see the role
+  `README.md`). `playbooks/teardown.yml` now brackets `terraform destroy` with
+  the role: a window + close before destroy, and a close-only sweep after. The
+  window is filtered by resolved **entity IDs only** (never host group/tag, so it
+  can't suppress the next provision), expired windows are garbage-collected on
+  entry, and a zero-entity resolve is a clean skip (never an unfiltered window).
 - **AAP MCP server deployment + skill + guide** — AAP upgraded to 2.7
   (Controller 4.8.0, EDA 1.2.8, Hub 4.12.1); MCP server deployed in
   read-only mode. New `/mcp-server` skill
@@ -17,6 +29,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   placeholders for MCP server configuration.
 
 ### Changed
+- **AB#153 — `DT_API_TOKEN` now needs broader scopes.** The classic Dynatrace
+  access token must add `settings.read`, `settings.write`, and `entities.read`
+  (on top of the existing `problems.read`/`problems.write`) for the
+  `dt_decommission` role to manage maintenance windows and resolve entities.
+  `docs/dev-environment.sh.example` documents the full scope list. The Teardown
+  job template (`aap_config/files/controller_job_templates.yml`) now attaches the
+  `DC1.Azure - Dynatrace` and `DC1.Azure - Dynatrace API` credentials.
 - `.gitignore` — added `.mcp.json` (contains bearer token, must not be
   committed).
 
