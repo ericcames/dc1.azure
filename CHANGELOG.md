@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AAP MCP server deployment + skill + guide** — AAP upgraded to 2.7
+  (Controller 4.8.0, EDA 1.2.8, Hub 4.12.1); MCP server deployed in
+  read-only mode. New `/mcp-server` skill
+  (`.claude/skills/mcp-server/SKILL.md`) covers the full deploy-to-configure
+  lifecycle including the 2.6→2.7 upgrade path and known gotchas. New
+  `docs/mcp-server-guide.md` explains the value proposition in layperson
+  terms with customer demo scenarios and SE productivity use cases.
+- `docs/dev-environment.sh.example` gains `AAP_MCP_URL` and `AAP_MCP_TOKEN`
+  placeholders for MCP server configuration.
+
+### Changed
+- `.gitignore` — added `.mcp.json` (contains bearer token, must not be
+  committed).
+
 - **AB#154 — Dynatrace incident enrichment + closed-loop confirmation**
   - Credential type `DC1.Azure - Dynatrace` gains an optional `dt_api_token`
     field (classic `dt0c01.*` access token with `problems.read` scope) for

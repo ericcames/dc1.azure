@@ -49,6 +49,9 @@ docs/dev-environment.sh
 # (.tgz artifacts and the unpacked context are build-time only; not needed in VCS)
 context/
 
+# MCP config — contains bearer tokens; never commit
+.mcp.json
+
 # OS / editor cruft
 .DS_Store
 *.swp

@@ -106,6 +106,15 @@ export DT_PAAS_TOKEN=REPLACE_ME_DT_PAAS_TOKEN
 # (root cause analysis, problem management). See AB#154.
 export DT_API_TOKEN=REPLACE_ME_DT_API_TOKEN
 
+# --- AAP MCP Server (AI agent integration) -----------------------------------
+# The MCP server lets AI coding assistants (Claude Code, Cursor) query and
+# control AAP via the Model Context Protocol. Requires AAP 2.7+ with the MCP
+# server component enabled. Deploy with `/mcp-server` skill or see
+# .claude/skills/mcp-server/SKILL.md. The route appears after deployment:
+#   oc get routes -n aap | grep mcp
+export AAP_MCP_URL=https://REPLACE_ME_MCP_ROUTE/mcp
+export AAP_MCP_TOKEN=REPLACE_ME_AAP_MCP_TOKEN   # gateway token (Read scope minimum)
+
 # --- Optional overrides (safe to leave commented out) ----------------------
 # export AH_HOSTNAME=$AAP_HOSTNAME           # Hub hostname; defaults to AAP gateway host (correct for AAP 2.5)
 # export DC1_AZURE_EE='DC1.Azure - EE'       # EE name; load.yml creates this automatically
