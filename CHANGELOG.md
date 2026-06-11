@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#163 — wire `dt_web_availability` into the provision workflow.**
+  Completes the AB#160 follow-up noted in that entry. New
+  `DC1.Azure - Configure DT Web Availability` job template
+  (`playbooks/configure_dt_web_availability.yml`, DT API only on the control
+  inventory; `cred_dynatrace` + `cred_dynatrace_api`) and a new
+  `configure-dt-web-availability` node in the `DC1.Azure - Provision and
+  Configure` workflow. The node converges four always-parents — both OneAgent
+  installs and both web-setup nodes (Website Setup / Configure Linux) — so it
+  runs only once Dynatrace is reporting AND the web process exists, then feeds
+  `Update RITM (success)` (now a 2-parent converge: Patching + this node) so
+  fulfillment isn't reported until availability alerting is armed. The role now
+  **retries each web-PG lookup until Dynatrace has detected it**
+  (`dt_web_availability_detection_retries` × `dt_web_availability_detection_delay`,
+  default 10 × 30s), then skips cleanly — so it reliably arms alerting on a fresh
+  provision without ever hard-failing the workflow. The Windows/IIS self-heal now
+  works out-of-the-box on every provision instead of needing a manual step.
 - **AB#162 — `scripts/cleanup-aap-tokens.sh`: prune stale AAP gateway tokens.**
   Ad-hoc AAP gateway OAuth2 tokens accumulate (51 found 2026-06-10) and slow the
   gateway. Keep-list-based helper that deletes every token except the in-use set

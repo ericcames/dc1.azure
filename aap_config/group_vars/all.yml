@@ -229,6 +229,10 @@ dt_api_token: "{{ lookup('ansible.builtin.env', 'DT_API_TOKEN') | default('', tr
 dt_host_group: dc1-azure
 dynatrace_template_windows: "DC1.Azure - Install Dynatrace OneAgent (Windows)"
 dynatrace_template_linux: "DC1.Azure - Install Dynatrace OneAgent (Linux)"
+# Phase 19 (AB#160) — web-tier availability alerting JT. DT API only (localhost),
+# enables the process-group alerting rule that lets a website outage raise a
+# Davis problem (the signal the DT->EDA self-heal fires on).
+dt_web_availability_template: "DC1.Azure - Configure DT Web Availability"
 
 # --- Phase 19: EDA incident response — Dynatrace website-down demo ----------
 # Remediation workflow + JTs. The EDA event stream and activation live in the

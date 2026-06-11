@@ -311,6 +311,27 @@ controller_templates:
     extra_vars:
       dt_host_group: "{{ dt_host_group }}"
 
+  # Phase 19 (AB#160): enable Dynatrace web-tier availability alerting so a
+  # website outage raises a Davis problem (the signal the DT->EDA self-heal
+  # fires on). DT API only — runs on the control inventory (localhost play), no
+  # host access. Needs DT_API_HOST (cred_dynatrace) + DT_API_TOKEN
+  # (cred_dynatrace_api, settings.read/write + entities.read). Idempotent; the
+  # role retries until Dynatrace has detected the web process groups, so it
+  # reliably arms alerting on a fresh provision. Wired into the provision
+  # workflow after the OneAgent installs + website-setup nodes.
+  - name: "{{ dt_web_availability_template }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ control_inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/configure_dt_web_availability.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_dynatrace }}"      # DT_API_HOST
+      - "{{ cred_dynatrace_api }}"  # DT_API_TOKEN (settings + entities scopes)
+    extra_vars:
+      dt_web_availability_host_group: "{{ dt_host_group }}"
+
   # --- Phase 19: EDA incident response — Dynatrace website-down demo ----------
   # Service management JTs (break/restart/verify for demo setup + remediation).
   # Split by OS: AAP doesn't allow multiple Machine credentials per JT.

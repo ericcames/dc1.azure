@@ -41,3 +41,14 @@ dt_web_availability_process_group_names:
 # running becomes unavailable — exactly the "website down" signal the demo
 # self-heals on.
 dt_web_availability_alerting_mode: "ON_PGI_UNAVAILABILITY"
+
+# --- Detection wait ---------------------------------------------------------
+# A process group only exists in Dynatrace once OneAgent has *detected* the
+# running process, which lags a few minutes behind OneAgent install + service
+# start. Wired into the provision workflow this role runs right after those
+# steps, so the per-name lookup retries until Dynatrace reports the web process
+# group. If a name never appears (e.g. the OS that wasn't provisioned, or a
+# genuinely-undetected service) it simply exhausts its budget and is skipped —
+# never a hard failure. Budget = retries * delay seconds per name.
+dt_web_availability_detection_retries: 10
+dt_web_availability_detection_delay: 30

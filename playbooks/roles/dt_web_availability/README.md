@@ -33,7 +33,13 @@ detection is OS-symmetric and can't be forgotten on a rebuild. See **AB#160**.
   `settings.write`, `entities.read`**, in `DT_API_TOKEN`.
 - The web service must be **running and detected by Dynatrace** when the role
   runs — a process group only exists once OneAgent has seen the process. Run
-  this *after* OneAgent install + website setup.
+  this *after* OneAgent install + website setup. Detection lags those steps by a
+  few minutes, so the role **retries each name until Dynatrace reports it**
+  (`dt_web_availability_detection_retries` × `dt_web_availability_detection_delay`),
+  then skips cleanly if it still hasn't appeared — it never hard-fails. A name
+  that never appears (e.g. the OS that wasn't provisioned) just exhausts its
+  budget. This makes it safe to wire into the provision workflow right after the
+  OneAgent install + website-setup steps.
 
 ## Key variables (see `defaults/main.yml`)
 
@@ -45,6 +51,8 @@ detection is OS-symmetric and can't be forgotten on a rebuild. See **AB#160**.
 | `dt_web_availability_process_group_names` | `["Apache Web Server httpd", "IIS app pool DefaultAppPool"]` | web PGs to alert on |
 | `dt_web_availability_alerting_mode` | `ON_PGI_UNAVAILABILITY` | alert when a running PGI goes down |
 | `dt_web_availability_validate_certs` | `true` | Dynatrace SaaS has valid certs |
+| `dt_web_availability_detection_retries` | `10` | per-name lookup retries while awaiting detection |
+| `dt_web_availability_detection_delay` | `30` | seconds between detection retries |
 
 ## Usage
 

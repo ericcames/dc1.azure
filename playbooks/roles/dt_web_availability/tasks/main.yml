@@ -33,7 +33,12 @@
     # (the rule scopes to PROCESS_GROUP, not the instance).
     # NB: `fields=fromRelationships` IS valid; `fields=entityId` is NOT (it 400s).
     # ----------------------------------------------------------------------
-    - name: "Dt_web_availability | Resolve matching web process-group instances in the host group"
+    # Retry per name until Dynatrace reports the process group — detection lags
+    # OneAgent install + service start by a few minutes. `until` retries while a
+    # name resolves to zero entities; `failed_when` only trips on a real API
+    # error (non-200), so exhausting the budget on an absent name is a clean
+    # skip, never a workflow failure.
+    - name: "Dt_web_availability | Resolve matching web process-group instances (await Dynatrace detection)"
       ansible.builtin.uri:
         url: >-
           {{ dt_web_availability_api_host }}/api/v2/entities?entitySelector={{
@@ -51,6 +56,10 @@
       loop_control:
         label: "{{ item }}"
       register: _dt_web_availability_pgi_lookup
+      until: (_dt_web_availability_pgi_lookup.json.entities | default([]) | length) > 0
+      retries: "{{ dt_web_availability_detection_retries | int }}"
+      delay: "{{ dt_web_availability_detection_delay | int }}"
+      failed_when: (_dt_web_availability_pgi_lookup.status | default(0)) != 200
 
     - name: "Dt_web_availability | Collect target PROCESS_GROUP ids"
       ansible.builtin.set_fact:
@@ -64,9 +73,11 @@
       ansible.builtin.debug:
         msg: >-
           No web process groups matched names {{ dt_web_availability_process_group_names }}
-          in host group '{{ dt_web_availability_host_group }}'. Is the web service
-          running and OneAgent reporting? (Dynatrace must have detected the process
-          group before alerting can be enabled.)
+          in host group '{{ dt_web_availability_host_group }}' within the detection
+          window ({{ dt_web_availability_detection_retries }} x
+          {{ dt_web_availability_detection_delay }}s). Is the web service running and
+          OneAgent reporting? (Dynatrace must have detected the process group before
+          alerting can be enabled.) Re-run once detection completes.
       when: _dt_web_availability_pg_ids | length == 0
 
     # ----------------------------------------------------------------------

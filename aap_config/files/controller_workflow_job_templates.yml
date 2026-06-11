@@ -8,12 +8,24 @@
 # stands in for DDW's Network Create → VM Create → Inventory Update → Get
 # Instance Info chain.
 #
-#   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ────┐
-#                         │                           └─► Provision Access ─┴─► Patching ──always───────────┐
-#                         ├─► Configure Linux ──always─────────────────────────────────────────────────────┤
-#                         ├─► Install DT (Win) ──always────────────────────────────────────────────────────┤
-#                         ├─► Install DT (Linux) ──always──────────────────────────────────────────────────┤
-#                         └─► Create CMDB CI ─► Create CMDB Relationship                    Update RITM (success) [converge]
+#   Provision VM ─success─┬─► Powershell Improvement ─┬─► Website Setup ─success─► Patching ──always──┐
+#                         │                           └─► Provision Access ─────────► Patching         │
+#                         │                              Website Setup ──always──┐                      │
+#                         ├─► Configure Linux ──always───────────────────────────┤                      │
+#                         ├─► Install DT (Win) ──always──────────────────────────┼─► Configure DT Web   │
+#                         ├─► Install DT (Linux) ──always────────────────────────┘   Availability ──────┤
+#                         └─► Create CMDB CI ─► Create CMDB Relationship           (converge 4 parents)  │
+#                                                                                                        ▼
+#                                            Update RITM (success) [converge: Patching + Configure DT Web Availability]
+#
+# Phase 19 (AB#160) web-availability node:
+#   Configure DT Web Availability enables the Dynatrace process-group alerting
+#   rule that lets a website outage raise a Davis problem (the DT->EDA self-heal
+#   trigger). It must run AFTER the web process exists AND OneAgent is reporting,
+#   so it converges four always-parents — Install DT (Win), Install DT (Linux),
+#   Website Setup (IIS), Configure Linux (httpd) — and feeds Update RITM. The
+#   role retries until Dynatrace has detected the web PGs, then skips cleanly if
+#   not, so it never fails the workflow.
 #
 # Phase 8 ServiceNow callback:
 #   Create CMDB CI runs EARLY, on a parallel branch off Provision VM (mirrors
@@ -22,16 +34,19 @@
 #   provision_vm.yml (my_server/my_public_ip/my_instance_id/my_instance_type) are
 #   available the moment Provision VM finishes, so the early branch has its data.
 #
-#   Patching          ─always─► Update RITM (success) [converge, 4 parents]
-#   Configure Linux   ─always─► Update RITM (success)
-#   Install DT (Win)  ─always─► Update RITM (success)
-#   Install DT (Linux)─always─► Update RITM (success)
+#   Website Setup / Configure Linux / Install DT (Win) / Install DT (Linux)
+#                     ─always─► Configure DT Web Availability  [converge, 4 parents]
+#   Configure DT Web Availability ─always─► Update RITM (success)
+#   Patching          ─always─► Update RITM (success) [converge, 2 parents]
 #   Provision VM  ─failure─► Create Incident ─always─► Update RITM (failure)
 #
-# Update RITM (success) converges four always-parents: Patching, Configure Linux,
-# and both DT nodes. All four complete (real work or clean skip on empty group)
-# before the RITM is closed. CMDB is a parallel terminal branch — its failure
-# does not block fulfillment.
+# Configure DT Web Availability converges four always-parents (both DT installs +
+# both web-setup nodes); all four complete (real work or clean skip on empty
+# group) before it runs. Update RITM (success) then converges two always-parents:
+# Patching (end of the Windows configure chain) and Configure DT Web Availability
+# (which transitively gates Configure Linux + both DT nodes). So the RITM is
+# closed only after every configure step AND availability alerting are done. CMDB
+# is a parallel terminal branch — its failure does not block fulfillment.
 # The callback JTs run THIS repo's guarded playbooks/servicenow/*, which no-op
 # when ticket_number is absent — so AAP-UI / Self-Service / ADO launches (no
 # ticket) stay green; only ServiceNow-triggered runs (ticket_number from EDA)
@@ -128,6 +143,10 @@ controller_workflows:
           related:
             success_nodes:
               - identifier: patching
+            # IIS must be up before DT can detect the web PG; always-edge so an
+            # empty windows group (clean skip) still satisfies the convergence.
+            always_nodes:
+              - identifier: configure-dt-web-availability
 
         - identifier: provision-access
           unified_job_template:
@@ -162,8 +181,10 @@ controller_workflows:
               name: "{{ my_organization }}"
           limit: ""
           related:
+            # Feeds the web-availability convergence (httpd must be up before DT
+            # can detect the Linux web PG); that node in turn feeds Update RITM.
             always_nodes:
-              - identifier: update-ritm-success
+              - identifier: configure-dt-web-availability
 
         # --- Phase 18: Dynatrace OneAgent ------------------------------------
         # Two nodes (Windows + Linux) because AAP doesn't allow multiple
@@ -180,7 +201,7 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: update-ritm-success
+              - identifier: configure-dt-web-availability
 
         - identifier: install-dynatrace-linux
           unified_job_template:
@@ -191,7 +212,7 @@ controller_workflows:
           limit: ""
           related:
             always_nodes:
-              - identifier: update-ritm-success
+              - identifier: configure-dt-web-availability
 
         # --- Phase 8 ServiceNow callback nodes (success path) ---------------
         # CMDB CI/Relationship run on a parallel branch off Provision VM (see
@@ -213,10 +234,31 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
 
-        # Update RITM (success) converges four parents: Patching, Configure
-        # Linux, DT Windows, DT Linux. All four always-complete (real work or
-        # clean skip on empty group), so convergence fires reliably for all
-        # os_type values.
+        # --- Phase 19: Dynatrace web-availability alerting (AB#160) ----------
+        # Enables the process-group availability alerting rule so a website
+        # outage raises a Davis problem (the DT->EDA self-heal trigger).
+        # Converges four always-parents — both OneAgent installs (so DT is
+        # reporting) and both web-setup nodes (so the web process exists) —
+        # because the rule can only be set once DT has detected the web PG. The
+        # role retries until detection, then skips cleanly, so this never fails
+        # the workflow. Feeds Update RITM so fulfillment isn't reported until
+        # alerting is armed.
+        - identifier: configure-dt-web-availability
+          unified_job_template:
+            name: "{{ dt_web_availability_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          all_parents_must_converge: true
+          related:
+            always_nodes:
+              - identifier: update-ritm-success
+
+        # Update RITM (success) converges two parents: Patching (end of the
+        # Windows configure chain) and Configure DT Web Availability (which
+        # transitively gates Configure Linux + both DT installs). Both
+        # always-complete (real work or clean skip on empty group), so
+        # convergence fires reliably for all os_type values.
         - identifier: update-ritm-success
           unified_job_template:
             name: "DC1.Azure - Update RITM (success)"
