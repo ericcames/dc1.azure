@@ -70,6 +70,7 @@
           - "DC1.Azure - Configure ADO Trigger"
           - "{{ dynatrace_template_windows }}"
           - "{{ dynatrace_template_linux }}"
+          - "{{ dt_web_availability_template }}"
           - "{{ break_website_template_linux }}"
           - "{{ break_website_template_windows }}"
           - "{{ triage_template }}"

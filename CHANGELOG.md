@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **AB#164 — guard the Configure DT Web Availability JT in CaC validation.**
+  `aap_config/validate_tasks.yml` asserts every expected AAP object exists so
+  `load.yml` can't exit green on a partial apply, but the new
+  `DC1.Azure - Configure DT Web Availability` job template (AB#163) was missing
+  from the `job_templates` expected list. Added it so the JT is now asserted on
+  every apply.
+
 ### Added
 - **AB#163 — wire `dt_web_availability` into the provision workflow.**
   Completes the AB#160 follow-up noted in that entry. New
