@@ -15,6 +15,27 @@ Set up the AAP Model Context Protocol server so AI agents can query inventories,
 launch jobs, monitor status, and manage the platform — all governed by AAP RBAC.
 The MCP server requires **AAP 2.7+** (operator v2.7.0+).
 
+## When to use it (operationally, not just to deploy)
+
+Once the MCP server is up, **prefer it for read/monitoring work** over ad-hoc
+REST/CLI calls — it returns structured data and is governed by AAP RBAC.
+
+- **It's read-only here, so use it freely.** The dc1.azure deployment sets
+  `allow_write_operations: false` and the token is read-scope, so the
+  `ansible-aap` server cannot launch, modify, or delete any AAP object. Reach for
+  it first for health checks, job/workflow status, inventory, and EDA-activation
+  queries — no per-call confirmation needed.
+- **Backgrounded polling falls back to `curl`.** MCP calls can't run in a
+  background shell. For an unattended watch (e.g. polling a workflow to
+  completion), use a read-only `curl` GET against the controller API. Note
+  `CONTROLLER_OAUTH_TOKEN` in `docs/dev-environment.sh` may be blank — use admin
+  basic-auth (`AAP_CONTROLLER_USERNAME` / `AAP_CONTROLLER_PASSWORD`) for those
+  GETs.
+- **Write/execute is out of scope** until the Phase 21 MCP write path (an
+  RBAC-scoped service account + write-scope token + `allow_write_operations: true`
+  on the CR). Until then, humans place ServiceNow provision orders; the MCP only
+  observes. The rest of this skill is the one-time **deployment** runbook.
+
 ## Guardrails
 
 - **Never print tokens or OCP passwords.** Check env vars by name only. When a

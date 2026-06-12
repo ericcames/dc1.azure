@@ -14,6 +14,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every apply.
 
 ### Added
+- **Document when/how to use the AAP MCP server operationally.** Added a *When to
+  use it (operationally, not just to deploy)* section to
+  `.claude/skills/mcp-server/SKILL.md` and a *Prefer the AAP MCP server for reads*
+  convention to `CLAUDE.md`: prefer the read-only `ansible-aap` MCP for AAP
+  health/job/workflow/inventory/EDA queries; it's safe to use freely
+  (`allow_write_operations: false`, read-scope token); backgrounded polling falls
+  back to a read-only `curl` GET (admin basic-auth, since `CONTROLLER_OAUTH_TOKEN`
+  may be blank); write/execute stays out of scope until the Phase 21 MCP write path.
 - **AB#163 — wire `dt_web_availability` into the provision workflow.**
   Completes the AB#160 follow-up noted in that entry. New
   `DC1.Azure - Configure DT Web Availability` job template

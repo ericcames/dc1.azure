@@ -80,6 +80,15 @@ is committed) and in an AAP "Microsoft Azure Resource Manager" credential named
   renamed in CaC, the old-name object becomes orphaned on AAP. Clean up
   orphans via the API (`DELETE`), not by adding `state: absent` entries to CaC
   files — CaC files should only describe the desired state.
+- **Prefer the AAP MCP server for reads** — when the `ansible-aap` MCP server is
+  available, use it for AAP health / job / workflow / inventory / EDA-activation
+  queries instead of ad-hoc REST/CLI calls. The dc1.azure deployment is
+  **read-only** (`allow_write_operations: false`, read-scope token), so it's safe
+  to use freely with no per-call confirmation — it can't launch, modify, or delete
+  anything. Backgrounded polling can't use MCP, so fall back to a read-only `curl`
+  GET (admin basic-auth, since `CONTROLLER_OAUTH_TOKEN` may be blank). Write/execute
+  is out of scope until the Phase 21 MCP write path. See
+  [`.claude/skills/mcp-server/SKILL.md`](.claude/skills/mcp-server/SKILL.md).
 
 ## Issue Tracking (ADO Boards)
 
