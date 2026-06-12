@@ -11,6 +11,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the other rules) so the Cockpit web console enabled in AB#172 is reachable
   over the Linux VM's public FQDN. Pairs with the `cockpit` firewalld service
   opened on the host.
+- **AB#170 — retire the ServiceNow CMDB CI at teardown.** `teardown.yml` now
+  marks the CMDB CI(s) for the destroyed VM(s) as **retired** — both
+  `install_status` and `operational_status` — looking them up by name (the
+  public FQDN) and updating only records that already exist (a non-ServiceNow
+  teardown with no CI cleanly no-ops). Gated on the ServiceNow credential
+  (`SN_HOST`), so the `DC1.Azure - Teardown` job template now also carries
+  `cred_servicenow`. Closes the CMDB CI lifecycle: installed/operational on
+  create → retired on decommission.
 
 ### Changed
 - **AB#172 — Configure Linux: faster + correct.** The `linux_configure` role

@@ -156,6 +156,43 @@
         dt_decommission_create_window: false
       when: lookup('ansible.builtin.env', 'DT_API_TOKEN') | default('') | length > 0
 
+    # AB#170: mark the ServiceNow CMDB CI(s) for the destroyed VM(s) as retired
+    # (install_status AND operational_status) so the CMDB reflects the
+    # decommission. Looks up by CI name (= the public FQDN) and updates only
+    # records that already exist, so a non-ServiceNow teardown with no CI cleanly
+    # no-ops. Gated on the ServiceNow credential (SN_HOST) so non-ServiceNow
+    # installs still tear down. ORDERBYDESCsys_created_on retires the newest CI
+    # if a name was ever reused (see cmdb-ci-lifecycle notes).
+    - name: Retire the ServiceNow CMDB CI(s) for the destroyed VM(s)
+      when: lookup('ansible.builtin.env', 'SN_HOST') | default('') | length > 0
+      block:
+        - name: Build the list of CI names (FQDNs) to retire
+          ansible.builtin.set_fact:
+            retire_ci_names: >-
+              {{ ([win_fqdn] if (win_fqdn is defined and win_fqdn is string and win_fqdn | length > 0) else [])
+                 + ([linux_fqdn] if (linux_fqdn is defined and linux_fqdn is string and linux_fqdn | length > 0) else []) }}
+
+        - name: Look up each CI by name (newest first)
+          loop: "{{ retire_ci_names }}"
+          loop_control:
+            label: "{{ item }}"
+          register: retire_ci_lookups
+          servicenow.itsm.api_info:
+            resource: cmdb_ci
+            sysparm_query: "name={{ item }}^ORDERBYDESCsys_created_on"
+
+        - name: Retire each CI that exists (install + operational status)
+          loop: "{{ retire_ci_lookups.results | default([]) }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when: item.record | default([]) | length > 0
+          servicenow.itsm.configuration_item:
+            sys_id: "{{ item.record[0].sys_id }}"
+            sys_class_name: "{{ item.record[0].sys_class_name }}"
+            state: present
+            install_status: retired
+            operational_status: retired
+
     - name: Deregister hosts from the AAP inventory
       when: (win_fqdn is defined and win_fqdn is string) or (linux_fqdn is defined and linux_fqdn is string)
       block:
