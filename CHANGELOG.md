@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **AB#172 — Configure Linux: faster + correct.** The `linux_configure` role
+  now: applies **security-only** updates (dropped `bugfix`, the slow part with
+  little demo value); gates the reboot on the RHEL-correct
+  `needs-restarting -r` (the old `/var/run/reboot-required` stat is a
+  Debian/Ubuntu path that never exists on RHEL, so it never rebooted); runs
+  `insights-client` **async/fire-and-forget** (`poll: 0`) after any reboot so
+  the play no longer blocks ~30-60s on the upload; installs NTP + Apache +
+  firewall + Cockpit in a **single dnf transaction** with `update_cache` (warms
+  metadata once, reused by the patch task) and `install_weak_deps: false`. It
+  also **stops removing Cockpit** and now installs + enables `cockpit.socket`
+  (and opens the `cockpit` firewalld service) so the web console is demoable —
+  external access still needs an Azure NSG rule for 9090 (or an SSH tunnel).
+
 ### Fixed
 - **AB#169 — pin the Linux OneAgent DT host name to the Azure public FQDN.**
   `install_dynatrace_oneagent_linux.yml` now passes

@@ -5,11 +5,23 @@
 # linux_post_install, minus nightly-shutdown and /etc/hosts template).
 # ============================================================================
 
-# --- NTP -------------------------------------------------------------------
-- name: Install Chrony
+# --- Base packages (one transaction) ---------------------------------------
+# AB#172: install NTP + web server + firewall + Cockpit in a SINGLE dnf
+# transaction (was three separate dnf invocations). update_cache warms the repo
+# metadata once here; the later security-patch task reuses that cache, so
+# metadata is fetched once per run. install_weak_deps:false skips
+# recommended-but-unneeded packages for a leaner, faster install. Cockpit is
+# installed (no longer removed) so the web console is demoable.
+- name: Install base packages (NTP, Apache, firewall, Cockpit)
   ansible.builtin.dnf:
-    name: chrony
+    name:
+      - chrony
+      - httpd
+      - firewalld
+      - cockpit
     state: present
+    update_cache: true
+    install_weak_deps: false
 
 - name: Enable Chrony
   ansible.builtin.systemd_service:
@@ -17,20 +29,7 @@
     state: started
     enabled: true
 
-# --- Remove Cockpit --------------------------------------------------------
-- name: Remove Cockpit
-  ansible.builtin.dnf:
-    name: cockpit
-    state: absent
-
 # --- Web server ------------------------------------------------------------
-- name: Install Apache and firewalld
-  ansible.builtin.dnf:
-    name:
-      - httpd
-      - firewalld
-    state: present
-
 - name: Start and enable firewalld
   ansible.builtin.service:
     name: firewalld
@@ -46,6 +45,18 @@
 - name: Allow HTTP through firewall
   ansible.posix.firewalld:
     service: http
+    zone: public
+    permanent: true
+    immediate: true
+    state: enabled
+
+# AB#172: open the Cockpit service (9090) in firewalld so the web console is
+# reachable. NOTE: external access also needs the Azure NSG to permit 9090 —
+# the NSG currently allows only 22/80/443/3389/5986/ICMP. Without that rule,
+# reach Cockpit via an SSH tunnel (ssh -L 9090:localhost:9090 <host>).
+- name: Allow Cockpit through firewall
+  ansible.posix.firewalld:
+    service: cockpit
     zone: public
     permanent: true
     immediate: true
@@ -137,35 +148,53 @@
     group: root
     mode: "0644"
 
+# AB#172: enable the Cockpit web console (socket-activated) so it's demoable.
+- name: Enable and start the Cockpit web console
+  ansible.builtin.systemd_service:
+    name: cockpit.socket
+    state: started
+    enabled: true
+
 # --- Patching --------------------------------------------------------------
-- name: Apply security and bugfix updates  # noqa: package-latest
+# AB#172: security-only (dropped bugfix) to keep provisioning fast — bugfix
+# pulls a much larger package set with little demo value. Reuses the dnf
+# metadata cache warmed by the base-package install above. update_only so we
+# never pull brand-new packages, just patch installed ones.
+- name: Apply security updates  # noqa: package-latest
   ansible.builtin.dnf:
     name: "*"
     state: latest
     security: true
-    bugfix: true
     update_only: true
     skip_broken: true
     exclude:
       - sudo.x86_64
 
+# --- Reboot if needed -------------------------------------------------------
+# AB#172: RHEL-correct reboot gate. The old code stat'd /var/run/reboot-required
+# (a Debian/Ubuntu path that never exists on RHEL, so it never rebooted).
+# `needs-restarting -r` returns rc 0 = no reboot needed, rc 1 = reboot needed.
+- name: Check whether a reboot is required (RHEL)
+  ansible.builtin.command:
+    cmd: needs-restarting -r
+  register: linux_configure_needs_restarting
+  changed_when: false
+  failed_when: linux_configure_needs_restarting.rc not in [0, 1]
+
+- name: Reboot only if core libraries/kernel were updated
+  when: linux_configure_needs_restarting.rc == 1
+  ansible.builtin.reboot:
+
 # --- Insights ---------------------------------------------------------------
-- name: Run insights-client
-  register: linux_configure_insights_result
-  changed_when: linux_configure_insights_result.rc == 1
-  failed_when: linux_configure_insights_result.rc > 1
+# AB#172: fire-and-forget (poll:0) so the play doesn't block on the upload
+# (routinely 30-60s). Runs AFTER any reboot so a reboot can't interrupt it.
+- name: Register with Red Hat Insights (async, fire-and-forget)
   ansible.builtin.command:
     cmd: insights-client
-
-# --- Reboot if needed -------------------------------------------------------
-- name: Check if reboot is required
-  register: linux_configure_reboot_required
-  ansible.builtin.stat:
-    path: /var/run/reboot-required
-
-- name: Reboot if required
-  when: linux_configure_reboot_required.stat.exists
-  ansible.builtin.reboot:
+  async: 300
+  poll: 0
+  changed_when: true
+  register: linux_configure_insights_async
 
 - name: Show website address
   ansible.builtin.debug:
