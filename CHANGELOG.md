@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **AB#173 — open Azure NSG port 9090 for Cockpit.** New inbound `Allow-Cockpit`
+  NSG rule (TCP 9090, priority 1060, scoped to `var.allowed_source_cidrs` like
+  the other rules) so the Cockpit web console enabled in AB#172 is reachable
+  over the Linux VM's public FQDN. Pairs with the `cockpit` firewalld service
+  opened on the host.
+
 ### Changed
 - **AB#172 — Configure Linux: faster + correct.** The `linux_configure` role
   now: applies **security-only** updates (dropped `bugfix`, the slow part with

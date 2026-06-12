@@ -99,6 +99,21 @@ resource "azurerm_network_security_group" "demo" {
     source_address_prefixes    = var.allowed_source_cidrs
     destination_address_prefix = "*"
   }
+
+  # Cockpit web console (AB#173) — reachable over the Linux VM's public FQDN.
+  # Scoped to allowed_source_cidrs like the other rules; the Linux VM also opens
+  # the cockpit firewalld service (linux_configure, AB#172).
+  security_rule {
+    name                       = "Allow-Cockpit"
+    priority                   = 1060
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "9090"
+    source_address_prefixes    = var.allowed_source_cidrs
+    destination_address_prefix = "*"
+  }
 }
 
 resource "azurerm_subnet_network_security_group_association" "demo" {
