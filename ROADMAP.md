@@ -869,6 +869,48 @@ execution rather than unbounded access.
 
 ---
 
+### Phase 22 — FQDN Identity, CI Lifecycle & Teardown Hygiene  🔄
+
+*Tightens the platform's host identity and decommission story. One canonical
+host name everywhere, a CMDB CI whose status reflects reality through teardown,
+and a teardown that removes Dynatrace monitoring cleanly instead of leaking
+stale problems. Epic **AB#168**.*
+
+- 🔄 **A — Canonical public FQDN as host identity (AB#169).** The Azure public
+  IP FQDN (`azurerm_public_ip.*.fqdn` = the AAP `inventory_hostname`) is the
+  single host name across AAP inventory, the ServiceNow CMDB CI `name`, and the
+  Dynatrace host. AAP + CMDB already used it; the gap was the **Linux** OneAgent,
+  which defaulted the DT host name to the Azure *internal* FQDN. Pinning
+  `--set-host-name={{ inventory_hostname }}` (mirroring Windows AB#161) closes
+  it and removes the cross-OS DNS-suffix mismatch that broke triage's CMDB
+  lookup (**collapses most of AB#166**).
+- ⬜ **B — CMDB CI lifecycle status (AB#170).** Create already sets
+  `install_status=installed` / `operational_status=operational`; teardown will
+  set **both to retired** so a decommissioned VM's CI reflects reality.
+- ⬜ **C — Teardown → workflow with graceful OneAgent uninstall (AB#171).**
+  New Uninstall-OneAgent JTs (Win + Linux) run *before* destroy, so Dynatrace
+  drops the host cleanly instead of raising stale "process unavailable"
+  problems after the VMs vanish — the **root-cause fix for AB#165**. New
+  Teardown workflow: uninstall (both OS) → retire CMDB CI (B) → Terraform
+  destroy + inventory/host_metrics cleanup → `dt_decommission` close-only
+  backstop.
+- 🔄 **D — Configure Linux: faster + correct (AB#172).** Security-only patching
+  (dropped bugfix), RHEL-correct reboot gate (`needs-restarting -r`),
+  async/fire-and-forget `insights-client`, a single consolidated dnf
+  transaction with warm metadata + `install_weak_deps:false`, and Cockpit kept
+  installed + enabled (was being removed) so the web console is demoable.
+
+**Decision — "Configure DT Web Availability" stays inline.** It remains a node
+in the provision workflow (not pulled out to a Day 2 JT), so website-down
+self-heal is armed automatically on every provision with no extra operator step.
+See Decisions Log 2026-06-12.
+
+**Exit criteria:** a provisioned host carries one FQDN across AAP, CMDB, and
+Dynatrace; its CMDB CI reads installed/operational on create and retired after
+teardown; and a teardown leaves no stale Dynatrace problems.
+
+---
+
 ## Naming Conventions
 
 To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP instances:
@@ -945,6 +987,8 @@ To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP i
 | 2026-06-04 | **Dynatrace OneAgent as a standard workflow node** (not conditional/best-effort) — the Dynatrace SaaS tenant (`ybz84624.live.dynatrace.com`) is always on; OneAgent installs on every provisioned VM (Windows + Linux). Uses the **push model** (`aap.eda.dynatrace.push`) — Dynatrace pushes problem events to AAP EDA. Credential: `DC1.Azure - Dynatrace` (PaaS token from `docs/dev-environment.sh`). Hosts tagged into `dc1-azure` host group |
 | 2026-06-04 | **F5 BIG-IP on Azure added to roadmap (Phase 20, was 19)** — F5 BIG-IP VE is available in Azure Marketplace (PAYG GOOD tier = LTM, 30-day free trial). Deploys via Terraform; configured via `f5networks.f5_modules`. Linux web servers become pool members; the `aap.dailydemo.F5` patching workflow (disable → patch → re-enable) runs against them. Key risk: RHDP open-env term acceptance is subscription-scoped |
 | 2026-06-03 | **Phase 9: Self-Service Portal surfaces JOB templates only, not workflows → bridge with a launcher JT** (AB#107) | Proven live (identical team-level grant: a job template surfaced for `jr-dev`, the workflow did not; backend provider `AAPJobTemplateProvider`) and confirmed in RH 2.6 docs — a product-design choice, not a version gap (chart 2.2.0 doesn't add it). A thin launcher JT (`DC1.Azure - Request Windows VM`, `vm_size_tier` survey → `ansible.controller.workflow_launch`) fires the existing workflow, preserving "one core workflow, four triggers" and keeping everything in dc1.azure's scope (vs a portal-side custom Backstage template). NB: the portal catalog only refreshes per-user access on a `sync_portal_orgs.yml` run (it restarts the portal); the in-UI "Sync now" button does not |
+| 2026-06-12 | **Phase 22 opened: public FQDN as canonical host identity + CMDB CI lifecycle + teardown hygiene** (Epic AB#168) — standardize on the Azure public FQDN everywhere (A/AB#169), retire the CMDB CI at teardown (B/AB#170), convert teardown to a workflow that uninstalls OneAgent before destroy (C/AB#171, root fix for AB#165), speed up Configure Linux (D/AB#172) | AAP inventory + CMDB `name` already used the public FQDN; only the Linux OneAgent disagreed (defaulted to the Azure internal FQDN), which is what broke triage's CMDB match (AB#166). Graceful OneAgent uninstall before destroy is the real fix for the AB#165 stale-problem leak (`dt_decommission` becomes a backstop, not the primary mechanism) |
+| 2026-06-12 | **"Configure DT Web Availability" stays inline in the provision workflow** (Phase 22, Theme E declined) | Website-down self-heal depends on the process-group availability alerting rule being armed (`dt_web_availability`); keeping the node inline arms it automatically on every provision. Pulling it to a Day 2 JT would add a required operator step before the incident-response demo (`docs/demo-talk-track-incident-response.md`) could fire — the demo is a centerpiece, so the zero-extra-step path wins |
 
 ---
 
