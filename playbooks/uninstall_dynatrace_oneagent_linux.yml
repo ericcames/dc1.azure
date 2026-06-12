@@ -1,0 +1,51 @@
+---
+# ============================================================================
+# playbooks/uninstall_dynatrace_oneagent_linux.yml — Phase 22 (AB#171)
+# ============================================================================
+# Gracefully uninstalls Dynatrace OneAgent from Linux VMs (linuxweb group)
+# BEFORE the infrastructure is destroyed. A graceful uninstall lets Dynatrace
+# drop the host cleanly, so the VM vanishing never raises stale "host/process
+# unavailable" problems (the AB#165 leak). Empty group = clean skip. Runs as
+# the first stage of the DC1.Azure - Teardown and Decommission workflow, while
+# the hosts are still reachable.
+#
+# Required JT credentials:
+#   DC1.Azure - Linux Machine  → SSH auth
+#   DC1.Azure - ServiceNow     → SN_HOST, SN_USERNAME, SN_PASSWORD (snow_log)
+# ============================================================================
+
+- name: Uninstall Dynatrace OneAgent (Linux)
+  hosts: linuxweb
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check for the OneAgent uninstaller
+      ansible.builtin.stat:
+        path: /opt/dynatrace/oneagent/agent/uninstall.sh
+      register: dt_uninstaller
+
+    - name: Log uninstall start to ServiceNow
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Linux): OneAgent
+          {{ 'present — uninstalling before teardown.' if dt_uninstaller.stat.exists
+             else 'not present — nothing to uninstall.' }}
+
+    - name: Uninstall OneAgent
+      when: dt_uninstaller.stat.exists
+      ansible.builtin.command:
+        cmd: /opt/dynatrace/oneagent/agent/uninstall.sh
+        removes: /opt/dynatrace/oneagent/agent/uninstall.sh
+      register: dt_uninstall
+
+    - name: Log uninstall result to ServiceNow
+      when: dt_uninstaller.stat.exists
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Linux): OneAgent uninstalled — Dynatrace will
+          drop the host cleanly, so no post-teardown "unavailable" problem.

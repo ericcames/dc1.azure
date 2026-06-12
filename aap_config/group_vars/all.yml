@@ -161,9 +161,12 @@ dc1_azure_linux_group: linuxweb
 # (AB#73). An empty inventory is sufficient: AWX provides an implicit localhost.
 control_inventory_name: "dc1-azure-control"
 workflow_name: "DC1.Azure - Provision and Configure"
-# Teardown JT name (single source of truth — referenced by the JT definition
-# and the nightly teardown schedule) and the schedule object name.
+# Teardown JT name (the inner "destroy" step — referenced by the JT definition
+# and as the final node of the teardown workflow). AB#171: the nightly
+# schedules now launch the teardown WORKFLOW (teardown_workflow_name), which
+# gracefully uninstalls OneAgent before this JT destroys the infra.
 teardown_template: "DC1.Azure - Teardown"
+teardown_workflow_name: "DC1.Azure - Teardown and Decommission"
 teardown_schedule_name: "DC1.Azure - Nightly Teardown (6 PM)"
 teardown_schedule_name_late: "DC1.Azure - Nightly Teardown (10 PM)"
 # Terraform requires admin_password (12-72 chars) even on `destroy`, but the
@@ -229,6 +232,10 @@ dt_api_token: "{{ lookup('ansible.builtin.env', 'DT_API_TOKEN') | default('', tr
 dt_host_group: dc1-azure
 dynatrace_template_windows: "DC1.Azure - Install Dynatrace OneAgent (Windows)"
 dynatrace_template_linux: "DC1.Azure - Install Dynatrace OneAgent (Linux)"
+# AB#171: graceful OneAgent uninstall JTs — run before destroy in the teardown
+# workflow so Dynatrace drops the host cleanly (no stale post-teardown problem).
+dt_uninstall_template_windows: "DC1.Azure - Uninstall Dynatrace OneAgent (Windows)"
+dt_uninstall_template_linux: "DC1.Azure - Uninstall Dynatrace OneAgent (Linux)"
 # Phase 19 (AB#160) — web-tier availability alerting JT. DT API only (localhost),
 # enables the process-group alerting rule that lets a website outage raise a
 # Davis problem (the signal the DT->EDA self-heal fires on).

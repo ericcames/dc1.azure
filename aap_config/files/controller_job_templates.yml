@@ -312,6 +312,34 @@ controller_templates:
     extra_vars:
       dt_host_group: "{{ dt_host_group }}"
 
+  # AB#171: graceful OneAgent uninstall JTs. Run on the live hosts (windemo /
+  # linuxweb) as the first stage of the teardown workflow, BEFORE destroy, so
+  # Dynatrace drops the host cleanly and never raises a stale post-teardown
+  # "unavailable" problem (the AB#165 leak). No Dynatrace credential needed —
+  # the uninstall is purely host-side; ServiceNow is only for snow_log. Empty
+  # group = clean skip.
+  - name: "{{ dt_uninstall_template_windows }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/uninstall_dynatrace_oneagent_windows.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_windows }}"
+      - "{{ cred_servicenow }}"
+
+  - name: "{{ dt_uninstall_template_linux }}"
+    job_type: run
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    project: "{{ project_name }}"
+    playbook: playbooks/uninstall_dynatrace_oneagent_linux.yml
+    execution_environment: "{{ my_execution_environment }}"
+    credentials:
+      - "{{ cred_linux }}"
+      - "{{ cred_servicenow }}"
+
   # Phase 19 (AB#160): enable Dynatrace web-tier availability alerting so a
   # website outage raises a Davis problem (the signal the DT->EDA self-heal
   # fires on). DT API only — runs on the control inventory (localhost play), no

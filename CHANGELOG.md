@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#171 — teardown is now a workflow that uninstalls OneAgent before
+  destroy.** New `DC1.Azure - Teardown and Decommission` workflow brackets the
+  existing `DC1.Azure - Teardown` JT with a first stage that gracefully
+  uninstalls Dynatrace OneAgent on the live VMs (new
+  `DC1.Azure - Uninstall Dynatrace OneAgent (Windows)`/`(Linux)` JTs +
+  `playbooks/uninstall_dynatrace_oneagent_{windows,linux}.yml`). Removing
+  OneAgent before destroy lets Dynatrace drop the host cleanly, so the VMs
+  vanishing never raise stale "process/host unavailable" problems — the
+  root-cause fix for the AB#165 leak (`dt_decommission` inside the Teardown JT
+  stays as a backstop). The two uninstall nodes converge on the Teardown node
+  via always-edges (empty OS group = clean skip), and complete before it (so the
+  inventory host lock is released for the AB#73 control-inventory deregister).
+  Both nightly teardown schedules now launch the workflow instead of the JT;
+  launch the workflow from the UI for manual teardowns.
 - **AB#173 — open Azure NSG port 9090 for Cockpit.** New inbound `Allow-Cockpit`
   NSG rule (TCP 9090, priority 1060, scoped to `var.allowed_source_cidrs` like
   the other rules) so the Cockpit web console enabled in AB#172 is reachable

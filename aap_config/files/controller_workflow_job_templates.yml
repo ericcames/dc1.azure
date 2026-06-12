@@ -347,3 +347,59 @@ controller_workflows:
             organization:
               name: "{{ my_organization }}"
           all_parents_must_converge: true
+
+  # =========================================================================
+  # Phase 22: Teardown workflow — graceful decommission (AB#171)
+  # =========================================================================
+  # Wraps the existing Teardown JT (destroy + inventory/host_metrics cleanup +
+  # retire CMDB CI + dt_decommission backstop) with a FIRST stage that
+  # gracefully uninstalls Dynatrace OneAgent while the VMs are still reachable.
+  # Removing OneAgent before destroy lets Dynatrace drop the host cleanly, so
+  # the VMs vanishing never raises stale "process/host unavailable" problems —
+  # the root-cause fix for the AB#165 leak (dt_decommission inside the Teardown
+  # JT stays as a backstop). The nightly schedules now launch THIS workflow.
+  #
+  #   Uninstall OneAgent (Win) ──always──┐
+  #   Uninstall OneAgent (Linux) ─always─┴─► Teardown  [all_parents_must_converge]
+  #
+  # The two uninstall nodes run on the live hosts (windemo / linuxweb); an empty
+  # OS group is a clean skip, so the always-edges converge for any os_type. They
+  # complete (releasing the inventory host lock) before the Teardown node runs —
+  # which, per AB#73, targets the control inventory so it can deregister the
+  # dc1-azure hosts it just destroyed. os_type=both is baked on the Teardown JT,
+  # so a scheduled run with no survey still destroys everything.
+  - name: "{{ teardown_workflow_name }}"
+    organization: "{{ my_organization }}"
+    inventory: "{{ inventory_name }}"
+    ask_variables_on_launch: true
+    related:
+      workflow_nodes:
+        - identifier: uninstall-dt-windows
+          unified_job_template:
+            name: "{{ dt_uninstall_template_windows }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: ""
+          related:
+            always_nodes:
+              - identifier: teardown
+
+        - identifier: uninstall-dt-linux
+          unified_job_template:
+            name: "{{ dt_uninstall_template_linux }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          limit: ""
+          related:
+            always_nodes:
+              - identifier: teardown
+
+        - identifier: teardown    # terminal — destroy + cleanup + retire CMDB
+          unified_job_template:
+            name: "{{ teardown_template }}"
+            type: job_template
+            organization:
+              name: "{{ my_organization }}"
+          all_parents_must_converge: true

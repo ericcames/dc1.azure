@@ -1,0 +1,64 @@
+---
+# ============================================================================
+# playbooks/uninstall_dynatrace_oneagent_windows.yml — Phase 22 (AB#171)
+# ============================================================================
+# Gracefully uninstalls Dynatrace OneAgent from Windows VMs (windemo group)
+# BEFORE the infrastructure is destroyed. A graceful uninstall lets Dynatrace
+# drop the host cleanly, so the VM vanishing never raises stale "host/process
+# unavailable" problems (the AB#165 leak). Empty group = clean skip. Runs as
+# the first stage of the DC1.Azure - Teardown and Decommission workflow, while
+# the hosts are still reachable. See uninstall_dynatrace_oneagent_linux.yml.
+#
+# Required JT credentials:
+#   DC1.Azure - Windows Machine → WinRM auth
+#   DC1.Azure - ServiceNow      → SN_HOST, SN_USERNAME, SN_PASSWORD (snow_log)
+# ============================================================================
+
+- name: Uninstall Dynatrace OneAgent (Windows)
+  hosts: windemo
+  gather_facts: false
+
+  tasks:
+    # win_service returns `state` only when the service exists; absence of
+    # `state` means OneAgent isn't installed (mirrors the install playbook's
+    # presence check). The uninstaller ships alongside the service, so a present
+    # service implies uninstall.exe exists.
+    - name: Check if the OneAgent service exists
+      ansible.windows.win_service:
+        name: Dynatrace OneAgent
+      register: dt_check
+      failed_when: false
+
+    - name: Uninstall OneAgent when present
+      when: dt_check.state is defined
+      block:
+        - name: Log uninstall start to ServiceNow
+          ansible.builtin.include_role:
+            name: snow_log
+          vars:
+            snow_log_message: >-
+              {{ inventory_hostname }} (Windows): OneAgent present — uninstalling
+              before teardown.
+
+        - name: Uninstall OneAgent (silent)
+          ansible.windows.win_command:
+            cmd: '"C:\Program Files\dynatrace\oneagent\agent\uninstall.exe"'
+          register: dt_uninstall
+          changed_when: true
+
+        - name: Log uninstall result to ServiceNow
+          ansible.builtin.include_role:
+            name: snow_log
+          vars:
+            snow_log_message: >-
+              {{ inventory_hostname }} (Windows): OneAgent uninstalled — Dynatrace
+              will drop the host cleanly, so no post-teardown "unavailable" problem.
+
+    - name: Note clean skip when OneAgent is absent
+      when: dt_check.state is not defined
+      ansible.builtin.include_role:
+        name: snow_log
+      vars:
+        snow_log_message: >-
+          {{ inventory_hostname }} (Windows): OneAgent not present — nothing to
+          uninstall.

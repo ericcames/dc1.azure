@@ -70,6 +70,8 @@
           - "DC1.Azure - Configure ADO Trigger"
           - "{{ dynatrace_template_windows }}"
           - "{{ dynatrace_template_linux }}"
+          - "{{ dt_uninstall_template_windows }}"
+          - "{{ dt_uninstall_template_linux }}"
           - "{{ dt_web_availability_template }}"
           - "{{ break_website_template_linux }}"
           - "{{ break_website_template_windows }}"
@@ -79,7 +81,7 @@
           - "{{ close_incident_template }}"
           - "{{ confirm_resolution_template }}"
       - endpoint: workflow_job_templates
-        names: ["{{ workflow_name }}", "{{ remediate_workflow_name }}"]
+        names: ["{{ workflow_name }}", "{{ remediate_workflow_name }}", "{{ teardown_workflow_name }}"]
       - endpoint: schedules
         names: ["{{ teardown_schedule_name }}"]
 
