@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Fixed
+- **AB#169 — pin the Linux OneAgent DT host name to the Azure public FQDN.**
+  `install_dynatrace_oneagent_linux.yml` now passes
+  `--set-host-name={{ inventory_hostname }}` on both the OneAgent install and
+  the `oneagentctl` re-apply (idempotent path), mirroring the Windows fix
+  (AB#161). `inventory_hostname` is the Azure public IP FQDN, so Dynatrace now
+  reports the Linux host under the same name AAP inventory and the ServiceNow
+  CMDB CI use — instead of the Azure *internal* FQDN it defaulted to. This makes
+  the public FQDN the single canonical host identity across DT, AAP, and CMDB
+  for both OSes, and removes the cross-OS DNS-suffix mismatch that broke
+  triage's CMDB lookup (AB#166).
+
 - **AB#164 — guard the Configure DT Web Availability JT in CaC validation.**
   `aap_config/validate_tasks.yml` asserts every expected AAP object exists so
   `load.yml` can't exit green on a partial apply, but the new

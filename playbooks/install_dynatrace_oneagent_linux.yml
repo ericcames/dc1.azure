@@ -64,6 +64,12 @@
           - /bin/sh
           - "{{ dt_installer_path }}"
           - "--set-host-group={{ dt_host_group }}"
+          # AB#169: pin the DT host name to the Azure public FQDN (matches the
+          # AAP inventory hostname + CMDB CI name), mirroring the Windows
+          # install (AB#161). Without this OneAgent defaults to the OS hostname
+          # = the Azure *internal* FQDN, so DT disagrees with CMDB/AAP and
+          # triage's CMDB match fails (AB#166).
+          - "--set-host-name={{ inventory_hostname }}"
           - --set-infra-only=false
         creates: /opt/dynatrace/oneagent/agent/tools/oneagentctl
       register: dt_install
@@ -77,9 +83,15 @@
           {{ inventory_hostname }} (Linux): OneAgent installed successfully
           (host group: {{ dt_host_group }}).
 
-    - name: Set host group via oneagentctl
+    # AB#169: also re-apply via oneagentctl so an already-installed OneAgent
+    # (install task skipped) still gets the public-FQDN host name pinned.
+    - name: Set host group and host name via oneagentctl
       ansible.builtin.command:
-        cmd: /opt/dynatrace/oneagent/agent/tools/oneagentctl --set-host-group={{ dt_host_group }} --restart-service
+        cmd: >-
+          /opt/dynatrace/oneagent/agent/tools/oneagentctl
+          --set-host-group={{ dt_host_group }}
+          --set-host-name={{ inventory_hostname }}
+          --restart-service
       changed_when: true
 
     - name: Verify oneagent service
