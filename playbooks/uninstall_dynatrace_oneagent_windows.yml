@@ -40,9 +40,13 @@
               {{ inventory_hostname }} (Windows): OneAgent present — uninstalling
               before teardown.
 
+        # AB#174: the uninstaller is in the OneAgent install ROOT
+        # (C:\Program Files\dynatrace\oneagent\uninstall.exe), NOT under agent\.
+        # The original agent\uninstall.exe path failed with "file not found"
+        # (Win32ErrorCode 2) on the first live teardown.
         - name: Uninstall OneAgent (silent)
           ansible.windows.win_command:
-            cmd: '"C:\Program Files\dynatrace\oneagent\agent\uninstall.exe"'
+            cmd: '"C:\Program Files\dynatrace\oneagent\uninstall.exe"'
           register: dt_uninstall
           changed_when: true
 

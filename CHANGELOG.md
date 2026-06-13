@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+- **AB#174 — correct the Windows OneAgent uninstaller path.** AB#171 ran
+  `…\dynatrace\oneagent\agent\uninstall.exe`, which doesn't exist — the
+  uninstaller is in the install root (`…\dynatrace\oneagent\uninstall.exe`),
+  not under `agent\`. The first live teardown failed the Windows uninstall node
+  with Win32 error 2 (file not found); the always-edge meant destroy still
+  completed, and the `dt_decommission` backstop covered the Windows DT problem.
+  Path corrected.
+
 ### Added
 - **AB#171 — teardown is now a workflow that uninstalls OneAgent before
   destroy.** New `DC1.Azure - Teardown and Decommission` workflow brackets the
