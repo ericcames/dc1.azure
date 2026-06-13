@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- **AB#175 — `/servicenow` skill: CMDB lifecycle + host→CI resolution + journal
+  querying.** Documented in `.claude/skills/servicenow/SKILL.md`: reading an
+  incident's work notes/comments via the `sys_journal_field` table; the CMDB
+  `install_status` value map and the "automation owns `install_status`, teardown
+  retires" convention (now implemented by AB#170, including `operational_status`);
+  and the AB#166 host→CI resolution gotcha (don't resolve via the truncated
+  NetBIOS `nameLIKE` + `record[0]` — prefer an exact full-FQDN match, now the
+  single canonical identity across DT/AAP/CMDB per AB#169).
+
 ### Fixed
 - **AB#174 — correct the Windows OneAgent uninstaller path.** AB#171 ran
   `…\dynatrace\oneagent\agent\uninstall.exe`, which doesn't exist — the

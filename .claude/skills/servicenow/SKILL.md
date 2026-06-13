@@ -107,6 +107,19 @@ Filter Conditions → add an OR "Requested for is \<user\>").
 API-placed orders (e.g. via `servicenow.itsm.api` or the Order Now API) run
 as `AAP ServiceAccount` — that's why it's in the allowlist.
 
+### Read an incident's work notes / comments (debugging the self-heal)
+Work notes and comments are NOT columns on `incident` — they live in the
+`sys_journal_field` table, keyed by the incident's `sys_id`:
+```bash
+# 1. get the incident sys_id
+GET /api/now/table/incident?sysparm_query=number=INC0011380&sysparm_fields=sys_id
+# 2. read its journal entries in order (element = work_notes | comments)
+GET /api/now/table/sys_journal_field?sysparm_query=element_id=<sys_id>^ORDERBYsys_created_on&sysparm_fields=element,value,sys_created_on
+```
+This is how you verify what each self-heal node actually posted (triage →
+remediate → close → confirm) and catch attribution mismatches between
+`short_description` and the remediation notes (see AB#166).
+
 ### Update the REST Message endpoint (Phase 13 — not yet automated)
 Currently manual: update the `Ames - DC1.Azure EDA Event Stream` Outbound REST
 Message endpoint URL in the ServiceNow UI when the AAP environment changes.
@@ -134,3 +147,49 @@ All consume `SN_*` env vars from the `DC1.Azure - ServiceNow` credential
 The CI class is OS-conditional (`create_ci.yml`):
 - `os_type == 'windows'` or `'both'` → `cmdb_ci_win_server`
 - `os_type == 'linux'` → `cmdb_ci_linux_server`
+
+## CMDB CI lifecycle & `install_status` (AB#166)
+
+**Convention (decided 2026-06-10): the automation owns `install_status` end to
+end.** Provision creates the CI as `Installed`; teardown must retire it. Without
+that, torn-down hosts pile up as live-looking CIs and poison host→CI lookups.
+
+`install_status` values (verified live in this instance):
+
+| Value | Label | Value | Label |
+|------:|-------|------:|-------|
+| 1 | **Installed** (live host) | 6 | In Stock |
+| 2 | On Order | 7 | **Retired** ← set at teardown |
+| 3 | In Maintenance | 8 | Stolen |
+| 4 | Pending Install | 100 | Absent (Discovery "not found") |
+| 5 | Pending Repair | | |
+
+- **Teardown → set the destroyed host's CI to `install_status=7` (Retired), not
+  delete** — keeps audit history (additive). **Implemented in AB#170:**
+  `teardown.yml` retires the CI(s) — both `install_status` AND
+  `operational_status` = Retired — in the same cleanup block that deregisters
+  the host + cleans up Dynatrace. Looked up by name (the FQDN), update-only-if-
+  exists, gated on `SN_HOST`.
+
+### Resolving a host → its CMDB CI (DON'T use bare `nameLIKE` + record[0])
+
+**AB#166 root cause:** `dt_triage.yml` resolved the affected host by taking the
+Dynatrace problem event's `host.name` (a **truncated 15-char NetBIOS** string,
+e.g. `dc1az-win-mediu`) and running `sysparm_query: nameLIKE<that>`, then using
+`record[0]`. That substring is ambiguous across every medium Windows host ever
+provisioned — a live query returned **5** matches and `record[0]` was a stale,
+non-operational CI. The incident got attributed to the **wrong host** while
+remediation (which targets the live `windemo` inventory) hit the right one.
+
+When resolving a host to a CI:
+- Prefer an **exact** name match on the **full FQDN** — and get the FQDN from the
+  authoritative source (the live AAP inventory, or the DT *entities* API:
+  problem → affected PGI → HOST scoped to `hostGroupName("dc1-azure")` and
+  currently reporting), **not** the truncated DT problem-*event* string. (AB#161
+  fixed the DT host *entity* name for Windows; **AB#169 did the same for Linux**,
+  so the Azure public FQDN is now the single canonical identity across the DT
+  host, AAP inventory, and CMDB `name` for both OSes — which makes the exact-FQDN
+  match viable. Neither changed the truncated event *payload*.)
+- If you must `LIKE`, at minimum filter `install_status=1` and
+  `^ORDERBYDESCsys_created_on` so an ambiguous match can never pick a retired or
+  stale CI.
