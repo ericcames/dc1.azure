@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#178 — IT controls → ServiceNow attestation (design doc).** New
+  `docs/controls-attestation-servicenow.md` maps the internal controls
+  (`controls.md`, CTL-001…005) onto ServiceNow Policy and Compliance Management
+  (IRM/GRC), using an **automated continuous-monitoring** evidence model:
+  AAP-produced evidence (CMDB CIs, `task_ci`, immutable `snow_log` work notes,
+  AAP job/schedule history) feeds scheduled GRC **Indicators** that auto Pass/Fail
+  each control and raise a Control Issue on drift. Design only — no SNow/AAP
+  objects created. Records that the GRC module is **not installed** on the current
+  instance (verified read-only: `sn_compliance_control` → "Invalid table"; no
+  `sn_compliance*`/`sn_grc*` tables; no GRC plugin) and lays out two paths forward
+  (Path A: activate licensed GRC; Path B: approximate with custom tables / a
+  Performance Analytics dashboard).
 - **AB#175 — `/servicenow` skill: CMDB lifecycle + host→CI resolution + journal
   querying.** Documented in `.claude/skills/servicenow/SKILL.md`: reading an
   incident's work notes/comments via the `sys_journal_field` table; the CMDB

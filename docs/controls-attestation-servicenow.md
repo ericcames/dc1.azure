@@ -1,0 +1,221 @@
+# IT Controls → ServiceNow Attestation (design / exploration)
+
+How the dc1.azure IT controls (`docs/controls.md`, CTL-001…005) would map into
+ServiceNow's **Policy and Compliance Management** (part of IRM/GRC) so that
+auditors can pull evidence of compliance on demand.
+
+> **Status: design only.** Nothing in this document is built yet. It exists so
+> we can decide whether — and how — to pursue a real implementation. No
+> ServiceNow or AAP objects are created by reading this doc.
+
+> **Prerequisite gap (verified 2026-06-17): the GRC module is _not_ installed on
+> the current instance.** See [§5](#5-plugin-dependency--current-state). Policy
+> and Compliance Management is a separately licensed product; the auto-attestation
+> design below targets its tables but cannot be built until the plugin is active
+> on an entitled instance.
+
+---
+
+## 1. Purpose & audience
+
+Auditors don't want a screenshot tour — they want **repeatable, timestamped,
+tamper-evident proof** that each control is operating, ideally without a human
+having to assemble it by hand. ServiceNow's compliance module exists to be that
+single pane: each control has a **test**, the test produces a **result**, and the
+result links to **evidence**.
+
+The differentiator for this demo is the *source* of that evidence. Most GRC
+programs lean on **manual attestation** — a control owner periodically answers a
+survey ("yes, we patch nightly") and attaches a screenshot. We instead show
+**automated, continuous attestation**: AAP automation already produces the
+evidence as a side effect of doing the work (CMDB CI records, RITM/incident work
+notes, AAP job history), and a ServiceNow **continuous-monitoring Indicator**
+reads that evidence on a schedule to auto Pass/Fail the control. The auditor sees
+a green control backed by machine-generated, timestamped records — and a
+**Control Issue** is raised automatically the moment a control drifts.
+
+**The key insight:** the evidence already exists today. GRC adds an *attestation
+layer on top* of the dc1.azure integration — it does not require new
+instrumentation in the playbooks.
+
+---
+
+## 2. Concept mapping — dc1.azure today → ServiceNow GRC
+
+| dc1.azure artifact (exists today) | ServiceNow GRC construct | Notes |
+|---|---|---|
+| A `docs/controls.md` control statement (CTL-xxx) | **Control** (`sn_compliance_control`) | one Control record per CTL-xxx |
+| The control's named *evidence location* | **Control Test Definition → Indicator** (`sn_grc_indicator`) | automated, scheduled, threshold-based |
+| `snow_log` work notes (immutable `sys_journal_field`) | **Evidence** | already timestamped & append-only |
+| CMDB CI + `task_ci` + `cmdb_rel_ci` | **Evidence** (queryable asset state) | already populated on every provision |
+| AAP job / schedule history | **Evidence** (external, queried via AAP API/MCP) | proves automated enforcement ran |
+| A control failing its check | **Control Issue** (`sn_grc_issue`) | auto-created when an indicator breaches threshold |
+| (future) named framework, e.g. NIST/SOC 2 | **Authority Document → Citation** | out of scope this round — we stay internal CTL-xxx |
+
+> **Table names are indicative.** ServiceNow renames GRC tables across releases
+> (e.g. Smart Assessment Engine uses `sn_smart_asmt_instance`; the legacy survey
+> table is `asmt_assessment_instance`). Confirm the exact API names against a live
+> GRC-enabled instance before building.
+
+GRC's full top-down hierarchy is *Authority Document → Citation → Control
+Objective → Control → Control Test*. Because we're keeping the internal CTL-xxx
+framing, we enter at the **Control** level and attach an automated **Control
+Test** to each — skipping the framework-citation layers for now.
+
+---
+
+## 3. Per-control mapping (CTL-001…005)
+
+Each control becomes one **Control** record with one **automated Indicator** as
+its test. The indicator query targets evidence that dc1.azure *already writes*.
+
+### CTL-001 — Dynatrace OneAgent on all provisioned infrastructure
+- **Indicator:** % of in-scope server CIs whose originating RITM carries a
+  OneAgent **audit-proof** work note (version + tenant + connected=yes).
+- **Evidence source (exists):** `snow_log` posts the audit-proof note per host
+  (see CTL-001 in `controls.md`); CIs created by `create_ci.yml`, linked via
+  `task_ci`.
+- **Pass threshold:** 100% of in-scope CIs.
+- **Auditor sees:** green control + the exact per-host work notes (version,
+  tenant, host group, connected) with timestamps.
+
+### CTL-002 — Nightly teardown of non-production infrastructure
+- **Indicator:** the teardown schedule ran within the last 24h and ended with
+  zero live VMs.
+- **Evidence source (exists):** AAP job history for
+  `DC1.Azure - Nightly Teardown (6 PM / 10 PM)` — queried via the AAP API / MCP.
+  CMDB corroborates: CIs `install_status` = Retired (7) after teardown (AB#170).
+- **Pass threshold:** a successful teardown job in the trailing 24h.
+- **Auditor sees:** green control + the schedule definition and the most recent
+  zero-change destroy job log.
+
+### CTL-003 — Credential lifecycle (no long-lived API tokens)
+- **Indicator:** no stale CaC tokens on the AAP gateway token list (only the
+  intentional ADO pipeline token persists).
+- **Evidence source (exists):** AAP gateway token list (API/MCP); `load.yml` /
+  `validate.yml` delete their token in `always:`.
+- **Pass threshold:** zero unexpected long-lived tokens.
+- **Auditor sees:** green control + the current token inventory.
+
+### CTL-004 — Cross-system traceability (RITM ↔ AAP)
+- **Indicator:** every recent provision RITM has **both** the forward link (AAP
+  workflow job ID work note) and the reverse link (`snow_ritm_*` job artifact).
+- **Evidence source (exists):** `notice_ritm_started.yml` (forward), EDA extra
+  vars + `set_stats` (reverse), `update_ritm.yml` (outcome).
+- **Pass threshold:** 100% of in-window provision RITMs linked both directions.
+- **Auditor sees:** green control + a sample RITM with the AAP deep link and the
+  job's `snow_ritm_number`/`snow_ritm_url` artifacts.
+
+### CTL-005 — CMDB CI registration & business-app relationship
+- **Indicator:** every provision RITM has a linked CI (`task_ci`) of the correct
+  OS class **and** a `cmdb_rel_ci` relationship to the `Ansible Demonstrations`
+  business application.
+- **Evidence source (exists):** `create_ci.yml` (CI + `task_ci`),
+  `create_cmdb_relationship.yml` (`cmdb_rel_ci`).
+- **Pass threshold:** 100% of in-window provision RITMs fully registered.
+- **Auditor sees:** green control + the CI record, its class, and the relationship.
+
+---
+
+## 4. Evidence-flow architecture (the closed loop)
+
+```
+   AAP provision / teardown workflow
+            │  (already happens today)
+            ▼
+   ┌─────────────────────────────────────────────┐
+   │  snow_log work notes  →  sys_journal_field    │  immutable, timestamped
+   │  create_ci / rel_ci   →  CMDB CI + task_ci    │  queryable asset state
+   │  AAP job + schedule history                   │  enforcement proof (API/MCP)
+   └─────────────────────────────────────────────┘
+            │
+            │   GRC Indicator runs on a schedule, queries the above
+            ▼
+   Control Test result  ──►  Compliance dashboard / auditor view
+            │
+            └─ threshold breached ──►  Control Issue (sn_grc_issue) auto-created
+```
+
+The left box is **what dc1.azure already produces**. The arrow into GRC is the
+only new part: scheduled Indicators that read existing records and roll them up
+into a control posture. No changes to the provisioning playbooks are required for
+the happy path; at most we'd add a queryable CI attribute if an indicator needs a
+faster lookup than scanning work notes.
+
+---
+
+## 5. Plugin dependency & current state
+
+Policy and Compliance Management / IRM is **separately licensed** and is **not
+present** on the current ServiceNow instance. Verified read-only on 2026-06-17:
+
+| Probe | Result | Meaning |
+|---|---|---|
+| `GET /api/now/table/sc_req_item` | HTTP 200 | auth + instance healthy |
+| `GET /api/now/table/sn_compliance_control` | HTTP 400 — *"Invalid table"* | table does not exist |
+| `GET /api/now/table/sys_db_object?nameLIKEsn_compliance^ORnameLIKEsn_grc` | no rows | no GRC tables defined |
+| `GET /api/now/table/sys_plugins` (id LIKE compliance/grc/risk) | no rows | no GRC plugin installed |
+
+**Repeatable detection** (use the established `servicenow.itsm.api_info` / curl
+pattern from the `/servicenow` skill): probe `sn_compliance_control`. HTTP 200 ⇒
+GRC present; HTTP 400 *"Invalid table"* ⇒ absent.
+
+**Why it can't just be turned on by automation:** activation is an admin action
+in the ServiceNow **Store / Plugins** UI (or a HI request), and the module
+requires a paid entitlement that demo/PDI instances usually lack. It cannot be
+installed via the Table API, and shouldn't be force-activated even where the UI
+allows it.
+
+---
+
+## 6. Two paths forward
+
+Because GRC is absent today, this design supports two routes. **Recommended:**
+ship this doc now (valuable either way), pursue **Path A** for the authentic
+auditor story, and keep **Path B** as the no-license demo fallback.
+
+### Path A — real GRC (authentic auditor story)
+1. Confirm IRM / Policy & Compliance entitlement with the ServiceNow rep or via
+   HI, **or** move the demo to an instance that ships GRC.
+2. Activate the plugin (admin Store/Plugins action — Eric, not automatable here).
+3. Build per [§3](#3-per-control-mapping-ctl-001005): create the Control records,
+   define the Indicators against the existing evidence queries, schedule them, and
+   wire Control Issues on breach.
+
+### Path B — approximate it now (demo without the paid module)
+Reuse what already exists — CMDB CIs, `task_ci`, and immutable `snow_log` work
+notes **are** the evidence. Two sub-options:
+- **(i) Custom tables** that mimic Control / Control Test / Evidence, populated by
+  a small scheduled job that runs the same queries from [§3](#3-per-control-mapping-ctl-001005).
+- **(ii) Performance Analytics / report-based "compliance dashboard"** over the
+  existing RITM/CMDB data.
+
+Either way, label it clearly as demonstrating the *concept* of continuous
+attestation; production would use real GRC (Path A).
+
+---
+
+## 7. Build-it-later (future implementation phase)
+
+A real build would be a candidate ADO **Epic** ("ServiceNow continuous control
+attestation") with Features roughly per control. Tasks, once GRC is live:
+- Create 5 **Control** records (CTL-001…005) with statements from `controls.md`.
+- Define 5 **Indicators** with the queries in [§3](#3-per-control-mapping-ctl-001005)
+  and Pass/Fail thresholds.
+- Schedule the indicator collection job (align cadence with provision/teardown).
+- Configure **Control Issue** auto-creation on breach + assignment group.
+- (Optional) add a queryable CI attribute (e.g. `oneagent_audit_ok`) if scanning
+  work notes per CI proves too slow at the indicator level.
+- (Later) map CTL-xxx to a named framework (NIST 800-53 / SOC 2 / CIS) via
+  Authority Document → Citation, for an externally-recognizable audit story.
+
+No code is written for any of this yet.
+
+---
+
+## Related
+
+- [`controls.md`](controls.md) — the 5 control statements + evidence locations (source of truth)
+- [`servicenow-integration.md`](servicenow-integration.md) — the AAP ↔ ServiceNow integration this builds on
+- [`snow-log.md`](snow-log.md) — the immutable work-note evidence mechanism
+- `/servicenow` skill — REST/table API patterns, CMDB lifecycle, journal querying
