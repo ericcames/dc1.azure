@@ -1,0 +1,168 @@
+---
+# ============================================================================
+# playbooks/servicenow/create_user.yml
+# ============================================================================
+# Reusable operational playbook to provision a ServiceNow user and assign roles
+# + group memberships via the Table API. Run locally with SN_* env vars — NOT a
+# JT (no AAP credential needed, just ServiceNow).
+#
+# Defaults below provision Brian Hoppus as an exact-access clone of Eric Ames
+# (admin + 4 directly-granted roles; Ansible West Tigers + CAB Approval groups).
+# Override the user_* vars with -e to provision a different user.
+#
+# Idempotent / re-run safe:
+#   - skips creation if a user with user_email already exists (reuses sys_id)
+#   - skips a role grant / group membership that is already present
+#
+# NO password is set here. ServiceNow login will NOT work until the password is
+# set in the ServiceNow UI (User record → Set Password). The account is created
+# active so role/group assignment works; set the password out-of-band.
+#
+# Run:
+#   source docs/dev-environment.sh && \
+#   ansible-playbook playbooks/servicenow/create_user.yml \
+#     2>&1 | tee /tmp/snow-create-user-$(date +%Y%m%d-%H%M%S).log
+#
+# Prerequisites: SN_HOST, SN_USERNAME, SN_PASSWORD exported (auto-injected by
+# the DC1.Azure - ServiceNow credential when run from AAP).
+# ============================================================================
+
+- name: Create a ServiceNow user with roles and group memberships
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    user_user_name: bhoppus
+    user_first_name: Brian
+    user_last_name: Hoppus
+    user_email: bhoppus@redhat.com
+    # Eric's directly-granted roles (everything else inherits from admin).
+    # snc_basic_auth_api_access = REST API (basic-auth) access.
+    user_roles:
+      - admin
+      - cloud_admin
+      - change_manager
+      - personalize_choices
+      - snc_basic_auth_api_access
+    # name is for logging only; the membership is created by sys_id.
+    user_groups:
+      - { name: "Ansible West Tigers", sys_id: "d3067f9197a83110458278671153af43" }
+      - { name: "CAB Approval", sys_id: "b85d44954a3623120004689b2d5dd60a" }
+
+  tasks:
+    - name: Assert ServiceNow credentials are set
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'SN_HOST') | length > 0
+          - lookup('ansible.builtin.env', 'SN_USERNAME') | length > 0
+          - lookup('ansible.builtin.env', 'SN_PASSWORD') | length > 0
+        fail_msg: "Export SN_HOST, SN_USERNAME, SN_PASSWORD before running."
+
+    # ----- User record (create-if-absent) -----------------------------------
+    - name: Look up existing user by email
+      servicenow.itsm.api_info:
+        resource: sys_user
+        sysparm_query: "email={{ user_email }}"
+      register: existing_user
+
+    - name: Create the user (only if absent)
+      servicenow.itsm.api:
+        resource: sys_user
+        action: post
+        data:
+          user_name: "{{ user_user_name }}"
+          first_name: "{{ user_first_name }}"
+          last_name: "{{ user_last_name }}"
+          email: "{{ user_email }}"
+          active: "true"
+      register: created_user
+      when: existing_user.record | length == 0
+
+    - name: Resolve the user's sys_id
+      ansible.builtin.set_fact:
+        user_sys_id: >-
+          {{ (existing_user.record[0].sys_id
+              if existing_user.record | length > 0
+              else created_user.record.sys_id) }}
+
+    - name: Show the target user
+      ansible.builtin.debug:
+        msg: >-
+          User "{{ user_user_name }}" ({{ user_email }})
+          sys_id={{ user_sys_id }}
+          — {{ 'already existed (reused)' if existing_user.record | length > 0
+               else 'created' }}
+
+    # ----- Roles -------------------------------------------------------------
+    - name: Resolve role sys_ids by name
+      loop: "{{ user_roles }}"
+      loop_control:
+        label: "{{ item }}"
+      servicenow.itsm.api_info:
+        resource: sys_user_role
+        sysparm_query: "name={{ item }}"
+      register: role_lookups
+
+    - name: Assert every requested role resolved to exactly one record
+      ansible.builtin.assert:
+        that:
+          - item.record | length == 1
+        fail_msg: >-
+          Role '{{ item.item }}' matched {{ item.record | length }} records
+          (expected 1). Check the role name.
+      loop: "{{ role_lookups.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Look up which roles are already directly granted
+      servicenow.itsm.api_info:
+        resource: sys_user_has_role
+        sysparm_query: "user={{ user_sys_id }}^inherited=false"
+      register: existing_role_grants
+
+    - name: Grant roles not already present
+      loop: "{{ role_lookups.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      servicenow.itsm.api:
+        resource: sys_user_has_role
+        action: post
+        data:
+          user: "{{ user_sys_id }}"
+          role: "{{ item.record[0].sys_id }}"
+      when: >-
+        item.record[0].sys_id not in
+        (existing_role_grants.record | map(attribute='role.value') | list)
+
+    # ----- Group memberships -------------------------------------------------
+    - name: Look up existing group memberships
+      servicenow.itsm.api_info:
+        resource: sys_user_grmember
+        sysparm_query: "user={{ user_sys_id }}"
+      register: existing_groups
+
+    - name: Add group memberships not already present
+      loop: "{{ user_groups }}"
+      loop_control:
+        label: "{{ item.name }}"
+      servicenow.itsm.api:
+        resource: sys_user_grmember
+        action: post
+        data:
+          user: "{{ user_sys_id }}"
+          group: "{{ item.sys_id }}"
+      when: >-
+        item.sys_id not in
+        (existing_groups.record | map(attribute='group.value') | list)
+
+    # ----- Summary -----------------------------------------------------------
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "User: {{ user_first_name }} {{ user_last_name }} ({{ user_email }})"
+          - "sys_id: {{ user_sys_id }}"
+          - "Roles ensured: {{ user_roles | join(', ') }}"
+          - "Groups ensured: {{ user_groups | map(attribute='name') | join(', ') }}"
+          - "ACTION REQUIRED: set the password in the ServiceNow UI (User record
+             → Set Password). Login will not work until then."

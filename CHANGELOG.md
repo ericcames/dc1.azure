@@ -25,6 +25,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Path corrected.
 
 ### Added
+- **AB#177 — reusable ServiceNow user-provisioning playbook.** New
+  `playbooks/servicenow/create_user.yml` creates a `sys_user` and assigns roles
+  (`sys_user_has_role`) and group memberships (`sys_user_grmember`) via the Table
+  API. It is idempotent (skips an existing user by email, and any role/group
+  already present) and parameterized via `user_*` vars. No password is set — the
+  account is created `active` for role/group assignment, but login requires
+  setting the password in the SNow UI. Documented in the `servicenow` skill.
+  First use: provisioned Brian Hoppus as an exact-access clone of Eric (admin +
+  `cloud_admin`/`change_manager`/`personalize_choices`/`snc_basic_auth_api_access`;
+  `Ansible West Tigers` + `CAB Approval` groups).
 - **AB#171 — teardown is now a workflow that uninstalls OneAgent before
   destroy.** New `DC1.Azure - Teardown and Decommission` workflow brackets the
   existing `DC1.Azure - Teardown` JT with a first stage that gracefully

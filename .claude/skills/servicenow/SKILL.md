@@ -60,6 +60,7 @@ SNow-side setup instructions: `servicenow/README.md`.
 | `playbooks/servicenow/create_cmdb_relationship.yml` | Callback — link CI to business app |
 | `playbooks/servicenow/create_incident.yml` | Callback — open incident on failure |
 | `playbooks/servicenow/notice_ritm_started.yml` | Callback — start notice on RITM |
+| `playbooks/servicenow/create_user.yml` | API playbook — create a SNow user + assign roles and group memberships |
 | `aap_config/files/eda_credentials.yml` | EDA credentials (controller, event stream, SCM) |
 | `aap_config/files/eda_event_streams.yml` | EDA event stream definition |
 | `aap_config/files/eda_rulebook_activations.yml` | Rulebook activation + extra_vars |
@@ -119,6 +120,31 @@ GET /api/now/table/sys_journal_field?sysparm_query=element_id=<sys_id>^ORDERBYsy
 This is how you verify what each self-heal node actually posted (triage →
 remediate → close → confirm) and catch attribution mismatches between
 `short_description` and the remediation notes (see AB#166).
+
+### Create a ServiceNow user with roles and groups
+```bash
+source docs/dev-environment.sh && \
+ansible-playbook playbooks/servicenow/create_user.yml \
+  2>&1 | tee /tmp/snow-create-user-$(date +%Y%m%d-%H%M%S).log
+```
+Creates the `sys_user`, then assigns roles (`sys_user_has_role`) and group
+memberships (`sys_user_grmember`). Defaults provision Brian Hoppus as an
+exact-access clone of Eric; override the `user_*` vars (incl. `user_roles`,
+`user_groups`) with `-e` for a different user. Notes:
+
+- **No password is set** — login won't work until someone sets it in the SNow
+  UI (User record → Set Password). The account is created `active` so role/group
+  assignment works regardless.
+- **Idempotent / re-run safe** — skips creation if a user with that email
+  already exists, and skips any role grant / group membership already present.
+- **`admin` auto-inherits** hundreds of roles, so only the directly-granted set
+  needs listing. `snc_basic_auth_api_access` = REST API (basic-auth) access.
+- To find a group's `sys_id`: query `sys_user_group?name=<group>`. To clone
+  another user's directly-granted roles: query
+  `sys_user_has_role?user=<sys_id>^inherited=false`.
+- This does **not** add the user to the catalog-order allowlist — see the
+  "Business Rule Requested for allowlist" task above if they need to place
+  orders that fire the EDA workflow.
 
 ### Update the REST Message endpoint (Phase 13 — not yet automated)
 Currently manual: update the `Ames - DC1.Azure EDA Event Stream` Outbound REST
