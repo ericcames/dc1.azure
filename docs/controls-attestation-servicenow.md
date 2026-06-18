@@ -8,11 +8,15 @@ auditors can pull evidence of compliance on demand.
 > we can decide whether — and how — to pursue a real implementation. No
 > ServiceNow or AAP objects are created by reading this doc.
 
-> **Prerequisite gap (verified 2026-06-17): the GRC module is _not_ installed on
-> the current instance.** See [§5](#5-plugin-dependency--current-state). Policy
-> and Compliance Management is a separately licensed product; the auto-attestation
-> design below targets its tables but cannot be built until the plugin is active
-> on an entitled instance.
+> **Prerequisite (update 2026-06-17): the GRC module is now INSTALLED** on the
+> instance — **GRC: Policy and Compliance Management** `sn_compliance` v22.0.2 on
+> Yokohama (Demo Available entitlement). All target tables verified `HTTP 200`
+> (`sn_compliance_control`, `sn_compliance_policy`, `sn_grc_indicator`,
+> `sn_grc_issue`, `sn_grc_profile`). The step-by-step install walkthrough is in
+> [`servicenow-grc-setup.md`](servicenow-grc-setup.md). Path A (real GRC) is now
+> unblocked; the table names used in this design are confirmed against the live
+> instance. ([§5](#5-plugin-dependency--current-state) preserves the original
+> read-only detection method.)
 
 ---
 
@@ -52,10 +56,12 @@ instrumentation in the playbooks.
 | A control failing its check | **Control Issue** (`sn_grc_issue`) | auto-created when an indicator breaches threshold |
 | (future) named framework, e.g. NIST/SOC 2 | **Authority Document → Citation** | out of scope this round — we stay internal CTL-xxx |
 
-> **Table names are indicative.** ServiceNow renames GRC tables across releases
-> (e.g. Smart Assessment Engine uses `sn_smart_asmt_instance`; the legacy survey
-> table is `asmt_assessment_instance`). Confirm the exact API names against a live
-> GRC-enabled instance before building.
+> **Table names verified** on Yokohama / `sn_compliance` 22.0.2 (2026-06-17):
+> `sn_compliance_control`, `sn_compliance_policy`, `sn_grc_indicator`,
+> `sn_grc_issue`, and `sn_grc_profile` all return `HTTP 200`. Note ServiceNow can
+> rename GRC tables across releases (e.g. Smart Assessment Engine uses
+> `sn_smart_asmt_instance`; the legacy survey table is `asmt_assessment_instance`)
+> — re-confirm on a different release before building there.
 
 GRC's full top-down hierarchy is *Authority Document → Citation → Control
 Objective → Control → Control Test*. Because we're keeping the internal CTL-xxx
@@ -144,40 +150,46 @@ faster lookup than scanning work notes.
 
 ---
 
-## 5. Plugin dependency & current state
+## 5. Plugin dependency & how to detect it
 
-Policy and Compliance Management / IRM is **separately licensed** and is **not
-present** on the current ServiceNow instance. Verified read-only on 2026-06-17:
+Policy and Compliance Management / IRM is **separately licensed**. It was **absent
+when this design was first written**, then installed the same day — the before /
+after captured read-only on 2026-06-17:
 
-| Probe | Result | Meaning |
+| Probe | Before install | After install |
 |---|---|---|
-| `GET /api/now/table/sc_req_item` | HTTP 200 | auth + instance healthy |
-| `GET /api/now/table/sn_compliance_control` | HTTP 400 — *"Invalid table"* | table does not exist |
-| `GET /api/now/table/sys_db_object?nameLIKEsn_compliance^ORnameLIKEsn_grc` | no rows | no GRC tables defined |
-| `GET /api/now/table/sys_plugins` (id LIKE compliance/grc/risk) | no rows | no GRC plugin installed |
+| `GET /api/now/table/sc_req_item` | HTTP 200 | HTTP 200 |
+| `GET /api/now/table/sn_compliance_control` | HTTP 400 *"Invalid table"* | **HTTP 200** |
+| `GET /api/now/table/sn_grc_indicator` | HTTP 400 | **HTTP 200** |
+| `GET /api/now/table/sn_grc_issue` | HTTP 400 | **HTTP 200** |
 
 **Repeatable detection** (use the established `servicenow.itsm.api_info` / curl
 pattern from the `/servicenow` skill): probe `sn_compliance_control`. HTTP 200 ⇒
 GRC present; HTTP 400 *"Invalid table"* ⇒ absent.
 
-**Why it can't just be turned on by automation:** activation is an admin action
-in the ServiceNow **Store / Plugins** UI (or a HI request), and the module
-requires a paid entitlement that demo/PDI instances usually lack. It cannot be
-installed via the Table API, and shouldn't be force-activated even where the UI
-allows it.
+**Why it can't be turned on by automation:** installation is an admin action in
+the ServiceNow **Store / Application Manager** (or a HI request), and the module
+needs a paid entitlement (here, a *Demo Available* entitlement let us install
+without a separate purchase). It cannot be installed via the Table API. Full
+step-by-step walkthrough: [`servicenow-grc-setup.md`](servicenow-grc-setup.md).
+
+> GRC apps are Store-delivered scoped applications, so they do **not** appear in
+> the classic `sys_plugins` table — don't use that as a presence check; probe a
+> table instead.
 
 ---
 
 ## 6. Two paths forward
 
-Because GRC is absent today, this design supports two routes. **Recommended:**
-ship this doc now (valuable either way), pursue **Path A** for the authentic
-auditor story, and keep **Path B** as the no-license demo fallback.
+GRC is now installed on this instance, so **Path A is the active route.** Path B
+is retained for any instance that lacks the licensed module.
 
 ### Path A — real GRC (authentic auditor story)
 1. Confirm IRM / Policy & Compliance entitlement with the ServiceNow rep or via
    HI, **or** move the demo to an instance that ships GRC.
-2. Activate the plugin (admin Store/Plugins action — Eric, not automatable here).
+2. Install the application (admin Store action — not automatable here). A
+   step-by-step, screenshot-driven walkthrough is in
+   [`servicenow-grc-setup.md`](servicenow-grc-setup.md).
 3. Build per [§3](#3-per-control-mapping-ctl-001005): create the Control records,
    define the Indicators against the existing evidence queries, schedule them, and
    wire Control Issues on breach.

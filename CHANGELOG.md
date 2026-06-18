@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#179 — ServiceNow GRC setup guide + GRC now installed.** New
+  `docs/servicenow-grc-setup.md` — a customer-facing, screenshot-driven
+  walkthrough for installing **GRC: Policy and Compliance Management**
+  (`sn_compliance` v22.0.2) on the instance (Now Platform **Yokohama**), the
+  Path A prerequisite for the attestation design. Includes two annotated
+  screenshots (`docs/images/grc-setup-01..02`), the entitlement guidance
+  (Demo Available vs Request), and a read-only verify probe. The module is now
+  **installed and verified** — all target GRC tables return `HTTP 200`
+  (`sn_compliance_control`, `sn_compliance_policy`, `sn_grc_indicator`,
+  `sn_grc_issue`, `sn_grc_profile`), confirming the table names used in the
+  design doc. Updated `controls-attestation-servicenow.md` accordingly (Path A
+  unblocked; §5 now a before/after detection table).
 - **AB#178 — IT controls → ServiceNow attestation (design doc).** New
   `docs/controls-attestation-servicenow.md` maps the internal controls
   (`controls.md`, CTL-001…005) onto ServiceNow Policy and Compliance Management
