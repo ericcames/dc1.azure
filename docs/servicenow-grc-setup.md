@@ -108,6 +108,11 @@ dependency plugins.
 
 ## Step 3 — Verify the install
 
+When it finishes you get a **"Successfully installed"** confirmation, and the app
+page header shows **Installed Version 22.0.2** with an **Installed On** date.
+
+![Successfully installed confirmation for sn_compliance v22.0.2, with the installed version/date and the Load demo data quick action highlighted](images/grc-setup-03-installed.png)
+
 Re-run the Step 0 probe — it should now flip to **HTTP 200**:
 
 ```bash
@@ -117,6 +122,12 @@ curl -s -o /dev/null -w "HTTP %{http_code}\n" -u "$SN_USERNAME:$SN_PASSWORD" \
 
 In the UI, you should now see a **Policy and Compliance** application menu, and the
 guided setup ("through setup and …" panel on the app page) becomes available.
+
+> **Tip — Load demo data.** The app page's **Quick Actions** include **Load demo
+> data**, which seeds sample Authority Documents, Policies, and Controls. Handy for
+> exploring the module before you build the dc1.azure controls — but load it into a
+> non-production / demo instance only, and don't confuse the sample controls with
+> the CTL-001…005 records you'll create for this integration.
 
 **Verified on this instance (2026-06-17, Yokohama / `sn_compliance` 22.0.2)** — all
 core GRC tables came back `HTTP 200` after install:

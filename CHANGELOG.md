@@ -10,9 +10,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `docs/servicenow-grc-setup.md` — a customer-facing, screenshot-driven
   walkthrough for installing **GRC: Policy and Compliance Management**
   (`sn_compliance` v22.0.2) on the instance (Now Platform **Yokohama**), the
-  Path A prerequisite for the attestation design. Includes two annotated
-  screenshots (`docs/images/grc-setup-01..02`), the entitlement guidance
-  (Demo Available vs Request), and a read-only verify probe. The module is now
+  Path A prerequisite for the attestation design. Includes three annotated
+  screenshots (`docs/images/grc-setup-01..03`: Store catalog, install progress,
+  success), the entitlement guidance (Demo Available vs Request), a read-only
+  verify probe, and a "Load demo data" tip. The module is now
   **installed and verified** — all target GRC tables return `HTTP 200`
   (`sn_compliance_control`, `sn_compliance_policy`, `sn_grc_indicator`,
   `sn_grc_issue`, `sn_grc_profile`), confirming the table names used in the
