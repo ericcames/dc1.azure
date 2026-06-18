@@ -1,0 +1,160 @@
+---
+# ============================================================================
+# playbooks/servicenow/create_grc_controls.yml
+# ============================================================================
+# Builds the ServiceNow Policy & Compliance (GRC) structure for the dc1.azure
+# IT controls (docs/controls.md) so they can be continuously monitored and
+# surfaced to auditors. This is "Path A" of docs/controls-attestation-servicenow.md.
+#
+# For each control it creates, idempotently:
+#   sn_grc_profile            (shared "DC1.Azure - Demo Infrastructure" entity)
+#   sn_compliance_policy_statement   (Control Objective, one per CTL-xxx)
+#   sn_compliance_control     (the Control, objective applied to the profile)
+#   sn_grc_indicator          (automated "basic" indicator over ServiceNow data)
+#
+# SCOPE: ships the CTL-005 (CMDB registration) working slice. Add more controls
+# by appending to grc_controls below — the per-control include handles the rest.
+#
+# PREREQUISITE: GRC: Policy and Compliance Management must be installed
+# (docs/servicenow-grc-setup.md). Verify: GET sn_compliance_control -> HTTP 200.
+#
+# KNOWN MANUAL STEP: the indicator's data-source `table` is UI-only (the REST
+# Table API silently drops sn_grc_base_indicator.table on Yokohama / sn_compliance
+# 22.0.2). After this play runs, open each indicator → Method tab → set Table to
+# the value noted in `table_label` → Save → Execute. Full walk-through with
+# screenshots: docs/servicenow-grc-controls-build.md.
+#
+# Run locally (NOT a JT — just needs ServiceNow):
+#   source docs/dev-environment.sh && \
+#   ansible-playbook playbooks/servicenow/create_grc_controls.yml \
+#     2>&1 | tee /tmp/grc-controls-$(date +%Y%m%d-%H%M%S).log
+# ============================================================================
+
+- name: Build DC1.Azure GRC controls and indicators
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    grc_profile_name: "DC1.Azure - Demo Infrastructure"
+    grc_profile_class_name: "Server"          # seeded profile class
+    grc_profile_owner_user: "service.ansible"  # AAP ServiceAccount
+
+    grc_controls:
+      - id: "CTL-005"
+        objective_name: "CTL-005 - CMDB CI registration and business-app relationship"
+        description: >-
+          Every provisioned server must be registered as a CMDB Configuration
+          Item with the correct OS class and related to the business application
+          it supports via a Uses::Used by relationship.
+        implementation_statement: >-
+          Enforced automatically by the DC1.Azure AAP workflow:
+          playbooks/servicenow/create_ci.yml registers each provisioned VM as a
+          cmdb_ci_win_server or cmdb_ci_linux_server and links it to the RITM via
+          task_ci; create_cmdb_relationship.yml relates the CI to the Ansible
+          Demonstrations business application via cmdb_rel_ci.
+        indicator:
+          name: "CTL-005 - CMDB CI registration coverage"
+          table_label: "Server [cmdb_ci_server]"   # set in UI (see header)
+          criteria: "short_descriptionLIKECreated by the DC1.Azure demo^install_status!=7"
+          sample_collection_type: count
+          target_type: count
+          target: 1
+          collection_frequency: daily
+          short_description: >-
+            Counts live DC1.Azure-provisioned server CIs registered in the CMDB
+            (excludes retired). Evidence that create_ci.yml is registering every
+            provisioned VM.
+
+      # ---- To extend (CTL-001 / CTL-004 are also ServiceNow-native) ----------
+      # - id: "CTL-001"
+      #   objective_name: "CTL-001 - Dynatrace OneAgent on all provisioned infrastructure"
+      #   ... indicator.criteria over the RITM work notes / a CI attribute ...
+      #
+      # CTL-002 / CTL-003 evidence lives in AAP, not ServiceNow — those need AAP
+      # to push a signal into a readable table first (see the design doc).
+
+  tasks:
+    - name: Assert ServiceNow credentials are set
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'SN_HOST') | length > 0
+          - lookup('ansible.builtin.env', 'SN_USERNAME') | length > 0
+          - lookup('ansible.builtin.env', 'SN_PASSWORD') | length > 0
+        fail_msg: "Export SN_HOST, SN_USERNAME, SN_PASSWORD before running."
+
+    - name: Probe GRC install (sn_compliance_control must exist)
+      servicenow.itsm.api_info:
+        resource: sn_compliance_control
+        sysparm_query: "sys_idISNOTEMPTY"
+      register: grc_present
+      failed_when: false
+
+    - name: Fail clearly if GRC is not installed
+      ansible.builtin.fail:
+        msg: >-
+          GRC tables are not present — install Policy and Compliance Management
+          first (docs/servicenow-grc-setup.md).
+      when: grc_present.record is not defined or grc_present is failed
+
+    # ----- Profile class + owner (resolve by name for portability) -----------
+    - name: Resolve profile class sys_id
+      servicenow.itsm.api_info:
+        resource: sn_grc_profile_class
+        sysparm_query: "name={{ grc_profile_class_name }}"
+      register: profile_class
+
+    - name: Resolve owner user sys_id
+      servicenow.itsm.api_info:
+        resource: sys_user
+        sysparm_query: "user_name={{ grc_profile_owner_user }}"
+      register: owner_user
+
+    - name: Assert profile class and owner resolved
+      ansible.builtin.assert:
+        that:
+          - profile_class.record | length == 1
+          - owner_user.record | length == 1
+        fail_msg: "Could not resolve profile class '{{ grc_profile_class_name }}' or owner '{{ grc_profile_owner_user }}'."
+
+    # ----- Profile (create-if-absent) ----------------------------------------
+    - name: Look up the profile by name
+      servicenow.itsm.api_info:
+        resource: sn_grc_profile
+        sysparm_query: "name={{ grc_profile_name }}"
+      register: grc_profile
+
+    - name: Create the profile (if absent)
+      servicenow.itsm.api:
+        resource: sn_grc_profile
+        action: post
+        data:
+          name: "{{ grc_profile_name }}"
+          profile_class: "{{ profile_class.record[0].sys_id }}"
+          owned_by: "{{ owner_user.record[0].sys_id }}"
+          short_description: "Scope for the DC1.Azure continuous-attestation demo (Azure VMs provisioned via AAP)."
+      register: grc_profile_created
+      when: grc_profile.record | length == 0
+
+    - name: Resolve profile sys_id
+      ansible.builtin.set_fact:
+        grc_profile_sys_id: >-
+          {{ (grc_profile.record[0].sys_id
+              if grc_profile.record | length > 0
+              else grc_profile_created.record.sys_id) }}
+
+    # ----- Per-control chain --------------------------------------------------
+    - name: Build each control's objective / control / indicator
+      ansible.builtin.include_tasks: grc_control_tasks.yml
+      loop: "{{ grc_controls }}"
+      loop_control:
+        loop_var: control
+        label: "{{ control.id }}"
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "Profile: {{ grc_profile_name }} ({{ grc_profile_sys_id }})"
+          - "Controls ensured: {{ grc_controls | map(attribute='id') | join(', ') }}"
+          - "MANUAL STEP per indicator: set Method → Table in the GRC UI, then
+             Execute. See docs/servicenow-grc-controls-build.md."

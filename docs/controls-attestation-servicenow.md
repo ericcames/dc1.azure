@@ -192,7 +192,10 @@ is retained for any instance that lacks the licensed module.
    [`servicenow-grc-setup.md`](servicenow-grc-setup.md).
 3. Build per [§3](#3-per-control-mapping-ctl-001005): create the Control records,
    define the Indicators against the existing evidence queries, schedule them, and
-   wire Control Issues on breach.
+   wire Control Issues on breach. **The CTL-005 working slice is built** —
+   idempotent playbook (`playbooks/servicenow/create_grc_controls.yml`) +
+   reproduction guide with the data model and gotchas:
+   [`servicenow-grc-controls-build.md`](servicenow-grc-controls-build.md).
 
 ### Path B — approximate it now (demo without the paid module)
 Reuse what already exists — CMDB CIs, `task_ci`, and immutable `snow_log` work

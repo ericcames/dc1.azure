@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- **AB#180 — GRC controls + continuous-monitoring indicators (CTL-005 slice,
+  Path A).** New idempotent playbook `playbooks/servicenow/create_grc_controls.yml`
+  (+ per-control include `grc_control_tasks.yml`) builds the ServiceNow Policy &
+  Compliance chain for the dc1.azure controls: a `sn_grc_profile`
+  (*DC1.Azure - Demo Infrastructure*), a Control Objective, a Control
+  (`CTRL0020001`), and an automated **basic** Indicator (`IND0020006`) over
+  `cmdb_ci_server`. Ships the CTL-005 (CMDB registration) working slice; extends
+  to CTL-001/004 (ServiceNow-native) by appending to `grc_controls`. New
+  reproduction guide `docs/servicenow-grc-controls-build.md` documents the GRC
+  data model, the exact API recipe, three live-discovered gotchas (sending
+  `entity`/`template` trips the "Verify entity change" BR; `sn_grc_indicator_result`
+  / `_task` creation is system-only — role `nobody`, no admin override; the
+  indicator's `table` field is UI-only), the one manual UI step (set Table →
+  Execute), and verification. Design doc updated (Path A slice built). Two result
+  screenshots added (`docs/images/grc-build-01..02`).
 - **AB#179 — ServiceNow GRC setup guide + GRC now installed.** New
   `docs/servicenow-grc-setup.md` — a customer-facing, screenshot-driven
   walkthrough for installing **GRC: Policy and Compliance Management**

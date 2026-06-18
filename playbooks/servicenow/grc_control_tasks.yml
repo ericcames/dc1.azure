@@ -1,0 +1,123 @@
+---
+# ============================================================================
+# playbooks/servicenow/grc_control_tasks.yml
+# ============================================================================
+# Per-control include for create_grc_controls.yml. Builds the GRC chain for a
+# single control:  Control Objective -> Control -> Indicator (+ config).
+#
+# Expects (set by the calling play):
+#   - control           : one item from grc_controls (see create_grc_controls.yml)
+#   - grc_profile_sys_id : sys_id of the sn_grc_profile to attach the control to
+#
+# Idempotent: each record is looked up by name and created only if absent.
+#
+# NOTE: the indicator's `table` field is UI-only (the ServiceNow REST Table API
+# silently drops writes to sn_grc_base_indicator.table — verified on Yokohama /
+# sn_compliance 22.0.2). This play sets everything else; the table + first run
+# must be set in the GRC UI. See docs/servicenow-grc-controls-build.md.
+# ============================================================================
+
+# ----- Control Objective (sn_compliance_policy_statement) -------------------
+- name: "Look up Control Objective by name ({{ control.id }})"
+  servicenow.itsm.api_info:
+    resource: sn_compliance_policy_statement
+    sysparm_query: "name={{ control.objective_name }}"
+  register: grc_objective
+
+- name: "Create Control Objective if absent ({{ control.id }})"
+  servicenow.itsm.api:
+    resource: sn_compliance_policy_statement
+    action: post
+    data:
+      name: "{{ control.objective_name }}"
+      description: "{{ control.description }}"
+      reference: "{{ control.id }}"
+  register: grc_objective_created
+  when: grc_objective.record | length == 0
+
+- name: "Resolve objective sys_id ({{ control.id }})"
+  ansible.builtin.set_fact:
+    objective_sys_id: >-
+      {{ (grc_objective.record[0].sys_id
+          if grc_objective.record | length > 0
+          else grc_objective_created.record.sys_id) }}
+
+# ----- Control (sn_compliance_control) --------------------------------------
+- name: "Look up Control by name ({{ control.id }})"
+  servicenow.itsm.api_info:
+    resource: sn_compliance_control
+    sysparm_query: "name={{ control.objective_name }}"
+  register: grc_control
+
+- name: "Create Control if absent ({{ control.id }})"
+  servicenow.itsm.api:
+    resource: sn_compliance_control
+    action: post
+    data:
+      name: "{{ control.objective_name }}"
+      content: "{{ objective_sys_id }}"
+      profile: "{{ grc_profile_sys_id }}"
+      implementation_statement: "{{ control.implementation_statement }}"
+  register: grc_control_created
+  when: grc_control.record | length == 0
+
+- name: "Resolve control sys_id ({{ control.id }})"
+  ansible.builtin.set_fact:
+    control_sys_id: >-
+      {{ (grc_control.record[0].sys_id
+          if grc_control.record | length > 0
+          else grc_control_created.record.sys_id) }}
+
+# ----- Indicator (sn_grc_indicator) -----------------------------------------
+# Create with `item` only — entity is derived from the control's profile by the
+# platform. Setting `template` or `entity` here trips the "Verify entity change"
+# business rule and aborts the insert.
+- name: "Look up Indicator by name ({{ control.id }})"
+  servicenow.itsm.api_info:
+    resource: sn_grc_indicator
+    sysparm_query: "name={{ control.indicator.name }}"
+  register: grc_indicator
+
+- name: "Create Indicator if absent ({{ control.id }})"
+  servicenow.itsm.api:
+    resource: sn_grc_indicator
+    action: post
+    data:
+      name: "{{ control.indicator.name }}"
+      item: "{{ control_sys_id }}"
+      category: "Automated (DC1.Azure native CMDB indicator)"
+  register: grc_indicator_created
+  when: grc_indicator.record | length == 0
+
+- name: "Resolve indicator sys_id ({{ control.id }})"
+  ansible.builtin.set_fact:
+    indicator_sys_id: >-
+      {{ (grc_indicator.record[0].sys_id
+          if grc_indicator.record | length > 0
+          else grc_indicator_created.record.sys_id) }}
+
+# Apply the automated-collection config. `table` is intentionally NOT set here
+# (UI-only — see header). Re-applying via PATCH is safe/idempotent.
+- name: "Configure Indicator as basic/automated ({{ control.id }})"
+  servicenow.itsm.api:
+    resource: sn_grc_indicator
+    action: patch
+    sys_id: "{{ indicator_sys_id }}"
+    data:
+      type: basic
+      criteria: "{{ control.indicator.criteria }}"
+      sample_collection_type: "{{ control.indicator.sample_collection_type | default('count') }}"
+      target_type: "{{ control.indicator.target_type | default('count') }}"
+      target: "{{ control.indicator.target | default(1) }}"
+      collection_frequency: "{{ control.indicator.collection_frequency | default('daily') }}"
+      active: "true"
+      short_description: "{{ control.indicator.short_description }}"
+
+- name: "Report per-control result ({{ control.id }})"
+  ansible.builtin.debug:
+    msg:
+      - "Control objective: {{ control.objective_name }} ({{ objective_sys_id }})"
+      - "Control:           sys_id {{ control_sys_id }}"
+      - "Indicator:         {{ control.indicator.name }} ({{ indicator_sys_id }})"
+      - "MANUAL STEP: set Indicator → Method → Table = {{ control.indicator.table_label }}
+         in the GRC UI, then Execute. (table is not API-settable.)"
