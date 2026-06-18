@@ -83,6 +83,9 @@ export REDHAT_SUBSCRIPTIONS_CLIENT_SECRET=REPLACE_ME_RH_SVC_ACCOUNT_CLIENT_SECRE
 # into the portal with these. Choose your own values.
 export DC1_AZURE_DEV_ADMIN_PASSWORD=REPLACE_ME_DEV_LEAD_PASSWORD
 export DC1_AZURE_JR_DEV_PASSWORD=REPLACE_ME_JR_DEV_PASSWORD
+# RHDH-based Ansible self-service portal route (separate OpenShift route, NOT the
+# AAP gateway). Pattern: https://rhaap-portal-aap-portal.apps.<cluster>
+export SELF_SERVICE_PORTAL_URL=https://rhaap-portal-aap-portal.apps.REPLACE_ME_CLUSTER_DOMAIN
 
 # --- Linux VM (Phase 16) -----------------------------------------------------
 # SSH key pair for the Linux VM. Use the same key as your laptop so you can SSH

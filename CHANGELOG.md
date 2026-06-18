@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- **AB#180 — GRC build doc corrections + verification screenshots.** Fixed
+  `servicenow-grc-controls-build.md`: Source table lives on the **Supporting Data**
+  tab (not "Method tab"), condition is on **Basic Criteria** tab, and the save
+  button is **Update** (not "Save"). Added two annotated verification screenshots
+  (`grc-build-03-indicator-passed.png`, `grc-build-04-control-compliant.png`)
+  confirming IND0020006 Passed and CTRL0020001 Compliant after live Execute.
+- `docs/dev-environment.sh.example` — added `SELF_SERVICE_PORTAL_URL` placeholder
+  for the RHDH-based Ansible self-service portal route.
+
 ### Added
 - **AB#180 — GRC controls + continuous-monitoring indicators (CTL-005 slice,
   Path A).** New idempotent playbook `playbooks/servicenow/create_grc_controls.yml`

@@ -83,7 +83,7 @@ recipe, including three non-obvious gotchas discovered live.
    > either trips the *"Verify entity change"* business rule and aborts the
    > insert. The entity (Profile) is derived from the control automatically.
 
-   ![Indicator IND0020006 linked to Control CTL-005, Entity DC1.Azure - Demo Infrastructure, with Method / Results tabs](images/grc-build-02-indicator.png)
+   ![Indicator IND0020006 linked to Control CTL-005, Entity DC1.Azure - Demo Infrastructure, with Supporting Data / Basic Criteria / Results tabs](images/grc-build-02-indicator.png)
 
    *(Captured while still "Manual"; the playbook then sets it to **Basic** — see
    step 5.)*
@@ -108,10 +108,11 @@ recipe, including three non-obvious gotchas discovered live.
 In the GRC UI:
 
 1. Open the indicator (**IND0020006** — *CTL-005 - CMDB CI registration coverage*).
-2. **Method** tab → set **Table** = `Server [cmdb_ci_server]`. (The **Type** is
-   already *Basic* and the **Condition** is already populated by the playbook.)
-3. **Save**, then click **Execute** to run collection immediately (otherwise it
-   runs on the daily schedule).
+2. **Supporting Data** tab → set **Source table** = `Server [cmdb_ci_server]`.
+   (The **Type** on the Method tab is already *Basic* and the **Condition** on the
+   Basic Criteria tab is already populated by the playbook.)
+3. Click **Update** to save, then click **Execute** to run collection immediately
+   (otherwise it runs on the daily schedule).
 
 This produces an **Indicator Result** and rolls the Pass/Fail up to the Control.
 
@@ -128,9 +129,15 @@ This produces an **Indicator Result** and rolls the Pass/Fail up to the Control.
 
 ## Verify
 
-- **Indicator → Results tab** shows a Pass/Fail row with the collected count.
-- **Control CTRL0020001** reflects the indicator's status; a failing indicator
-  raises a **Control Issue** (`sn_grc_issue`).
+- **Indicator → Results tab** shows Status: Passed with the collected count.
+
+  ![Indicator IND0020006 Results tab showing Status: Passed after Execute](images/grc-build-03-indicator-passed.png)
+
+- **Control CTRL0020001** reflects the indicator's status (Status: Compliant);
+  a failing indicator raises a **Control Issue** (`sn_grc_issue`).
+
+  ![Control CTRL0020001 showing Status: Compliant after indicator pass rolled up](images/grc-build-04-control-compliant.png)
+
 - Read-only API check of the indicator's last result:
   ```bash
   curl -s -u "$SN_USERNAME:$SN_PASSWORD" \
