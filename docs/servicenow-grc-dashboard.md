@@ -7,6 +7,8 @@ profile-scoped reports assembled onto a responsive dashboard — which is the
 ([`controls-attestation-servicenow.md`](controls-attestation-servicenow.md) §4)
 ends at.
 
+> **New here?** Start at the [GRC documentation index](servicenow-grc-README.md).
+
 > **Captured on:** Now Platform **Yokohama**, **GRC: Policy and Compliance
 > Management `sn_compliance` 22.0.2**. Table/UI names shift across releases —
 > re-verify on yours.

@@ -911,6 +911,43 @@ teardown; and a teardown leaves no stale Dynatrace problems.
 
 ---
 
+### Phase 23 — GRC: Continuous Attestation & Auditor Dashboard  🔄
+
+*Turns the automation evidence dc1.azure already produces (CMDB CIs, RITM work
+notes, AAP job history) into audit-ready compliance posture in ServiceNow Policy
+& Compliance Management. A ServiceNow **Indicator** reads the evidence on a
+schedule and auto Pass/Fails a **Control**; a human **attests** it; a profile-
+scoped **dashboard** shows it. Epic **AB#178–182**. Entry point:
+[`docs/servicenow-grc-README.md`](docs/servicenow-grc-README.md).*
+
+- ✅ **Design + as-built record (AB#178).** Maps CTL-001…005 onto GRC constructs,
+  the closed-loop evidence-flow architecture, and the remaining-work list —
+  [`docs/controls-attestation-servicenow.md`](docs/controls-attestation-servicenow.md).
+- ✅ **GRC module installed (AB#179).** `sn_compliance` 22.0.2 on Yokohama (Demo
+  Available entitlement); customer-facing install walkthrough with entitlement
+  guidance and read-only verify probes —
+  [`docs/servicenow-grc-setup.md`](docs/servicenow-grc-setup.md).
+- ✅ **CTL-005 Control + automated Indicator (AB#180).** Idempotent
+  `playbooks/servicenow/create_grc_controls.yml` builds Profile → Control
+  Objective → Control → Indicator; reproduction guide captures the data model and
+  three live-found gotchas (entity/template BR, system-only results, UI-only
+  `table` field) — [`docs/servicenow-grc-controls-build.md`](docs/servicenow-grc-controls-build.md).
+- ✅ **Auditor attestation walkthrough (AB#181).** Draft→Attest→Review→Monitor
+  lifecycle with the service-account-impersonation fix (reassign respondent to a
+  human) — [`docs/servicenow-grc-auditor-walkthrough.md`](docs/servicenow-grc-auditor-walkthrough.md).
+- ✅ **Posture dashboard (AB#182).** Two profile-scoped reports (control posture +
+  attestation status) on a Platform Analytics dashboard —
+  [`docs/servicenow-grc-dashboard.md`](docs/servicenow-grc-dashboard.md).
+- ⬜ **Remaining controls.** CTL-001 / CTL-004 are ServiceNow-native (indicator
+  recipe ready); CTL-002 / CTL-003 need an AAP→ServiceNow evidence push first.
+
+**Exit criteria:** an auditor can pull timestamped, machine-generated proof that
+CTL-005 is operating — a Compliant control backed by an automated indicator and a
+completed human attestation — from a single profile-scoped dashboard, all
+reproducible from the documented playbook + walkthroughs.
+
+---
+
 ## Naming Conventions
 
 To avoid collision with existing `demo.datacenter` (AWS) objects in shared AAP instances:

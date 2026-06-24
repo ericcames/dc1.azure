@@ -65,6 +65,7 @@ dc1.azure/
 │   ├── INSTALL.md        ← manual install guide (Phase 7)
 │   ├── demo-runbook.md   ← SE-facing live-demo script (Phase 6 — AAP-driven flow)
 │   ├── servicenow-integration.md ← ServiceNow design + build spec (Phase 8)
+│   ├── servicenow-grc-README.md ← GRC continuous-attestation doc-set index (Phase 23)
 │   ├── ee-security-remediation.md ← EE security-scan remediation story (talking track + engineering record)
 │   ├── ee-why-custom-ee.md  ← rationale for shipping a purpose-built EE (Phase 8)
 │   ├── ee-versioning.md     ← EE deliberate-update model + bump runbook (AB#95)

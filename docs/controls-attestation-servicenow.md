@@ -1,22 +1,22 @@
-# IT Controls → ServiceNow Attestation (design / exploration)
+# IT Controls → ServiceNow Attestation (design + as-built record)
 
-How the dc1.azure IT controls (`docs/controls.md`, CTL-001…005) would map into
+How the dc1.azure IT controls (`docs/controls.md`, CTL-001…005) map into
 ServiceNow's **Policy and Compliance Management** (part of IRM/GRC) so that
-auditors can pull evidence of compliance on demand.
+auditors can pull evidence of compliance on demand — the design rationale, and
+the record of what has since been built against it.
 
-> **Status: design only.** Nothing in this document is built yet. It exists so
-> we can decide whether — and how — to pursue a real implementation. No
-> ServiceNow or AAP objects are created by reading this doc.
+> **Start at the [GRC documentation index](servicenow-grc-README.md)** for the
+> reading order and the control-coverage matrix.
 
-> **Prerequisite (update 2026-06-17): the GRC module is now INSTALLED** on the
-> instance — **GRC: Policy and Compliance Management** `sn_compliance` v22.0.2 on
-> Yokohama (Demo Available entitlement). All target tables verified `HTTP 200`
-> (`sn_compliance_control`, `sn_compliance_policy`, `sn_grc_indicator`,
-> `sn_grc_issue`, `sn_grc_profile`). The step-by-step install walkthrough is in
-> [`servicenow-grc-setup.md`](servicenow-grc-setup.md). Path A (real GRC) is now
-> unblocked; the table names used in this design are confirmed against the live
-> instance. ([§5](#5-plugin-dependency--current-state) preserves the original
-> read-only detection method.)
+> **Status: design realized.** The GRC module is **installed**
+> (`sn_compliance` v22.0.2 on Yokohama, Demo Available entitlement; all target
+> tables verified `HTTP 200`), and the design has been **built for CTL-005** —
+> Control + automated Indicator ([`servicenow-grc-controls-build.md`](servicenow-grc-controls-build.md)),
+> a human attestation lifecycle ([`servicenow-grc-auditor-walkthrough.md`](servicenow-grc-auditor-walkthrough.md)),
+> and the auditor posture dashboard ([`servicenow-grc-dashboard.md`](servicenow-grc-dashboard.md)).
+> The remaining controls are designed (§3) but not yet built; see the coverage
+> matrix in the [index](servicenow-grc-README.md#whats-actually-built-control-coverage).
+> This doc keeps the original design intact so the *why* travels with the *what*.
 
 ---
 
@@ -184,52 +184,47 @@ step-by-step walkthrough: [`servicenow-grc-setup.md`](servicenow-grc-setup.md).
 
 ---
 
-## 6. Two paths forward
+## 6. Building it (real GRC)
 
-GRC is now installed on this instance, so **Path A is the active route.** Path B
-is retained for any instance that lacks the licensed module.
+GRC is installed on this instance, so we build against the real module — the
+authentic auditor story, no approximations.
 
-### Path A — real GRC (authentic auditor story)
-1. Confirm IRM / Policy & Compliance entitlement with the ServiceNow rep or via
-   HI, **or** move the demo to an instance that ships GRC.
-2. Install the application (admin Store action — not automatable here). A
-   step-by-step, screenshot-driven walkthrough is in
+1. Confirm IRM / Policy & Compliance entitlement (or move the demo to an instance
+   that ships GRC). A step-by-step, screenshot-driven install walkthrough is in
    [`servicenow-grc-setup.md`](servicenow-grc-setup.md).
-3. Build per [§3](#3-per-control-mapping-ctl-001005): create the Control records,
+2. Build per [§3](#3-per-control-mapping-ctl-001005): create the Control records,
    define the Indicators against the existing evidence queries, schedule them, and
    wire Control Issues on breach. **The CTL-005 working slice is built** —
    idempotent playbook (`playbooks/servicenow/create_grc_controls.yml`) +
    reproduction guide with the data model and gotchas:
    [`servicenow-grc-controls-build.md`](servicenow-grc-controls-build.md).
+3. Take the human attestation and walk the control lifecycle
+   ([`servicenow-grc-auditor-walkthrough.md`](servicenow-grc-auditor-walkthrough.md)),
+   then surface it on the posture dashboard
+   ([`servicenow-grc-dashboard.md`](servicenow-grc-dashboard.md)).
 
-### Path B — approximate it now (demo without the paid module)
-Reuse what already exists — CMDB CIs, `task_ci`, and immutable `snow_log` work
-notes **are** the evidence. Two sub-options:
-- **(i) Custom tables** that mimic Control / Control Test / Evidence, populated by
-  a small scheduled job that runs the same queries from [§3](#3-per-control-mapping-ctl-001005).
-- **(ii) Performance Analytics / report-based "compliance dashboard"** over the
-  existing RITM/CMDB data.
-
-Either way, label it clearly as demonstrating the *concept* of continuous
-attestation; production would use real GRC (Path A).
+> **No licensed module?** An instance without GRC could only *approximate* this
+> (custom tables, or a Performance Analytics report over the existing RITM/CMDB
+> data) — clearly labelled as the *concept*, not real GRC. Out of scope here: the
+> instance ships the module, so we build the genuine article.
 
 ---
 
-## 7. Build-it-later (future implementation phase)
+## 7. Remaining work
 
-A real build would be a candidate ADO **Epic** ("ServiceNow continuous control
-attestation") with Features roughly per control. Tasks, once GRC is live:
-- Create 5 **Control** records (CTL-001…005) with statements from `controls.md`.
-- Define 5 **Indicators** with the queries in [§3](#3-per-control-mapping-ctl-001005)
-  and Pass/Fail thresholds.
-- Schedule the indicator collection job (align cadence with provision/teardown).
-- Configure **Control Issue** auto-creation on breach + assignment group.
+Delivered as ADO Phase 23 (Epic "GRC — Continuous Attestation & Auditor
+Dashboard", AB#178–182): the GRC install, the **CTL-005** Control + Indicator +
+attestation, and the posture dashboard. Still open:
+- Build the **CTL-001** and **CTL-004** Indicators (ServiceNow-native — give them
+  a `criteria` over the RITM evidence, same pattern as CTL-005).
+- For **CTL-002 / CTL-003**, push an AAP signal into a readable ServiceNow table
+  first, then read it with a basic Indicator (their evidence lives in AAP).
+- Schedule the indicator collection job (align cadence with provision/teardown)
+  and wire **Control Issue** auto-creation on breach + assignment group.
 - (Optional) add a queryable CI attribute (e.g. `oneagent_audit_ok`) if scanning
   work notes per CI proves too slow at the indicator level.
 - (Later) map CTL-xxx to a named framework (NIST 800-53 / SOC 2 / CIS) via
   Authority Document → Citation, for an externally-recognizable audit story.
-
-No code is written for any of this yet.
 
 ---
 

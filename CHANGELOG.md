@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- **GRC documentation cleanup + index (Phase 23 wrap-up; AB#183).** Added a
+  new entry-point [`docs/servicenow-grc-README.md`](docs/servicenow-grc-README.md)
+  that orders the six GRC docs into a reading path and holds a control-coverage
+  matrix (CTL-005 built & live; CTL-001/004 designed; CTL-002/003 design only).
+  Reframed [`docs/controls-attestation-servicenow.md`](docs/controls-attestation-servicenow.md)
+  from "design only" to a **design + as-built record** (its headline banner
+  contradicted the now-built CTL-005 slice + dashboard), **removed the dead
+  "Path B — approximate it without the paid module" section** (GRC is installed;
+  Path A is built), and updated §7 from "no code written yet" to the real
+  remaining-work list. Added "start at the GRC index" pointers to all six docs,
+  surfaced the index in `README.md` and a new **Phase 23** section in `ROADMAP.md`,
+  and redacted a Dynatrace tenant identifier in `controls.md` to a placeholder.
 - **AB#181 — GRC control owner default → interactive user.** Changed
   `create_grc_controls.yml` `grc_profile_owner_user` from `service.ansible` to
   `admin`. The control owner derives the attestation respondent (via

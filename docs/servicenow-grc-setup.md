@@ -3,8 +3,10 @@
 A step-by-step walkthrough for installing the ServiceNow **Policy and Compliance
 Management** (IRM/GRC) application that the dc1.azure
 [continuous-attestation design](controls-attestation-servicenow.md) depends on.
-This is the **Path A** ("real GRC") prerequisite: it creates the Control,
-Control Test, Indicator, and Control Issue tables the attestation model writes to.
+It creates the Control, Control Test, Indicator, and Control Issue tables the
+attestation model writes to.
+
+> **New here?** Start at the [GRC documentation index](servicenow-grc-README.md).
 
 > **Who this is for:** a customer (or demo engineer) standing up GRC on their own
 > ServiceNow instance. You need the **admin** role and the application must be
@@ -55,7 +57,7 @@ curl -s -o /dev/null -w "HTTP %{http_code}\n" -u "$SN_USERNAME:$SN_PASSWORD" \
 
 - **HTTP 400** ("Invalid table") → GRC is **not** installed. Continue below.
 - **HTTP 200** → GRC is already installed; skip to
-  [building the controls](controls-attestation-servicenow.md#7-build-it-later-future-implementation-phase).
+  [building the controls](servicenow-grc-controls-build.md).
 
 ---
 
@@ -147,8 +149,8 @@ core GRC tables came back `HTTP 200` after install:
 
 ## Next — build the controls
 
-With GRC live, follow **Path A** in the
-[continuous-attestation design](controls-attestation-servicenow.md#6-two-paths-forward):
+With GRC live, build the controls per the
+[continuous-attestation design](controls-attestation-servicenow.md#6-building-it-real-grc):
 
 1. Create 5 **Control** records (CTL-001…005) from [`controls.md`](controls.md).
 2. Define the **continuous-monitoring Indicators** against the evidence dc1.azure

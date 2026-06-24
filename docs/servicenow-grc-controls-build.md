@@ -2,8 +2,10 @@
 
 How the dc1.azure IT controls (`controls.md`) are built into ServiceNow Policy &
 Compliance Management as **Controls** with **continuous-monitoring Indicators** —
-"Path A" of the [attestation design](controls-attestation-servicenow.md). Written
-so a customer or another SE can recreate it on their own instance.
+the real-GRC build of the [attestation design](controls-attestation-servicenow.md).
+Written so a customer or another SE can recreate it on their own instance.
+
+> **New here?** Start at the [GRC documentation index](servicenow-grc-README.md).
 
 > **Captured on:** Now Platform **Yokohama**, **GRC: Policy and Compliance
 > Management `sn_compliance` 22.0.2**. GRC table names/behaviour can shift across
@@ -157,7 +159,7 @@ Append to `grc_controls` in `create_grc_controls.yml`:
   evidence in **AAP, not ServiceNow**. For those, AAP must first push a signal
   into a readable ServiceNow table (e.g. a CI attribute or a small custom table),
   which a basic indicator then reads. Tracked as the AAP-push follow-up in the
-  [design doc](controls-attestation-servicenow.md#6-two-paths-forward).
+  [design doc](controls-attestation-servicenow.md#7-remaining-work).
 
 > **Related — CMDB record creation.** CMDB CIs are the evidence these indicators
 > read. dc1.azure creates them via `playbooks/servicenow/create_ci.yml`; a sibling

@@ -4,6 +4,11 @@ Control statements mapped to their technical enforcement in the dc1.azure
 AAP workflow. Each control references the specific workflow node, playbook
 task, and evidence artifact that satisfies it.
 
+> **Looking for the ServiceNow GRC attestation of these controls?** Start at the
+> [GRC documentation index](servicenow-grc-README.md) — it orders the design,
+> install, build, attestation, and dashboard docs and tracks which controls are
+> built vs designed.
+
 ---
 
 ## CTL-001: Dynatrace OneAgent on all provisioned infrastructure
@@ -55,12 +60,12 @@ non-breaking (failures are logged but don't block the provisioning workflow).
 18:01:21  dc1az-win-small (Windows): OneAgent installed successfully (host group: dc1-azure).
 18:02:23  dc1az-lnx-small (Linux) — OneAgent audit proof:
           Version:    1.337.51.20260520-164208
-          Tenant:     https://ybz84624.live.dynatrace.com
+          Tenant:     https://<env-id>.live.dynatrace.com
           Host group: dc1-azure
           Connected:  yes
 18:05:03  dc1az-win-small (Windows) — OneAgent audit proof:
           Version:    1.337.51.20260520-164208
-          Tenant:     https://ybz84624.live.dynatrace.com
+          Tenant:     https://<env-id>.live.dynatrace.com
           Host group: dc1-azure
           Connected:  yes
 ```

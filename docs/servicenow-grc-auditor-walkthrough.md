@@ -8,6 +8,8 @@ is the human-facing companion to the
 control + automated indicator; this one walks the attestation a person performs
 on top of it.
 
+> **New here?** Start at the [GRC documentation index](servicenow-grc-README.md).
+
 > **Captured on:** Now Platform **Yokohama**, **GRC: Policy and Compliance
 > Management `sn_compliance` 22.0.2**. GRC table names/behaviour can shift across
 > releases — re-verify on yours.
@@ -187,7 +189,7 @@ respondent.
 
 ## Related
 
-- [`servicenow-grc-controls-build.md`](servicenow-grc-controls-build.md) — build the control + automated indicator (Path A)
+- [`servicenow-grc-controls-build.md`](servicenow-grc-controls-build.md) — build the control + automated indicator
 - [`controls-attestation-servicenow.md`](controls-attestation-servicenow.md) — the design / why
 - [`servicenow-grc-setup.md`](servicenow-grc-setup.md) — installing the GRC module
 - [`controls.md`](controls.md) — the underlying control statements
