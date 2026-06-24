@@ -219,3 +219,92 @@ When resolving a host to a CI:
 - If you must `LIKE`, at minimum filter `install_status=1` and
   `^ORDERBYDESCsys_created_on` so an ambiguous match can never pick a retired or
   stale CI.
+
+## GRC — Policy & Compliance controls + attestations
+
+The dc1.azure IT controls live in **GRC: Policy and Compliance Management**
+(`sn_compliance` 22.0.2, Now Platform Yokohama). Two docs cover it:
+`docs/servicenow-grc-controls-build.md` (build a control + automated indicator,
+"Path A") and `docs/servicenow-grc-auditor-walkthrough.md` (the human
+attestation on top). Build playbook: `playbooks/servicenow/create_grc_controls.yml`.
+
+Data-model chain (build): `sn_grc_profile` → `sn_compliance_policy_statement`
+(objective) → `sn_compliance_control` (control) → `sn_grc_indicator` →
+`sn_grc_indicator_result`. Control lifecycle: **Draft → Attest → Review →
+Monitor**. Reference slice: CTL-005 → control `CTRL0020001`, indicator
+`IND0020006`, profile *DC1.Azure - Demo Infrastructure*.
+
+### Build gotchas (live-discovered)
+- Don't send `entity`/`template` when creating an indicator — trips the *"Verify
+  entity change"* business rule. Entity is derived from the control.
+- The indicator's data-source **`table` field is UI-only** — REST silently drops
+  writes. Set it manually (Supporting Data tab → Source table), then **Execute**.
+- `sn_grc_indicator_result` / `_task` creation is **system-only** (create ACL =
+  role `nobody`, `admin_overrides=false`). You cannot "POST a result" from AAP —
+  use a native automated indicator instead.
+
+### Attestation data model
+- `asmt_metric_type` — the survey definition (*GRC Classic Attestation*: its
+  questions, duration, schedule).
+- `asmt_assessment_instance` — the assignment (e.g. `AINST0010041`); key fields
+  `state`, `user` (respondent), `due_date`, `taken_on`.
+- `asmt_assessment_instance_question` — the per-instance questions.
+- Roles to take one: `sn_compliance.user` + `sn_compliance.control_framework_user`
+  (an `admin` inherits both). Take-assessment UI:
+  `/<instance>/assessment_take2.do?sysparm_assessment_id=<instance-sys_id>`.
+
+### Attestation respondent gotcha — service accounts can't be impersonated
+If the attestation is assigned to `service.ansible` (AAP ServiceAccount), you
+**cannot** take it by impersonating that account. Root cause is **not** missing
+perms (it already holds `admin`) — it's **`web_service_access_only = true`** on
+the user record. That flag allows REST/SOAP auth only (no interactive UI
+session), so ServiceNow hides the user from the **Impersonate User** picker
+(searching the login *or* the display name returns "No results found").
+
+**Fix (preferred): reassign the attestation respondent to a human user** and take
+it as that person — also the more realistic GRC story. Scope by `sys_id`:
+```bash
+curl -s -u "$SN_USERNAME:$SN_PASSWORD" -X PATCH -H "Content-Type: application/json" \
+  -d '{"user":"<human-user-sys_id>"}' \
+  "$SN_HOST/api/now/table/asmt_assessment_instance/<instance-sys_id>"
+```
+Look up the human user by display **name** (the Impersonate picker and most
+lookups match `name`, not the `user_name` login):
+`GET sys_user?sysparm_query=name=Eric%20Ames&sysparm_fields=name,user_name,sys_id`.
+(Alternative — uncheck *Web service access only* on the service account first —
+works but widens its footprint; prefer reassignment.)
+
+**Root-cause fix (do this once, skip the per-instance dance forever):** the
+attestation respondent derives from the control **owner**, and with
+`sn_grc_item.sync_with_entity_owner = true` the owner derives from the entity
+(profile) owner. So point ownership at a human: set
+`sn_grc_profile.owned_by` **and** `sn_compliance_control.owner` to the human's
+`sys_id` (both, so the sync stays consistent and doesn't revert). New
+attestations then auto-assign to that person. The build playbook's profile
+`owned_by` should therefore be a human user, not the service account.
+
+### GRC read-ACL note
+Reading `sn_compliance_control` fields (e.g. `attestation_status`) under
+`service.ansible` returns *"Insufficient rights to query records"* — that
+account's GRC read scope is narrow. Read control-state fields as `admin`.
+
+### Control lifecycle — operational gotchas (live-discovered)
+The control state machine (**Draft → Attest → Review → Monitor → Retired**) is
+**flow-controlled**: a direct `PATCH sn_compliance_control{state}` is silently
+reverted (the API response even echoes the old value). You can only move stages
+via the **UI action buttons**. Consequences:
+- **Monitor and Retire buttons are adjacent** — clicking *Retire* instead of
+  *Monitor* overshoots to **Retired**, and from Retired the only button is
+  *Return to Draft*. There is no Retired→Monitor shortcut, API or UI.
+- **Retiring a control deactivates its linked Control Objective**
+  (`sn_compliance_policy_statement.active = false`). Re-walking then trips
+  *"Control objective is inactive."* Fix: `PATCH .../sn_compliance_policy_statement/<sys_id>`
+  with `{"active":"true"}` (find it via the control's `content` field).
+- **Return to Draft clears the Attestation metric type** on the control and
+  leaves prior attestation instances (one may show *Cancelled*). Before
+  re-Attesting, set **Attestation = GRC Classic Attestation** again and Update.
+- **Each Attest creates a fresh `asmt_assessment_instance`** assigned to the
+  control's respondent (synced from `owner` = the service account), so repeat
+  the per-instance `user` reassignment (above) on the *new* instance each time.
+- Completing the attestation **auto-advances** the control to **Review** (no
+  button); you then click **Monitor** to finish.

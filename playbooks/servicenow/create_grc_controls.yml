@@ -38,7 +38,14 @@
   vars:
     grc_profile_name: "DC1.Azure - Demo Infrastructure"
     grc_profile_class_name: "Server"          # seeded profile class
-    grc_profile_owner_user: "service.ansible"  # AAP ServiceAccount
+    # Profile/control owner — MUST be an interactive (human) user. The control
+    # owner derives the attestation respondent (via sync_with_entity_owner), and
+    # a `web_service_access_only` service account (e.g. service.ansible) can't be
+    # impersonated or take a survey — so attestations assigned to it are stuck.
+    # Default to `admin` (present + interactive on any instance); override with a
+    # real control owner: -e grc_profile_owner_user=<user_name>.
+    # See docs/servicenow-grc-auditor-walkthrough.md.
+    grc_profile_owner_user: "admin"
 
     grc_controls:
       - id: "CTL-005"

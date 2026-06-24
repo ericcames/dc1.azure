@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- **AB#181 — GRC control owner default → interactive user.** Changed
+  `create_grc_controls.yml` `grc_profile_owner_user` from `service.ansible` to
+  `admin`. The control owner derives the attestation respondent (via
+  `sync_with_entity_owner`), and a `web_service_access_only` service account
+  can't take a survey or be impersonated — so attestations assigned to it were
+  unworkable. Owner must be an interactive (human) user; override with
+  `-e grc_profile_owner_user=<user_name>`.
 - **AB#180 — GRC build doc corrections + verification screenshots.** Fixed
   `servicenow-grc-controls-build.md`: Source table lives on the **Supporting Data**
   tab (not "Method tab"), condition is on **Basic Criteria** tab, and the save
@@ -16,6 +23,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for the RHDH-based Ansible self-service portal route.
 
 ### Added
+- **AB#181 — GRC auditor walkthrough (CTL-005 attestation).** New
+  `docs/servicenow-grc-auditor-walkthrough.md` — the human-facing companion to
+  the controls build guide: walks taking a **GRC Classic Attestation**
+  (`AINST0010041`) against control `CTRL0020001` and the **Draft → Attest →
+  Review → Monitor** lifecycle. Documents the live-discovered **respondent
+  gotcha** — an attestation assigned to the `service.ansible` integration account
+  can't be impersonated because of `web_service_access_only=true` (not a perms
+  issue; it already has `admin`), and the fix is to reassign the instance `user`
+  to a human respondent. Five annotated screenshots
+  (`grc-audit-01..05`: Attest state, attestation ready, answered, complete, and
+  the CMDB CI + business-app relationship evidence). `/servicenow` skill gains a
+  **GRC controls + attestations** section capturing the same data model + gotchas.
 - **AB#180 — GRC controls + continuous-monitoring indicators (CTL-005 slice,
   Path A).** New idempotent playbook `playbooks/servicenow/create_grc_controls.yml`
   (+ per-control include `grc_control_tasks.yml`) builds the ServiceNow Policy &
