@@ -23,6 +23,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for the RHDH-based Ansible self-service portal route.
 
 ### Added
+- **AB#182 — GRC posture dashboard (controls & attestations view).** New
+  `docs/servicenow-grc-dashboard.md` — a demo/customer-facing build+navigate
+  guide for the **DC1.Azure - GRC Posture** dashboard (the *"auditor view"* the
+  design doc anticipated): two profile-scoped reports — *DC1.Azure - Control
+  posture* (`sn_compliance_control` by Status) and *DC1.Azure - Attestation
+  status* (`asmt_assessment_instance` by State, excluding Cancelled) — assembled
+  on a Platform Analytics dashboard. Both reports filter on the GRC **profile**
+  (controls `profile`, attestations `sn_grc_profile`) so the view auto-scales as
+  controls are added. Three screenshots (`grc-dash-01..03`). Captures the
+  live-found gotchas (the **"Created by me"** widget-picker hides API-created
+  reports; responsive dashboards aren't practical via the Table API; scope by
+  profile on the shared instance) in both the doc and the `/servicenow` skill.
+  Design doc updated to mark the auditor view **built**.
 - **AB#181 — GRC auditor walkthrough (CTL-005 attestation).** New
   `docs/servicenow-grc-auditor-walkthrough.md` — the human-facing companion to
   the controls build guide: walks taking a **GRC Classic Attestation**

@@ -308,3 +308,21 @@ via the **UI action buttons**. Consequences:
   the per-instance `user` reassignment (above) on the *new* instance each time.
 - Completing the attestation **auto-advances** the control to **Review** (no
   button); you then click **Monitor** to finish.
+
+### Reporting / posture dashboard
+A demo-facing "where are we with controls & attestations" view exists:
+`docs/servicenow-grc-dashboard.md` (full build/navigate guide). Pattern:
+- **Scope by GRC profile, not by control.** Controls filter `profile=<sys_id>`;
+  attestations filter `sn_grc_profile=<sys_id>` (same profile sys_id). One filter
+  covers both and auto-includes new controls on that profile. Mandatory on the
+  shared instance — never leave a custom GRC report instance-wide.
+- **`sys_report` is API-creatable** (POST `sys_report` with
+  `title/table/filter/type/field/aggregate/is_published`); set `user=<human>` at
+  create time. Exclude `state=canceled` from the attestation report for a clean pie.
+- **Dashboards are NOT practical via the Table API** — Platform Analytics
+  responsive dashboards use a tab→canvas→widget chain that isn't clean API fields
+  (`pa_tabs?dashboard=<id>` returns *all* tabs). Build the layout in the UI.
+- **Widget-picker gotcha:** the dashboard **Add Widgets** picker defaults to
+  **"Created by me"**, so API/script-created reports (owned by the integration
+  user) show "No data available." Fix: flip the picker to **All**, or reassign
+  `sys_report.user` to the human building the dashboard.

@@ -148,6 +148,11 @@ into a control posture. No changes to the provisioning playbooks are required fo
 the happy path; at most we'd add a queryable CI attribute if an indicator needs a
 faster lookup than scanning work notes.
 
+> **Built:** the *"Compliance dashboard / auditor view"* at the end of this flow
+> now exists — a profile-scoped **DC1.Azure - GRC Posture** dashboard (control
+> posture + attestation status). See
+> [`servicenow-grc-dashboard.md`](servicenow-grc-dashboard.md).
+
 ---
 
 ## 5. Plugin dependency & how to detect it
