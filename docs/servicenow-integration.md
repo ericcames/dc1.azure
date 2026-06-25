@@ -7,6 +7,12 @@ component inventory below reflects the shipped state. Secrets
 (`SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` + the shared `EDA_EVENT_STREAM_TOKEN`) live
 in the gitignored `docs/dev-environment.sh`.
 
+> **Rebuilding this from scratch?** See
+> [`docs/servicenow-eda-howto.md`](servicenow-eda-howto.md) — a generic,
+> customer/SA-followable step-by-step (AAP CaC + the full ServiceNow build,
+> including Flow Designer approval and the encrypted token model). This file is
+> the design/as-built record; that file is the how-to.
+
 > **What changed from v1:** the inbound trigger is no longer ServiceNow Flow
 > Designer doing a direct REST `launch/` of the workflow. Instead a ServiceNow
 > **Business Rule** fires an **Outbound REST Message** at an **AAP Event-Driven

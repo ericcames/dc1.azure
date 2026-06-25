@@ -35,6 +35,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for the RHDH-based Ansible self-service portal route.
 
 ### Added
+- **ServiceNow → AAP EDA integration how-to (customer/SA-followable).** New
+  [`docs/servicenow-eda-howto.md`](docs/servicenow-eda-howto.md) — a single,
+  generic, end-to-end guide a customer or Solution Architect can follow to
+  rebuild the ServiceNow → Event-Driven Ansible integration in their own
+  environment. Covers **both sides**: the AAP/EDA Config-as-Code (inline,
+  copy-paste, `REPLACE_ME_*` placeholders) and the full ServiceNow build —
+  catalog item from scratch, **Flow Designer approval** (reverse-engineered from
+  the live env: Service Catalog trigger → Ask for Approval → *Request Approved*
+  stage), the **encrypted `password2` bearer-token** model (`gs.getProperty()` at
+  runtime; no plaintext token in the REST Message), the Outbound REST Message, and
+  **both trigger patterns** (catalog→provision and incident→remediate) with
+  three annotated Business Rule screenshots. Cross-linked from
+  `docs/servicenow-integration.md` and `servicenow/README.md`.
 - **AB#182 — GRC posture dashboard (controls & attestations view).** New
   `docs/servicenow-grc-dashboard.md` — a demo/customer-facing build+navigate
   guide for the **DC1.Azure - GRC Posture** dashboard (the *"auditor view"* the

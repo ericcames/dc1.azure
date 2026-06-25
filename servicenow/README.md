@@ -10,6 +10,12 @@ reset and is reproducible on a fresh instance.
 > ServiceNow (RITM updates, CMDB CI, Incident) — lives in
 > [`../playbooks/servicenow/`](../playbooks/servicenow/). The end-to-end design is in
 > [`../docs/servicenow-integration.md`](../docs/servicenow-integration.md).
+>
+> **Rebuilding the whole integration in a fresh environment?** Follow the generic,
+> customer/SA-ready step-by-step in
+> [`../docs/servicenow-eda-howto.md`](../docs/servicenow-eda-howto.md) — it covers
+> the AAP/EDA Config-as-Code, the catalog item + Flow Designer approval, and the
+> encrypted token model, with screenshots.
 
 ## Placeholders (never commit live values)
 
