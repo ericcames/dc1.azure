@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- **ServiceNow EDA how-to — §5.5 load step now sources env vars.** The "Apply it"
+  command in `docs/servicenow-eda-howto.md` ran `ansible-playbook … load.yml`
+  without first sourcing the secrets file, so the CaC's `lookup('env', …)` inputs
+  (`EDA_EVENT_STREAM_TOKEN`, `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD`, Controller/SCM
+  creds) would load empty. Added the `source <secrets-file>` step in the same shell
+  invocation with a note that env vars don't carry across separate shells.
 - **ServiceNow EDA how-to — architecture diagram alignment.** Rebuilt the §3
   ASCII flow diagram in `docs/servicenow-eda-howto.md` with single-width ASCII
   glyphs (`+-| --> v`) so every box border lines up; the previous Unicode

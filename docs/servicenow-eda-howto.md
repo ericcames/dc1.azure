@@ -358,7 +358,14 @@ eda_rulebook_activations:
 
 ### 5.5 Apply it
 
+The CaC reads its secrets from **environment variables** at load time (the bearer token,
+the Controller/SCM credentials, and the ServiceNow service-account creds — `EDA_EVENT_STREAM_TOKEN`,
+`SN_HOST`/`SN_USERNAME`/`SN_PASSWORD`, etc.). **Export them and run `ansible-playbook` in the
+*same* shell invocation** — env vars do not carry across separate shells, and if they're
+unset the credentials load empty:
+
 ```bash
+source <your-secrets-file>.sh   # e.g. `source docs/dev-environment.sh` (gitignored)
 ansible-playbook -i aap_config/inventory/ aap_config/load.yml \
   2>&1 | tee /tmp/load-$(date +%Y%m%d-%H%M%S).log
 ```
