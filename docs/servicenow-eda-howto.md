@@ -63,33 +63,33 @@ runs a workflow.
 ## 3. Architecture
 
 ```
-┌─ ServiceNow ─────────────────────────────────────────────────────────────┐
-│                                                                           │
-│  1. User orders catalog item ─► 2. Flow Designer: Ask for Approval        │
-│     (or: an Incident is                     │                             │
-│      created against a CI)                  ▼ (approved)                   │
-│                                   RITM stage = "Request Approved"          │
-│                                             │                             │
-│                                             ▼                             │
-│  3. Business Rule fires ─► reads encrypted token (gs.getProperty) ─►       │
-│       builds JSON payload ─► Outbound REST Message POST                    │
-│            (Authorization: Bearer <token>)                                 │
-└───────────────────────────────────────────┬───────────────────────────────┘
-                                             │  HTTPS POST
-                                             ▼
-┌─ AAP (Event-Driven Ansible) ──────────────────────────────────────────────┐
-│  4. Event stream receives the POST, validates the bearer token            │
-│  5. Rulebook activation: condition matches payload.short_description ─►    │
-│       action: run_workflow_template                                       │
-│  6. Workflow runs (provision / remediate) ─► emits set_stats facts        │
-│  7. Callback job templates POST back to ServiceNow:                       │
-│       update RITM (state + work notes), create CMDB CI, create Incident   │
-└───────────────────────────────────────────┬───────────────────────────────┘
-                                             │  servicenow.itsm modules
-                                             ▼
-┌─ ServiceNow ──────────────────────────────────────────────────────────────┐
-│  8. RITM → Closed Complete, CMDB CI created & linked, (or Incident on fail)│
-└────────────────────────────────────────────────────────────────────────────┘
++-- ServiceNow ------------------------------------------------------------+
+|                                                                          |
+| 1. User orders catalog item --> 2. Flow Designer: Ask for Approval       |
+|    (or: an Incident is                      |                            |
+|     created against a CI)                   v   (approved)               |
+|                                   RITM stage = "Request Approved"        |
+|                                             |                            |
+|                                             v                            |
+| 3. Business Rule fires --> reads encrypted token (gs.getProperty)        |
+|      --> builds JSON payload --> Outbound REST Message POST              |
+|          (Authorization: Bearer <token>)                                 |
++-------------------------------------------+------------------------------+
+                                            |  HTTPS POST
+                                            v
++-- AAP (Event-Driven Ansible) --------------------------------------------+
+| 4. Event stream receives the POST, validates the bearer token            |
+| 5. Rulebook activation: matches payload.short_description                |
+|      --> action: run_workflow_template                                   |
+| 6. Workflow runs (provision / remediate) --> emits set_stats facts       |
+| 7. Callback job templates POST back to ServiceNow:                       |
+|      update RITM (state + work notes), create CMDB CI, Incident          |
++-------------------------------------------+------------------------------+
+                                            |  servicenow.itsm modules
+                                            v
++-- ServiceNow ------------------------------------------------------------+
+| 8. RITM --> Closed Complete, CMDB CI created & linked (or Incident)      |
++--------------------------------------------------------------------------+
 ```
 
 The key design choice: **ServiceNow holds no workflow ID and no launch-scoped AAP token** —

@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Changed
+- **ServiceNow EDA how-to — architecture diagram alignment.** Rebuilt the §3
+  ASCII flow diagram in `docs/servicenow-eda-howto.md` with single-width ASCII
+  glyphs (`+-| --> v`) so every box border lines up; the previous Unicode
+  arrowheads (`─► ▼ →`) render double-width in a monospace code block and
+  pushed the right border left only on those lines.
 - **GRC documentation cleanup + index (Phase 23 wrap-up; AB#183).** Added a
   new entry-point [`docs/servicenow-grc-README.md`](docs/servicenow-grc-README.md)
   that orders the six GRC docs into a reading path and holds a control-coverage
