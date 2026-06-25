@@ -165,7 +165,7 @@ collection's roles. The snippets below are copy-paste-ready — replace the `REP
 placeholders and the `{{ … }}` variables with your own.
 
 > The worked example pins `infra.aap_configuration: 4.4.0` in
-> [`collections/requirements.yml`](../collections/requirements.yml); the
+> [`collections/requirements.yml`](https://github.com/ericcames/dc1.azure/blob/main/collections/requirements.yml); the
 > [`release/4.6.1`](https://github.com/redhat-cop/infra.aap_configuration/tree/release/4.6.1)
 > branch is the current stream — pin whichever version you validate against.
 
@@ -195,7 +195,7 @@ role.
 
 This is the brain of the integration — it listens for events and decides which workflow to
 run. See the worked example at
-[`rulebooks/servicenow_events.yml`](../rulebooks/servicenow_events.yml).
+[`rulebooks/servicenow_events.yml`](https://github.com/ericcames/dc1.azure/blob/main/rulebooks/servicenow_events.yml).
 
 ```yaml
 ---
@@ -254,7 +254,7 @@ remediation workflow:
 
 ### 5.3 EDA credentials
 
-See [`aap_config/files/eda_credentials.yml`](../aap_config/files/eda_credentials.yml).
+See [`aap_config/files/eda_credentials.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_credentials.yml).
 
 ```yaml
 eda_credentials:
@@ -288,7 +288,7 @@ eda_credentials:
 
 ### 5.4 EDA project, event stream, and rulebook activation
 
-Project — [`aap_config/files/eda_projects.yml`](../aap_config/files/eda_projects.yml):
+Project — [`aap_config/files/eda_projects.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_projects.yml):
 
 ```yaml
 eda_projects:
@@ -300,7 +300,7 @@ eda_projects:
     sync: true
 ```
 
-Event stream — [`aap_config/files/eda_event_streams.yml`](../aap_config/files/eda_event_streams.yml).
+Event stream — [`aap_config/files/eda_event_streams.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_event_streams.yml).
 This is the inbound ingress; its **URL** is what ServiceNow POSTs to:
 
 ```yaml
@@ -311,7 +311,7 @@ eda_event_streams:
     forward_events: true
 ```
 
-Rulebook activation — [`aap_config/files/eda_rulebook_activations.yml`](../aap_config/files/eda_rulebook_activations.yml).
+Rulebook activation — [`aap_config/files/eda_rulebook_activations.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_rulebook_activations.yml).
 This binds the rulebook + event stream + decision environment + credentials:
 
 ```yaml
@@ -361,10 +361,15 @@ https://REPLACE_ME_AAP_HOST/eda-event-streams/api/eda/v1/external_event_stream/<
 
 You'll paste this into the ServiceNow Outbound REST Message (Part B).
 
-> 📸 **Screenshot to capture:** the Event Stream detail page showing the **URL** and the
-> **events-received** counter.
->
-> 📸 **Screenshot to capture:** the **Rulebook Activation** showing status **Running**.
+The Event Stream **Details** page shows the **URL** (copy it here — redacted in this
+example) and an **events-received** counter that increments on each ServiceNow POST:
+
+![AAP — Event Stream details (URL + events received)](images/snow-event-stream.png)
+
+The **Rulebook Activation** should show status **Running** (here, *DC1.Azure - Catch
+ServiceNow Events*):
+
+![AAP — Rulebook Activations list showing Running](images/aap-rulebook-activation.png)
 
 ---
 
@@ -373,17 +378,17 @@ You'll paste this into the ServiceNow Outbound REST Message (Part B).
 Build these in order. Placeholders: `REPLACE_ME_PREFIX` (e.g. `dc1`), the event-stream URL
 from §5.6, and the bearer token from §4.
 
-> 📸 **Screenshots to capture in this section** (full list, so you can grab them in one pass):
-> 1. The **catalog item** form (Name, Short description).
-> 2. The **`os_type`** and **`vm_size_tier`** variables and their choice values.
-> 3. The catalog item's **Flow** field pointing at the Flow Designer flow.
-> 4. The Flow Designer flow: the **Service Catalog trigger** and the **Ask for Approval** action.
-> 5. The encrypted **System Property** form showing **Type = `password2 (Encrypted)`**.
-> 6. The **Outbound REST Message** form (endpoint + the single `Content-Type` header).
-> 7. The **catalog Business Rule** *When to run* tab (already provided — see §6.5).
-> 8. The Business Rule **Advanced → Script** tab (already provided — see §6.5).
-> 9. The **incident Business Rule** *When to run* tab (already provided — see §6.6).
-> 10. A finished **RITM** showing the AAP-written work notes (FQDN/IP) and *Closed Complete*.
+> 📸 **Screenshots** (✅ = included below; ⬜ = still to capture):
+> 1. ✅ The **catalog item** form (Name, Short description) — §6.1.
+> 2. ✅ The **`os_type`** and **`vm_size_tier`** variables and their choice values — §6.1.
+> 3. ✅ The catalog item's **Flow** field pointing at the Flow Designer flow — §6.2.
+> 4. ✅ The Flow Designer flow: the **Service Catalog trigger** and the **Ask for Approval** action — §6.2.
+> 5. ✅ The encrypted **System Property** form showing **Type = `password2`** — §6.3.
+> 6. ✅ The **Outbound REST Message** form (endpoint + the single `Content-Type` header) — §6.4.
+> 7. ✅ The **catalog Business Rule** *When to run* tab — §6.5.
+> 8. ✅ The Business Rule **Advanced → Script** tab — §6.5.
+> 9. ✅ The **incident Business Rule** *When to run* tab — §6.6.
+> 10. ✅ A finished **RITM** showing the AAP-written work notes (FQDN/IP) and *Closed Complete* — §7.
 
 ### 6.1 Create the catalog item (build from scratch)
 
@@ -395,6 +400,8 @@ from §5.6, and the bearer token from §4.
    `REPLACE_ME_SHORT_DESCRIPTION` (e.g. `DC1.Azure Infrastructure Provisioning`).
 4. (Optional) upload an icon on the catalog item form.
 
+![Catalog item — Item Details (Name + Short description)](images/snow-catalog-item.png)
+
 Add the two variables (**Catalog item → Variables → New**):
 
 | Variable | Type | Choices | Default |
@@ -402,8 +409,20 @@ Add the two variables (**Catalog item → Variables → New**):
 | `os_type` | Multiple Choice | `windows`, `linux`, `both` | `windows` |
 | `vm_size_tier` | Multiple Choice | `small-2cpu-4gb`, `medium-2cpu-8gb`, `large-4cpu-16gb` | `medium-2cpu-8gb` |
 
+The catalog item's **Variables** related list — both variables defined as *Multiple Choice*:
+
+![Catalog item — Variables related list](images/snow-catalog-variables.png)
+
+Each variable's **Name** must be exactly `os_type` / `vm_size_tier` (the rulebook and the
+Business Rule reference these), and the **Question Choices** values must match what the
+workflow survey expects:
+
+![os_type variable — Multiple Choice with windows/linux/both](images/snow-variable-os-type.png)
+
+![vm_size_tier variable — Multiple Choice with small/medium/large](images/snow-variable-vm-size.png)
+
 > The worked example also ships
-> [`playbooks/servicenow/update_catalog_item.yml`](../playbooks/servicenow/update_catalog_item.yml)
+> [`playbooks/servicenow/update_catalog_item.yml`](https://github.com/ericcames/dc1.azure/blob/main/playbooks/servicenow/update_catalog_item.yml)
 > to edit the item's text fields via the Table API once it exists.
 
 ### 6.2 Fulfillment & approval — Flow Designer
@@ -414,24 +433,38 @@ request there. You have two options.
 
 #### Option A (recommended, as-built): a Flow Designer approval flow
 
-1. **All → Flow Designer → New → Flow.** Name it (e.g. `Request Infrastructure approval`).
-2. **Trigger:** **Service Catalog** — select your catalog item. The flow runs when the item
-   is requested.
-3. **Action:** **Ask for Approval** on the RITM (or its parent request). Choose your
-   approvers:
-   - *Single approver* (e.g. the requester's manager) — simplest governance story.
-   - *Group / "anyone approves"* — add several approvers; the first approval satisfies the
-     step and the rest become *No Longer Required*. (This is what the worked-example demo
-     uses, so any SE on the team can approve.)
-4. On **Approved**, the standard catalog process advances the RITM to
-   *Request Approved / Work in Progress* — which the Business Rule keys on. On **Rejected**,
-   the RITM closes *Closed Incomplete* and nothing fires.
-5. **Attach the flow to the catalog item:** open the catalog item → set its **Flow** field
-   (`flow_designer_flow`) to this flow. Make sure the item has **no** legacy *Workflow*
-   set (Flow and legacy Workflow are mutually exclusive).
+Build a flow with a **Service Catalog trigger** and three actions —
+*Get Catalog Variables → Ask For Approval → Update Requested Item Record*:
 
-> 📸 **Screenshot to capture:** the flow showing the **Service Catalog trigger** and the
-> **Ask for Approval** action; and the catalog item's **Flow** field.
+![Flow Designer — Service Catalog trigger and the three actions](images/snow-flow-overview.png)
+
+1. **All → Flow Designer → New → Flow.** Name it (e.g. `Request Infrastructure approval`).
+2. **Trigger: Service Catalog** — select your catalog item; the flow runs when the item is
+   requested.
+3. **Action 1 — Get Catalog Variables** (optional but handy): pull the request's variables
+   (`os_type`, `vm_size_tier`) so later steps can reference them.
+4. **Action 2 — Ask For Approval** on the *Requested Item* (`sc_req_item`). Set the
+   **Approval Field** to `Approval` and a rule of **Approve / Anyone approves**, pointing at
+   an approver or a group. With *Anyone approves*, the first approval satisfies the step and
+   the rest become *No Longer Required*. On rejection the RITM closes *Closed Incomplete* and
+   nothing fires.
+
+   ![Flow Designer — Ask For Approval (Anyone approves)](images/snow-flow-ask-approval.png)
+
+5. **Action 3 — Update Requested Item Record:** set **State = Work in Progress**. This —
+   together with the granted approval (which puts the RITM at the *Request Approved* stage) —
+   is exactly the condition the catalog Business Rule (§6.5) keys on
+   (`stage=request_approved ^ state=Work in Progress`).
+
+   ![Flow Designer — Update Record sets State = Work in Progress](images/snow-flow-update-record.png)
+
+6. **Attach the flow to the catalog item:** open the catalog item → **Process Engine** tab →
+   set its **Flow** field (`flow_designer_flow`) to this flow. Make sure the item has **no**
+   legacy *Workflow* set (Flow and legacy Workflow are mutually exclusive).
+
+The catalog item's **Process Engine** tab — **Flow** set, legacy **Workflow** empty:
+
+![Catalog item — Process Engine tab with Flow set and Workflow empty](images/snow-catalog-flow-field.png)
 
 #### Option B (simplest demo path): no approval
 
@@ -452,7 +485,10 @@ approved stage. Easiest to reproduce on an empty instance, but there's **no appr
 This is the matched pair with the AAP `ServiceNow Event Stream` credential. See §4 for the
 full rationale.
 
-> 📸 **Screenshot to capture:** this property form with **Type = `password2 (Encrypted)`**.
+The property form — **Type = `password2`** (encrypted); the **Value** is redacted here
+because it's the live bearer token:
+
+![Encrypted System Property — Type password2](images/snow-token-property.png)
 
 ### 6.4 Outbound REST Message
 
@@ -472,7 +508,15 @@ full rationale.
 > prefix REST Messages, Business Rules, and properties with your name (e.g.
 > `Ames - …`, `Faith - …`, `Harris - …`) so they don't collide.
 
-> 📸 **Screenshot to capture:** the REST Message form (endpoint + the single header).
+The REST Message with the **Endpoint** set (redacted here) and **Authentication type = No
+authentication** — the bearer is injected by the Business Rule, not stored here:
+
+![REST Message — endpoint + No authentication](images/snow-rest-message-auth.png)
+
+The **HTTP Request** tab shows the single **`Content-Type: application/json`** header — and
+no `Authorization` header:
+
+![REST Message — HTTP Request tab with only Content-Type](images/snow-rest-message-headers.png)
 
 ### 6.5 Business Rule — catalog pattern
 
@@ -491,7 +535,7 @@ The *When to run* tab and the requester allowlist look like this:
 ![Catalog Business Rule — When to run](images/snow-br-catalog-whentorun.png)
 
 **Script** (Advanced → Script). Full worked example:
-[`servicenow/business_rules/fire_eda_on_ritm.js`](../servicenow/business_rules/fire_eda_on_ritm.js).
+[`servicenow/business_rules/fire_eda_on_ritm.js`](https://github.com/ericcames/dc1.azure/blob/main/servicenow/business_rules/fire_eda_on_ritm.js).
 
 ```javascript
 (function executeRule(current, previous) {
@@ -616,8 +660,20 @@ a CI you manage.
      newline). `Bearer ` with no token = the property is empty/misnamed.
 4. **AAP:** the event stream's **events-received** count increments → the **rulebook
    activation** fires → the **workflow** launches (Automation Execution → Jobs).
-5. **Round-trip:** when the workflow finishes, the RITM should show AAP-written work notes
-   (FQDN, IP) and reach *Closed Complete*; the CMDB CI is created and linked.
+5. **Round-trip:** when the workflow finishes, the RITM reaches *Closed Complete* with its
+   **Stage = Request Approved**:
+
+   ![RITM — Stage Request Approved, State Closed Complete](images/snow-ritm-complete.png)
+
+   AAP writes back **work notes** with the VM details (FQDN/IP redacted here) and an explicit
+   note that the admin password stays in AAP — never on the ticket — plus the
+   *State: Closed Complete was Work in Progress* field change:
+
+   ![RITM — AAP-written work notes (closed loop)](images/snow-ritm-worknotes.png)
+
+   The CMDB CI(s) are created and linked to the RITM under **Affected CIs**:
+
+   ![RITM — Affected CIs (CMDB linkage)](images/snow-ritm-affected-cis.png)
 
 ---
 
@@ -642,16 +698,16 @@ a CI you manage.
 ## 9. Reference links
 
 **This repo (worked example):**
-- [`rulebooks/servicenow_events.yml`](../rulebooks/servicenow_events.yml) — catalog rulebook
-- [`aap_config/files/eda_credentials.yml`](../aap_config/files/eda_credentials.yml),
-  [`eda_projects.yml`](../aap_config/files/eda_projects.yml),
-  [`eda_event_streams.yml`](../aap_config/files/eda_event_streams.yml),
-  [`eda_rulebook_activations.yml`](../aap_config/files/eda_rulebook_activations.yml) — EDA CaC
-- [`servicenow/business_rules/fire_eda_on_ritm.js`](../servicenow/business_rules/fire_eda_on_ritm.js)
+- [`rulebooks/servicenow_events.yml`](https://github.com/ericcames/dc1.azure/blob/main/rulebooks/servicenow_events.yml) — catalog rulebook
+- [`aap_config/files/eda_credentials.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_credentials.yml),
+  [`eda_projects.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_projects.yml),
+  [`eda_event_streams.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_event_streams.yml),
+  [`eda_rulebook_activations.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_rulebook_activations.yml) — EDA CaC
+- [`servicenow/business_rules/fire_eda_on_ritm.js`](https://github.com/ericcames/dc1.azure/blob/main/servicenow/business_rules/fire_eda_on_ritm.js)
   — catalog Business Rule
-- [`servicenow/README.md`](../servicenow/README.md) — ServiceNow-side install order
-- [`docs/servicenow-integration.md`](servicenow-integration.md) — full design / as-built record
-- [`playbooks/servicenow/`](../playbooks/servicenow/) — the AAP→ServiceNow callback playbooks
+- [`servicenow/README.md`](https://github.com/ericcames/dc1.azure/blob/main/servicenow/README.md) — ServiceNow-side install order
+- [`docs/servicenow-integration.md`](https://github.com/ericcames/dc1.azure/blob/main/docs/servicenow-integration.md) — full design / as-built record
+- [`playbooks/servicenow/`](https://github.com/ericcames/dc1.azure/tree/main/playbooks/servicenow) — the AAP→ServiceNow callback playbooks
 
 **External:**
 - [`infra.aap_configuration` (release/4.6.1)](https://github.com/redhat-cop/infra.aap_configuration/tree/release/4.6.1)

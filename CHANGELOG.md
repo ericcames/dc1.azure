@@ -35,6 +35,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for the RHDH-based Ansible self-service portal route.
 
 ### Added
+- **ServiceNow EDA how-to — full screenshot walkthrough + absolute code links.**
+  Added 16 live screenshots to `docs/servicenow-eda-howto.md` covering every step:
+  catalog item + `os_type`/`vm_size_tier` variables, the Flow Designer approval flow
+  (Service Catalog trigger → Get Catalog Variables → Ask For Approval *Anyone approves*
+  → Update Record sets *Work in Progress*), the encrypted `password2` token property,
+  the Event Stream + Rulebook Activation, the Outbound REST Message (endpoint + lone
+  `Content-Type`), and the round-trip RITM (work notes, *Closed Complete*, Affected CIs).
+  Seven shots were redaction-cleaned (RHDP cluster URL, event-stream UUID, Azure
+  FQDNs/IPs, Dynatrace tenant, and the encrypted token value all black-boxed). Corrected
+  §6.2 to the real 3-action flow, and converted all in-repo code references to absolute
+  `github.com/ericcames/dc1.azure` URLs so the guide is shareable standalone.
 - **ServiceNow → AAP EDA integration how-to (customer/SA-followable).** New
   [`docs/servicenow-eda-howto.md`](docs/servicenow-eda-howto.md) — a single,
   generic, end-to-end guide a customer or Solution Architect can follow to
