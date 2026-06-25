@@ -57,6 +57,8 @@ runs a workflow.
 - The **`infra.aap_configuration`** and **`ansible.eda`** collections (for the CaC in Part A).
 - A workflow (or job) template in AAP that actually does the work you want to trigger.
   This guide assumes it already exists — it triggers *your* workflow; it doesn't build it.
+- A **ServiceNow service account** for the callbacks (AAP → ServiceNow). You'll set its
+  host/user/password as `SN_HOST` / `SN_USERNAME` / `SN_PASSWORD` (see §5.7 and §6.8).
 
 ---
 
@@ -101,7 +103,18 @@ automation.
 
 ## 4. The security model: the encrypted bearer token (read this first)
 
-The single shared secret in this integration is a **bearer token**. Get this right and the
+> **Two credentials, two directions.** This integration authenticates in **both**
+> directions, with **separate** credentials:
+> 1. **Inbound — ServiceNow → AAP** (this section): a shared **bearer token** that secures
+>    the EDA event-stream POST.
+> 2. **Outbound — AAP → ServiceNow** (the callbacks that update the RITM / CMDB / incident):
+>    a ServiceNow **service account** (host + user + password), held in an AAP credential of
+>    a custom type. See **§5.7** (AAP credential type + instance) and **§6.8** (creating the
+>    ServiceNow service account).
+>
+> They are independent — different secrets, different jobs. This section is the inbound token.
+
+The single shared secret on the **inbound** path is a **bearer token**. Get this right and the
 rest is plumbing; get it wrong and you'll see `401`s.
 
 ### What the token is
@@ -371,6 +384,84 @@ ServiceNow Events*):
 
 ![AAP — Rulebook Activations list showing Running](images/aap-rulebook-activation.png)
 
+### 5.7 AAP → ServiceNow callback credential (custom credential type)
+
+Everything above is the **inbound** path. The **outbound** path — where AAP writes back to
+ServiceNow (updates the RITM, creates the CMDB CI, opens an incident on failure) — needs AAP
+to authenticate to ServiceNow as a **service account** (§6.8). AAP carries those creds in a
+**custom credential type** that injects them as environment variables the `servicenow.itsm`
+modules read automatically.
+
+**Step 1 — define the custom credential type** (`aap_config/files/controller_credential_types.yml`).
+The `injectors.env` block is the key: it turns the credential's fields into `SN_HOST` /
+`SN_USERNAME` / `SN_PASSWORD` for any job that uses the credential:
+
+```yaml
+controller_credential_types:
+  - name: ServiceNow ITSM Credential
+    description: ServiceNow ITSM Credential
+    inputs:
+      fields:
+        - id: instance
+          type: string
+          label: Instance
+        - id: username
+          type: string
+          label: username
+        - id: password
+          type: string
+          label: password
+          secret: true            # stored encrypted; write-only in the UI
+      required:
+        - instance
+        - username
+        - password
+    injectors:
+      env:
+        SN_HOST: !unsafe '{{instance}}'
+        SN_USERNAME: !unsafe '{{username}}'
+        SN_PASSWORD: !unsafe '{{password}}'
+```
+
+> `!unsafe` stops Ansible from templating `{{instance}}` etc. at load time — they must reach
+> AAP literally so AAP substitutes the credential's values at job run time.
+
+**Step 2 — create the credential instance** of that type
+(`aap_config/files/controller_credentials.yml`). The inputs come from env vars (your
+gitignored secrets file), never hard-coded:
+
+```yaml
+controller_credentials:
+  - name: "REPLACE_ME_SNOW_CRED"          # e.g. "DC1.Azure - ServiceNow"
+    organization: "{{ my_organization }}"
+    credential_type: "ServiceNow ITSM Credential"
+    inputs:
+      instance: "{{ lookup('ansible.builtin.env', 'SN_HOST') }}"
+      username: "{{ lookup('ansible.builtin.env', 'SN_USERNAME') }}"
+      password: "{{ lookup('ansible.builtin.env', 'SN_PASSWORD') }}"
+```
+
+> **Ordering matters:** apply the **credential type before the credential instance** — the
+> instance references the type by name. In the worked example, `load.yml` lists
+> `controller_credential_types.yml` immediately before `controller_credentials.yml` in its
+> `vars_files`.
+
+**Step 3 — attach the credential to the callback job templates.** Any JT that runs a
+`playbooks/servicenow/*.yml` callback (RITM update, CMDB CI, incident) gets this credential;
+its `injectors` then expose `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD` to the `servicenow.itsm`
+modules with **no auth parameters in the tasks**. (`SN_HOST` is the instance URL,
+`https://your-instance.service-now.com`.)
+
+The AAP **Credential Type** — the Input fields and the **Injector configuration** that maps
+them to `SN_HOST`/`SN_USERNAME`/`SN_PASSWORD`:
+
+![AAP — ServiceNow ITSM Credential type (inputs + injectors)](images/aap-credential-type.png)
+
+The **credential instance** of that type — Host and Username are visible; the password is
+write-only (shows `ENCRYPTED`). The instance URL is redacted here:
+
+![AAP — DC1.Azure ServiceNow credential instance](images/aap-snow-credential.png)
+
 ---
 
 ## 6. Part B — ServiceNow side
@@ -389,6 +480,9 @@ from §5.6, and the bearer token from §4.
 > 8. ✅ The Business Rule **Advanced → Script** tab — §6.5.
 > 9. ✅ The **incident Business Rule** *When to run* tab — §6.6.
 > 10. ✅ A finished **RITM** showing the AAP-written work notes (FQDN/IP) and *Closed Complete* — §7.
+> 11. ✅ The AAP **custom credential type** (inputs + injectors) — §5.7.
+> 12. ✅ The AAP **ServiceNow credential** instance — §5.7.
+> 13. ✅ The ServiceNow **service-account** user record — §6.8.
 
 ### 6.1 Create the catalog item (build from scratch)
 
@@ -640,6 +734,51 @@ a CI you manage.
   (`<Name> - … EDA Event Stream`), their own token property (`<prefix>.eda_event_stream_token`),
   and points them at *their* AAP event stream — so events route to the right AAP.
 
+### 6.8 ServiceNow service account (for AAP callbacks)
+
+The **outbound** path (AAP → ServiceNow) authenticates as a dedicated **service account** —
+the user whose host/name/password you put in `SN_HOST` / `SN_USERNAME` / `SN_PASSWORD` and
+into the AAP credential from §5.7. Create it as an API-only user, not a person's login.
+
+**Create the user** (*All → User Administration → Users → New*):
+
+- **User ID:** e.g. `service.ansible` (this name appears on the tickets it touches — it's the
+  `incident_caller` and CMDB CI `assigned_to`).
+- **Active:** ✓
+- **Identity type:** *Machine* — which enables **Web service access only = ✓** (the account
+  can authenticate to the REST API but **cannot** log into the UI; best practice for an
+  integration user).
+- **Internal Integration User:** leave unchecked (an external integration account).
+- Set a strong password (*Set Password*) and put it in `SN_PASSWORD`.
+
+**Assign roles — least privilege for what the callbacks actually do:**
+
+| Callback (playbook) | ServiceNow table | Needs to |
+|---------------------|------------------|----------|
+| Update RITM | `sc_req_item` | read + write (PATCH) |
+| Create CMDB CI + link | `cmdb_ci_*`, `task_ci` | create/write |
+| Create CMDB relationship | `cmdb_rel_ci` | create |
+| Create incident | `incident` | create |
+
+A workable least-privilege set: **`itil`** (RITM/incident/task write) + **`sn_request_write`**
++ **`sn_incident_write`** + a CMDB write role (**`sn_cmdb_editor`** or **`cmdb_inst_admin`**),
+plus REST access (**`snc_platform_rest_api_access`**). Confirm against your instance's security
+model and tighten as needed.
+
+> **As-built note:** the worked-example demo account grants full **`admin`** for simplicity on
+> a throwaway PDI. **Production should scope down** to the roles above — don't ship an `admin`
+> integration user.
+
+> **Branding tip (optional):** set the user's **Photo** to your automation logo (e.g. the
+> Ansible mark). Every RITM work note, CMDB record, and incident the callbacks create then
+> shows that avatar — a clear visual signal that *automation* did the work.
+
+The service-account **user record** — *Identity type = Machine*, *Web service access only = ✓*,
+*Active*, the Roles count, and the Ansible avatar (so its ticket activity is visibly
+automation-driven). Email/phone are redacted here:
+
+![ServiceNow — AAP service account user record](images/aap-snow-service-account.png)
+
 ---
 
 ## 7. Verify end-to-end
@@ -703,6 +842,9 @@ a CI you manage.
   [`eda_projects.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_projects.yml),
   [`eda_event_streams.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_event_streams.yml),
   [`eda_rulebook_activations.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/eda_rulebook_activations.yml) — EDA CaC
+- [`aap_config/files/controller_credential_types.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/controller_credential_types.yml),
+  [`controller_credentials.yml`](https://github.com/ericcames/dc1.azure/blob/main/aap_config/files/controller_credentials.yml)
+  — the custom `ServiceNow ITSM Credential` type + the `DC1.Azure - ServiceNow` instance (§5.7)
 - [`servicenow/business_rules/fire_eda_on_ritm.js`](https://github.com/ericcames/dc1.azure/blob/main/servicenow/business_rules/fire_eda_on_ritm.js)
   — catalog Business Rule
 - [`servicenow/README.md`](https://github.com/ericcames/dc1.azure/blob/main/servicenow/README.md) — ServiceNow-side install order

@@ -40,6 +40,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for the RHDH-based Ansible self-service portal route.
 
 ### Added
+- **ServiceNow EDA how-to — outbound (AAP→ServiceNow) callback auth.** Documented
+  the previously-missing return path in `docs/servicenow-eda-howto.md`: a "two
+  credentials, two directions" note in §4, a new §5.7 covering the **custom AAP
+  credential type** (`ServiceNow ITSM Credential`, with the `SN_HOST`/`SN_USERNAME`/
+  `SN_PASSWORD` injectors) and its credential instance, and a new §6.8 on creating
+  the **ServiceNow service account** (API-only / *Web service access only*, Machine
+  identity, least-privilege roles vs. the demo's `admin`, Ansible-avatar branding).
+  Added three screenshots (credential type, credential instance, service-account
+  user) — the instance URL, email, and phone redaction-cleaned — plus §2/§9 and
+  checklist updates.
 - **ServiceNow EDA how-to — full screenshot walkthrough + absolute code links.**
   Added 16 live screenshots to `docs/servicenow-eda-howto.md` covering every step:
   catalog item + `os_type`/`vm_size_tier` variables, the Flow Designer approval flow
